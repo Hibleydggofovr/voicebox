@@ -36,6 +36,12 @@ def build_server():
         '--exclude-module', 'torch.distributions',
         '--exclude-module', 'torch.testing',
         '--exclude-module', 'tensorboard',
+        '--exclude-module', 'torch.utils.tensorboard',
+        '--exclude-module', 'scipy',
+        '--exclude-module', 'PIL',
+        '--exclude-module', 'tkinter',
+        '--exclude-module', 'unittest',
+        '--exclude-module', 'test',
     ])
 
     # Add hidden imports
