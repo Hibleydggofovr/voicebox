@@ -11,9 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn } from '@/lib/utils/cn';
 import { apiClient } from '@/lib/api/client';
 import { useDeleteGeneration, useHistory } from '@/lib/hooks/useHistory';
+import { cn } from '@/lib/utils/cn';
 import { formatDate, formatDuration } from '@/lib/utils/format';
 import { usePlayerStore } from '@/stores/playerStore';
 
@@ -70,42 +70,48 @@ export function HistoryTable() {
         </div>
       ) : (
         <>
-          <div className={cn(
-            "flex-1 min-h-0 overflow-y-auto border rounded-md overflow-x-hidden",
-            isPlayerVisible && "max-h-[calc(100vh-280px)]"
-          )}>
+          <div
+            className={cn(
+              'flex-1 min-h-0 overflow-y-auto border rounded-md overflow-x-hidden',
+              isPlayerVisible && 'max-h-[calc(100vh-220px)]',
+            )}
+          >
             <Table className="w-full table-fixed">
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead className="w-[40%]">Text</TableHead>
-                    <TableHead className="w-[15%]">Profile</TableHead>
-                    <TableHead className="w-[10%]">Language</TableHead>
-                    <TableHead className="w-[10%]">Duration</TableHead>
-                    <TableHead className="w-[15%]">Created</TableHead>
-                    <TableHead className="w-[10%] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((gen) => {
-                    const isCurrentlyPlaying = currentAudioId === gen.id && isPlaying;
-                    return (
-                    <TableRow 
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead className="w-[40%]">Text</TableHead>
+                  <TableHead className="w-[15%]">Profile</TableHead>
+                  <TableHead className="w-[10%]">Language</TableHead>
+                  <TableHead className="w-[10%]">Duration</TableHead>
+                  <TableHead className="w-[15%]">Created</TableHead>
+                  <TableHead className="w-[10%] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((gen) => {
+                  const isCurrentlyPlaying = currentAudioId === gen.id && isPlaying;
+                  return (
+                    <TableRow
                       key={gen.id}
-                      className={cn(
-                        isCurrentlyPlaying && 'bg-muted/50',
-                        'cursor-pointer'
-                      )}
+                      className={cn(isCurrentlyPlaying && 'bg-muted/50', 'cursor-pointer')}
                       onClick={() => handlePlay(gen.id, gen.text)}
                     >
                       <TableCell className="truncate">{gen.text}</TableCell>
                       <TableCell className="truncate">{gen.profile_name}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs">{gen.language}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {gen.language}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-sm">{formatDuration(gen.duration)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground/60">{formatDate(gen.created_at)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground/60">
+                        {formatDate(gen.created_at)}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex justify-end gap-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <CircleButton
                             icon={Play}
                             onClick={() => handlePlay(gen.id, gen.text)}
@@ -125,10 +131,10 @@ export function HistoryTable() {
                         </div>
                       </TableCell>
                     </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
 
           <div className="flex justify-between items-center mt-4 shrink-0">
