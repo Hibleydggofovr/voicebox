@@ -14,7 +14,7 @@ import { isTauri, startServer, setupWindowCloseHandler } from '@/lib/tauri';
 let serverStarting = false;
 
 function App() {
-  const [activeTab, setActiveTab] = useState('profiles');
+  const [activeTab, setActiveTab] = useState('main');
   const [serverReady, setServerReady] = useState(false);
 
   // Setup window close handler and auto-start server when running in Tauri (production only)
@@ -84,37 +84,40 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex flex-1">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <main className="flex-1 ml-20 pb-20">
-          <div className="container mx-auto px-8 py-8 max-w-7xl">
-            {activeTab === 'profiles' && (
-              <div className="space-y-4">
-                <ProfileList />
-              </div>
-            )}
-
-            {activeTab === 'generate' && (
-              <div className="space-y-4">
-                <GenerationForm />
-              </div>
-            )}
-
-            {activeTab === 'history' && (
-              <div className="space-y-4">
-                <HistoryTable />
-              </div>
-            )}
-
-            {activeTab === 'settings' && (
-              <div className="space-y-4">
+        <main className="flex-1 ml-20 overflow-hidden flex flex-col">
+          <div className="container mx-auto px-8 py-8 max-w-[1800px] h-full overflow-hidden flex flex-col">
+            {activeTab === 'settings' ? (
+              <div className="space-y-4 overflow-y-auto">
                 <div className="grid gap-4 md:grid-cols-2">
                   <ConnectionForm />
                   <ServerStatus />
                 </div>
                 <ModelManagement />
+              </div>
+            ) : (
+              // Main view: Profiles top left, Generator bottom left, History right
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-0 overflow-hidden">
+                {/* Left Column */}
+                <div className="flex flex-col gap-6 min-h-0 overflow-y-auto pb-32">
+                  {/* Profiles - Top Left */}
+                  <div className="shrink-0 flex flex-col">
+                    <ProfileList />
+                  </div>
+                  
+                  {/* Generator - Bottom Left */}
+                  <div className="shrink-0">
+                    <GenerationForm />
+                  </div>
+                </div>
+
+                {/* Right Column - History */}
+                <div className="flex flex-col min-h-0 overflow-hidden">
+                  <HistoryTable />
+                </div>
               </div>
             )}
           </div>

@@ -7,8 +7,8 @@ import { Hero } from '@/components/ui/hero';
 import { Section, SectionTitle } from '@/components/ui/section';
 import { Card, CardContent } from '@/components/ui/card';
 import { FeatureCard } from '@/components/ui/feature-card';
-import { DownloadSection } from '@/components/DownloadSection';
-import { GITHUB_REPO } from '@/lib/constants';
+import { GITHUB_REPO, DOWNLOAD_LINKS } from '@/lib/constants';
+import { AppleIcon, WindowsIcon, LinuxIcon } from '@/components/PlatformIcons';
 
 export default function Home() {
   const features = [
@@ -33,8 +33,8 @@ export default function Home() {
       icon: <Cloud className="h-6 w-6" />,
     },
     {
-      title: 'Production Ready',
-      description: 'Type-safe, modular architecture. Desktop-first experience with native performance.',
+      title: 'Audio Transcription',
+      description: 'Powered by Whisper for accurate speech-to-text. Extract reference text from voice samples automatically.',
       icon: <Shield className="h-6 w-6" />,
     },
     {
@@ -51,23 +51,61 @@ export default function Home() {
         title="voicebox"
         description="Professional voice cloning powered by Qwen3-TTS. Create natural-sounding speech from text with near-perfect voice replication."
         actions={
-          <>
-            <Button asChild size="lg">
-              <a href="#download">
-                Download Now
-              </a>
-            </Button>
+          <div className="space-y-4 w-full lg:w-auto">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-1">Download</h2>
+              <p className="text-sm text-muted-foreground">Choose your platform</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+              <Button asChild size="lg" className="w-full px-0">
+                <a href={DOWNLOAD_LINKS.macArm} download className="flex items-center w-full relative">
+                  <div className="flex items-center gap-2 flex-shrink-0 pl-4">
+                    <AppleIcon className="h-5 w-5" />
+                    <div className="h-5 w-px bg-border" />
+                  </div>
+                  <span className="flex-1 text-center px-4">macOS (ARM)</span>
+                </a>
+              </Button>
+              <Button asChild size="lg" className="w-full px-0">
+                <a href={DOWNLOAD_LINKS.macIntel} download className="flex items-center w-full relative">
+                  <div className="flex items-center gap-2 flex-shrink-0 pl-4">
+                    <AppleIcon className="h-5 w-5" />
+                    <div className="h-5 w-px bg-border" />
+                  </div>
+                  <span className="flex-1 text-center px-4">macOS (Intel)</span>
+                </a>
+              </Button>
+              <Button asChild size="lg" className="w-full px-0">
+                <a href={DOWNLOAD_LINKS.windows} download className="flex items-center w-full relative">
+                  <div className="flex items-center gap-2 flex-shrink-0 pl-4">
+                    <WindowsIcon className="h-5 w-5" />
+                    <div className="h-5 w-px bg-border" />
+                  </div>
+                  <span className="flex-1 text-center px-4">Windows</span>
+                </a>
+              </Button>
+              <Button asChild size="lg" className="w-full px-0">
+                <a href={DOWNLOAD_LINKS.linux} download className="flex items-center w-full relative">
+                  <div className="flex items-center gap-2 flex-shrink-0 pl-4">
+                    <LinuxIcon className="h-5 w-5" />
+                    <div className="h-5 w-px bg-border" />
+                  </div>
+                  <span className="flex-1 text-center px-4">Linux</span>
+                </a>
+              </Button>
+            </div>
             <Button 
               variant="outline" 
               size="lg"
               asChild
+              className="w-full"
             >
               <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
                 <Github className="h-4 w-4 mr-2" />
                 View on GitHub
               </a>
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -89,14 +127,6 @@ export default function Home() {
         </div>
       </Section>
 
-      {/* Download Section */}
-      <Section id="download">
-        <SectionTitle className="mb-4 text-center">Download</SectionTitle>
-        <p className="text-sm text-muted-foreground mb-8 text-center max-w-2xl mx-auto">
-          Available for macOS, Windows, and Linux. Choose your platform below.
-        </p>
-        <DownloadSection />
-      </Section>
     </div>
   );
 }

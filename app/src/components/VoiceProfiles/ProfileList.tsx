@@ -26,9 +26,11 @@ export function ProfileList() {
     );
   }
 
+  const allProfiles = profiles || [];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h2 className="text-2xl font-bold">Voice Profiles</h2>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -36,26 +38,28 @@ export function ProfileList() {
         </Button>
       </div>
 
-      {profiles && profiles.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Mic className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">
-              No voice profiles yet. Create your first profile to get started.
-            </p>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Profile
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {profiles?.map((profile) => (
-            <ProfileCard key={profile.id} profile={profile} />
-          ))}
-        </div>
-      )}
+      <div className="min-h-[280px] shrink-0">
+        {allProfiles.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Mic className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">
+                No voice profiles yet. Create your first profile to get started.
+              </p>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Profile
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 grid-cols-3 auto-rows-fr">
+            {allProfiles.map((profile) => (
+              <ProfileCard key={profile.id} profile={profile} />
+            ))}
+          </div>
+        )}
+      </div>
 
       <ProfileForm />
     </div>

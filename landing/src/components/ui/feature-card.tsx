@@ -11,7 +11,7 @@ interface FeatureCardProps {
 
 export function FeatureCard({ title, description, icon, className }: FeatureCardProps) {
   return (
-    <Card className={cn('text-center hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1', className)}>
+    <Card className={cn('text-center hover:border-primary/20 hover:shadow-lg hover:shadow-primary/3 transition-all duration-200 hover:-translate-y-0.5', className)}>
       <CardHeader>
         {icon && (
           <div className="flex justify-center mb-3">

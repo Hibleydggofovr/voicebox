@@ -1,4 +1,4 @@
-import { History, Mic, Settings, Sparkles } from 'lucide-react';
+import { Home, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface SidebarProps {
@@ -7,9 +7,7 @@ interface SidebarProps {
 }
 
 const tabs = [
-  { id: 'profiles', icon: Mic, label: 'Profiles' },
-  { id: 'generate', icon: Sparkles, label: 'Generate' },
-  { id: 'history', icon: History, label: 'History' },
+  { id: 'main', icon: Home, label: 'Main' },
   { id: 'settings', icon: Settings, label: 'Settings' },
 ];
 
