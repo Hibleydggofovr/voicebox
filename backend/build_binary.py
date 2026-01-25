@@ -42,6 +42,9 @@ def build_server():
         '--exclude-module', 'tkinter',
         '--exclude-module', 'unittest',
         '--exclude-module', 'test',
+        '--exclude-module', 'sklearn',
+        '--exclude-module', 'pandas',
+        '--exclude-module', 'torchaudio',
     ])
 
     # Add hidden imports
