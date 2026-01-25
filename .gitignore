@@ -50,7 +50,6 @@ logs/
 .env.local
 
 # Generated files
-app/src/lib/api/
 app/openapi.json
 tauri/src-tauri/binaries/*
 
