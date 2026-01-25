@@ -706,6 +706,7 @@ async def trigger_model_download(request: models.ModelDownloadRequest):
 async def startup_event():
     """Run on application startup."""
     print("voicebox API starting up...")
+    database.init_db()
     print(f"Database initialized at {database._db_path}")
     print(f"GPU available: {torch.cuda.is_available()}")
 

@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,8 +38,16 @@ export function ConnectionForm() {
     },
   });
 
+  // Sync form with store when serverUrl changes externally
+  useEffect(() => {
+    form.reset({ serverUrl });
+  }, [serverUrl, form]);
+
+  const { isDirty } = form.formState;
+
   function onSubmit(data: ConnectionFormValues) {
     setServerUrl(data.serverUrl);
+    form.reset(data); // Reset form state after successful submission
     toast({
       title: 'Server URL updated',
       description: `Connected to ${data.serverUrl}`,
@@ -68,7 +77,9 @@ export function ConnectionForm() {
               )}
             />
 
-            <Button type="submit">Update Connection</Button>
+            {isDirty && (
+              <Button type="submit">Update Connection</Button>
+            )}
           </form>
         </Form>
 

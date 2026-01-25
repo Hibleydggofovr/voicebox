@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "cd tauri && bun run tauri dev",
     "dev:web": "cd web && bun run dev",
-    "dev:backend": "source backend/venv/bin/activate && uvicorn backend.main:app --reload --port 8000",
+    "dev:server": "source backend/venv/bin/activate && uvicorn backend.main:app --reload --port 8000",
     "build": "cd tauri && bun run tauri build",
     "build:web": "cd web && bun run build",
     "generate:api": "./scripts/generate-api.sh",

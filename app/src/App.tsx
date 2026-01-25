@@ -16,45 +16,57 @@ function App() {
   const [activeTab, setActiveTab] = useState('profiles');
   const [serverReady, setServerReady] = useState(false);
 
-  // Setup window close handler and auto-start server when running in Tauri
+  // Setup window close handler and auto-start server when running in Tauri (production only)
   useEffect(() => {
     if (!isTauri()) {
       return;
     }
 
     // Setup window close handler to check setting and stop server if needed
+    // This works in both dev and prod, but will only stop server if it was started by the app
     setupWindowCloseHandler().catch((error) => {
       console.error('Failed to setup window close handler:', error);
     });
 
-    // Auto-start server
+    // Only auto-start server in production mode
+    // In dev mode, user runs server separately
+    if (!import.meta.env?.PROD) {
+      console.log('Dev mode: Skipping auto-start of server (run it separately)');
+      setServerReady(true); // Mark as ready so UI doesn't show loading screen
+      // Mark that server was not started by app (so we don't try to stop it on close)
+      // @ts-expect-error - adding property to window
+      window.__voiceboxServerStartedByApp = false;
+      return;
+    }
+
+    // Auto-start server in production
     if (serverStarting) {
       return;
     }
 
     serverStarting = true;
-    console.log('Running in Tauri, starting bundled server...');
+    console.log('Production mode: Starting bundled server...');
 
     startServer(false)
       .then(() => {
         console.log('Server is ready');
         setServerReady(true);
+        // Mark that we started the server (so we know to stop it on close)
+        // @ts-expect-error - adding property to window
+        window.__voiceboxServerStartedByApp = true;
       })
       .catch((error) => {
         console.error('Failed to auto-start server:', error);
         serverStarting = false;
+        // @ts-expect-error - adding property to window
+        window.__voiceboxServerStartedByApp = false;
       });
 
     // Cleanup: stop server on actual unmount (not StrictMode remount)
     // Note: Window close is handled separately in Tauri Rust code
     return () => {
-      // In dev mode, React StrictMode causes remounts, so we skip cleanup
-      // In production, window close event handles server shutdown based on setting
-      if (import.meta.env?.PROD) {
-        // Only stop if setting says to stop (handled by window close event)
-        // This cleanup is mainly for React remounts in dev mode
-        serverStarting = false;
-      }
+      // Window close event handles server shutdown based on setting
+      serverStarting = false;
     };
   }, []);
 

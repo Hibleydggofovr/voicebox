@@ -62,8 +62,14 @@ export async function setupWindowCloseHandler(): Promise<void> {
       const { useServerStore } = await import('@/stores/serverStore');
       const keepRunning = useServerStore.getState().keepServerRunningOnClose;
 
-      if (!keepRunning) {
-        // Stop server before closing
+      // Check if server was started by this app instance
+      // In dev mode, serverStartedByApp will be false, so we won't try to stop a separately-run server
+      // We need to access the module-level variable - this is a bit hacky but works
+      // @ts-expect-error - accessing module-level variable from another module
+      const serverStartedByApp = window.__voiceboxServerStartedByApp ?? false;
+
+      if (!keepRunning && serverStartedByApp) {
+        // Stop server before closing (only if we started it)
         try {
           await stopServer();
         } catch (error) {
