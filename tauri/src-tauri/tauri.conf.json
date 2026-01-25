@@ -47,7 +47,8 @@
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false,
-        "devtools": true
+        "devtools": true,
+        "userAgent": null
       }
     ],
     "withGlobalTauri": true

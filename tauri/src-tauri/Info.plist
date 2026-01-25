@@ -6,5 +6,7 @@
 	<string>voicebox</string>
 	<key>CFBundleIconName</key>
 	<string>voicebox</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>voicebox needs microphone access to record voice samples for voice cloning.</string>
 </dict>
 </plist>
