@@ -19,6 +19,7 @@ import uuid
 
 from . import database, models, profiles, history, tts, transcribe
 from .database import get_db, init_db, Generation as DBGeneration, VoiceProfile as DBVoiceProfile
+from .utils.progress import get_progress_manager
 
 # Initialize database
 init_db()
@@ -52,6 +53,10 @@ async def root():
 @app.get("/health", response_model=models.HealthResponse)
 async def health():
     """Health check endpoint."""
+    from huggingface_hub import hf_hub_download
+    from pathlib import Path
+    import os
+    
     tts_model = tts.get_tts_model()
     gpu_available = torch.cuda.is_available()
     
@@ -59,9 +64,44 @@ async def health():
     if gpu_available:
         vram_used = torch.cuda.memory_allocated() / 1024 / 1024  # MB
     
+    # Check if model is loaded
+    model_loaded = tts_model.is_loaded()
+    model_size = tts_model.model_size if model_loaded else None
+    
+    # Check if default model is downloaded (cached)
+    model_downloaded = None
+    try:
+        # Check if the default model (1.7B) is cached
+        default_model_id = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+        
+        # Method 1: Try scan_cache_dir if available
+        try:
+            from huggingface_hub import scan_cache_dir
+            cache_info = scan_cache_dir()
+            for repo in cache_info.repos:
+                if repo.repo_id == default_model_id:
+                    model_downloaded = True
+                    break
+        except (ImportError, Exception):
+            # Method 2: Check cache directory
+            cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+            repo_cache = Path(cache_dir) / "models--" + default_model_id.replace("/", "--")
+            if repo_cache.exists():
+                has_model_files = (
+                    any(repo_cache.rglob("*.bin")) or
+                    any(repo_cache.rglob("*.safetensors")) or
+                    any(repo_cache.rglob("*.pt")) or
+                    any(repo_cache.rglob("*.pth"))
+                )
+                model_downloaded = has_model_files
+    except Exception:
+        pass
+    
     return models.HealthResponse(
         status="healthy",
-        model_loaded=tts_model.is_loaded(),
+        model_loaded=model_loaded,
+        model_downloaded=model_downloaded,
+        model_size=model_size,
         gpu_available=gpu_available,
         vram_used_mb=vram_used,
     )
@@ -391,6 +431,255 @@ async def unload_model():
     try:
         tts.unload_tts_model()
         return {"message": "Model unloaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/models/progress/{model_name}")
+async def get_model_progress(model_name: str):
+    """Get model download progress via Server-Sent Events."""
+    from fastapi.responses import StreamingResponse
+    
+    progress_manager = get_progress_manager()
+    
+    async def event_generator():
+        """Generate SSE events for progress updates."""
+        async for event in progress_manager.subscribe(model_name):
+            yield event
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/models/status", response_model=models.ModelStatusListResponse)
+async def get_model_status():
+    """Get status of all available models."""
+    from huggingface_hub import hf_hub_download
+    from pathlib import Path
+    import os
+    
+    # Try to import scan_cache_dir (might not be available in older versions)
+    try:
+        from huggingface_hub import scan_cache_dir
+        use_scan_cache = True
+    except ImportError:
+        use_scan_cache = False
+    
+    def check_tts_loaded(model_size: str):
+        """Check if TTS model is loaded with specific size."""
+        try:
+            tts_model = tts.get_tts_model()
+            return tts_model.is_loaded() and tts_model.model_size == model_size
+        except Exception:
+            return False
+    
+    def check_whisper_loaded(model_size: str):
+        """Check if Whisper model is loaded with specific size."""
+        try:
+            whisper_model = transcribe.get_whisper_model()
+            return whisper_model.is_loaded() and whisper_model.model_size == model_size
+        except Exception:
+            return False
+    
+    model_configs = [
+        {
+            "model_name": "qwen-tts-1.7B",
+            "display_name": "Qwen TTS 1.7B",
+            "hf_repo_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+            "model_size": "1.7B",
+            "check_loaded": lambda: check_tts_loaded("1.7B"),
+        },
+        {
+            "model_name": "qwen-tts-0.6B",
+            "display_name": "Qwen TTS 0.6B",
+            "hf_repo_id": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+            "model_size": "0.6B",
+            "check_loaded": lambda: check_tts_loaded("0.6B"),
+        },
+        {
+            "model_name": "whisper-base",
+            "display_name": "Whisper Base",
+            "hf_repo_id": "openai/whisper-base",
+            "model_size": "base",
+            "check_loaded": lambda: check_whisper_loaded("base"),
+        },
+        {
+            "model_name": "whisper-small",
+            "display_name": "Whisper Small",
+            "hf_repo_id": "openai/whisper-small",
+            "model_size": "small",
+            "check_loaded": lambda: check_whisper_loaded("small"),
+        },
+        {
+            "model_name": "whisper-medium",
+            "display_name": "Whisper Medium",
+            "hf_repo_id": "openai/whisper-medium",
+            "model_size": "medium",
+            "check_loaded": lambda: check_whisper_loaded("medium"),
+        },
+        {
+            "model_name": "whisper-large",
+            "display_name": "Whisper Large",
+            "hf_repo_id": "openai/whisper-large",
+            "model_size": "large",
+            "check_loaded": lambda: check_whisper_loaded("large"),
+        },
+    ]
+    
+    # Get HuggingFace cache info (if available)
+    cache_info = None
+    if use_scan_cache:
+        try:
+            cache_info = scan_cache_dir()
+        except Exception:
+            # Function failed, continue without it
+            pass
+    
+    statuses = []
+    
+    for config in model_configs:
+        try:
+            downloaded = False
+            size_mb = None
+            loaded = False
+            
+            # Method 1: Try using scan_cache_dir if available
+            if cache_info:
+                repo_id = config["hf_repo_id"]
+                for repo in cache_info.repos:
+                    if repo.repo_id == repo_id:
+                        downloaded = True
+                        # Calculate size from cache info
+                        try:
+                            total_size = sum(revision.size_on_disk for revision in repo.revisions)
+                            size_mb = total_size / (1024 * 1024)
+                        except Exception:
+                            pass
+                        break
+            
+            # Method 2: Fallback to checking cache directory directly
+            if not downloaded:
+                try:
+                    cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+                    repo_cache = Path(cache_dir) / "models--" + config["hf_repo_id"].replace("/", "--")
+                    
+                    if repo_cache.exists():
+                        # Check for model files (bin, safetensors, or other common model files)
+                        has_model_files = (
+                            any(repo_cache.rglob("*.bin")) or
+                            any(repo_cache.rglob("*.safetensors")) or
+                            any(repo_cache.rglob("*.pt")) or
+                            any(repo_cache.rglob("*.pth")) or
+                            any(repo_cache.rglob("model.safetensors.index.json")) or
+                            any(repo_cache.rglob("pytorch_model.bin.index.json"))
+                        )
+                        
+                        if has_model_files:
+                            downloaded = True
+                            # Calculate size
+                            try:
+                                total_size = sum(f.stat().st_size for f in repo_cache.rglob("*") if f.is_file())
+                                size_mb = total_size / (1024 * 1024)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+            
+            # Method 3: Try to check if model can be loaded locally (last resort)
+            if not downloaded:
+                try:
+                    # Try to download with local_files_only=True to check if cached
+                    hf_hub_download(
+                        repo_id=config["hf_repo_id"],
+                        filename="config.json",  # Try a common file
+                        local_files_only=True,
+                    )
+                    downloaded = True
+                except Exception:
+                    # File not found locally, model not downloaded
+                    pass
+            
+            # Check if loaded in memory
+            try:
+                loaded = config["check_loaded"]()
+            except Exception:
+                loaded = False
+            
+            statuses.append(models.ModelStatus(
+                model_name=config["model_name"],
+                display_name=config["display_name"],
+                downloaded=downloaded,
+                size_mb=size_mb,
+                loaded=loaded,
+            ))
+        except Exception as e:
+            # If check fails, try to at least check if loaded
+            try:
+                loaded = config["check_loaded"]()
+            except Exception:
+                loaded = False
+            
+            statuses.append(models.ModelStatus(
+                model_name=config["model_name"],
+                display_name=config["display_name"],
+                downloaded=False,  # Assume not downloaded if check failed
+                size_mb=None,
+                loaded=loaded,
+            ))
+    
+    return models.ModelStatusListResponse(models=statuses)
+
+
+@app.post("/models/download")
+async def trigger_model_download(request: models.ModelDownloadRequest):
+    """Trigger download of a specific model."""
+    import asyncio
+    
+    model_configs = {
+        "qwen-tts-1.7B": {
+            "model_size": "1.7B",
+            "load_func": lambda: tts.get_tts_model().load_model("1.7B"),
+        },
+        "qwen-tts-0.6B": {
+            "model_size": "0.6B",
+            "load_func": lambda: tts.get_tts_model().load_model("0.6B"),
+        },
+        "whisper-base": {
+            "model_size": "base",
+            "load_func": lambda: transcribe.get_whisper_model().load_model("base"),
+        },
+        "whisper-small": {
+            "model_size": "small",
+            "load_func": lambda: transcribe.get_whisper_model().load_model("small"),
+        },
+        "whisper-medium": {
+            "model_size": "medium",
+            "load_func": lambda: transcribe.get_whisper_model().load_model("medium"),
+        },
+        "whisper-large": {
+            "model_size": "large",
+            "load_func": lambda: transcribe.get_whisper_model().load_model("large"),
+        },
+    }
+    
+    if request.model_name not in model_configs:
+        raise HTTPException(status_code=400, detail=f"Unknown model: {request.model_name}")
+    
+    config = model_configs[request.model_name]
+    
+    try:
+        # Trigger download by loading the model (which will download if not cached)
+        # Run in background to avoid blocking
+        await asyncio.to_thread(config["load_func"])
+        
+        return {"message": f"Model {request.model_name} download started"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

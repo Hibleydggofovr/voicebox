@@ -1,63 +1,51 @@
-import { History, Mic, Settings, Sparkles } from 'lucide-react';
+import { useState } from 'react';
 import { GenerationForm } from '@/components/Generation/GenerationForm';
 import { HistoryTable } from '@/components/History/HistoryTable';
 import { ConnectionForm } from '@/components/ServerSettings/ConnectionForm';
 import { ServerStatus } from '@/components/ServerSettings/ServerStatus';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ModelManagement } from '@/components/ServerSettings/ModelManagement';
 import { Toaster } from '@/components/ui/toaster';
 import { ProfileList } from '@/components/VoiceProfiles/ProfileList';
+import { Sidebar } from '@/components/Sidebar';
 
 function App() {
+  const [activeTab, setActiveTab] = useState('profiles');
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">voicebox</h1>
-          <p className="text-muted-foreground">
-            Production-quality Qwen3-TTS voice cloning and generation
-          </p>
-        </div>
-
-        <Tabs defaultValue="profiles" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="profiles">
-              <Mic className="mr-2 h-4 w-4" />
-              Profiles
-            </TabsTrigger>
-            <TabsTrigger value="generate">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generate
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="mr-2 h-4 w-4" />
-              History
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="profiles" className="space-y-4">
-            <ProfileList />
-          </TabsContent>
-
-          <TabsContent value="generate" className="space-y-4">
-            <GenerationForm />
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4">
-            <HistoryTable />
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <ConnectionForm />
-              <ServerStatus />
+    <div className="min-h-screen bg-background flex">
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      
+      <main className="flex-1 ml-20">
+        <div className="container mx-auto px-8 py-8 max-w-7xl">
+          {activeTab === 'profiles' && (
+            <div className="space-y-4">
+              <ProfileList />
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          )}
+
+          {activeTab === 'generate' && (
+            <div className="space-y-4">
+              <GenerationForm />
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="space-y-4">
+              <HistoryTable />
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <ConnectionForm />
+                <ServerStatus />
+              </div>
+              <ModelManagement />
+            </div>
+          )}
+        </div>
+      </main>
 
       <Toaster />
     </div>

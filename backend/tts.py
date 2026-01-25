@@ -11,6 +11,8 @@ from pathlib import Path
 
 from .utils.cache import get_cache_key, get_cached_voice_prompt, cache_voice_prompt
 from .utils.audio import normalize_audio
+from .utils.progress import get_progress_manager
+from .utils.hf_progress import HFProgressTracker, create_hf_progress_callback
 
 
 class TTSModel:
@@ -99,14 +101,37 @@ class TTSModel:
             # Get model path (local or HuggingFace Hub ID)
             model_path = self._get_model_path(model_size)
             
-            print(f"Loading TTS model {model_size} on {self.device}...")
+            # Set up progress tracking
+            progress_manager = get_progress_manager()
+            model_name = f"qwen-tts-{model_size}"
             
-            # Load the model - from_pretrained handles both local paths and HF Hub IDs
-            self.model = Qwen3TTSModel.from_pretrained(
-                model_path,
-                device_map=self.device,
-                torch_dtype=torch.float32 if self.device == "cpu" else torch.bfloat16,
-            )
+            # Check if model is being downloaded from HuggingFace Hub
+            if model_path.startswith("Qwen/"):
+                print(f"Loading TTS model {model_size} on {self.device}...")
+                
+                # Set up progress callback
+                progress_callback = create_hf_progress_callback(model_name, progress_manager)
+                tracker = HFProgressTracker(progress_callback)
+                
+                # Use progress tracker during download
+                with tracker.patch_download():
+                    # Load the model - downloads will happen automatically with progress tracking
+                    self.model = Qwen3TTSModel.from_pretrained(
+                        model_path,
+                        device_map=self.device,
+                        torch_dtype=torch.float32 if self.device == "cpu" else torch.bfloat16,
+                    )
+                
+                # Mark as complete
+                progress_manager.mark_complete(model_name)
+            else:
+                # Local model, no download needed
+                print(f"Loading TTS model {model_size} on {self.device}...")
+                self.model = Qwen3TTSModel.from_pretrained(
+                    model_path,
+                    device_map=self.device,
+                    torch_dtype=torch.float32 if self.device == "cpu" else torch.bfloat16,
+                )
             
             self._current_model_size = model_size
             self.model_size = model_size
@@ -115,10 +140,14 @@ class TTSModel:
             
         except ImportError as e:
             print(f"Error: qwen_tts package not found. Install with: pip install git+https://github.com/QwenLM/Qwen3-TTS.git")
+            progress_manager = get_progress_manager()
+            progress_manager.mark_error(f"qwen-tts-{model_size}", str(e))
             raise
         except Exception as e:
             print(f"Error loading TTS model: {e}")
             print(f"Tip: The model will be automatically downloaded from HuggingFace Hub on first use.")
+            progress_manager = get_progress_manager()
+            progress_manager.mark_error(f"qwen-tts-{model_size}", str(e))
             raise
     
     def unload_model(self):

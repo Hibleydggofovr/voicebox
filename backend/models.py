@@ -111,5 +111,26 @@ class HealthResponse(BaseModel):
     """Response model for health check."""
     status: str
     model_loaded: bool
+    model_downloaded: Optional[bool] = None  # Whether model is cached/downloaded
+    model_size: Optional[str] = None  # Current model size if loaded
     gpu_available: bool
     vram_used_mb: Optional[float] = None
+
+
+class ModelStatus(BaseModel):
+    """Response model for model status."""
+    model_name: str
+    display_name: str
+    downloaded: bool
+    size_mb: Optional[float] = None
+    loaded: bool = False
+
+
+class ModelStatusListResponse(BaseModel):
+    """Response model for model status list."""
+    models: List[ModelStatus]
+
+
+class ModelDownloadRequest(BaseModel):
+    """Request model for triggering model download."""
+    model_name: str

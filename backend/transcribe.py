@@ -6,6 +6,8 @@ from typing import Optional, List, Dict
 import torch
 import numpy as np
 from pathlib import Path
+from .utils.progress import get_progress_manager
+from .utils.hf_progress import HFProgressTracker, create_hf_progress_callback
 
 
 class WhisperModel:
@@ -48,18 +50,33 @@ class WhisperModel:
             
             model_name = f"openai/whisper-{model_size}"
             
+            # Set up progress tracking
+            progress_manager = get_progress_manager()
+            progress_model_name = f"whisper-{model_size}"
+            
             print(f"Loading Whisper model {model_size} on {self.device}...")
             
-            self.processor = WhisperProcessor.from_pretrained(model_name)
-            self.model = WhisperForConditionalGeneration.from_pretrained(model_name)
-            self.model.to(self.device)
+            # Set up progress callback
+            progress_callback = create_hf_progress_callback(progress_model_name, progress_manager)
+            tracker = HFProgressTracker(progress_callback)
             
+            # Use progress tracker during download
+            with tracker.patch_download():
+                self.processor = WhisperProcessor.from_pretrained(model_name)
+                self.model = WhisperForConditionalGeneration.from_pretrained(model_name)
+            
+            self.model.to(self.device)
             self.model_size = model_size
+            
+            # Mark as complete
+            progress_manager.mark_complete(progress_model_name)
             
             print(f"Whisper model {model_size} loaded successfully")
             
         except Exception as e:
             print(f"Error loading Whisper model: {e}")
+            progress_manager = get_progress_manager()
+            progress_manager.mark_error(f"whisper-{model_size}", str(e))
             raise
     
     def unload_model(self):

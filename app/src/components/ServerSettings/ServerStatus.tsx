@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useServerHealth } from '@/lib/hooks/useServer';
 import { useServerStore } from '@/stores/serverStore';
+import { ModelProgress } from './ModelProgress';
 
 export function ServerStatus() {
   const { data: health, isLoading, error } = useServerHealth();
@@ -17,6 +18,16 @@ export function ServerStatus() {
         <div>
           <div className="text-sm text-muted-foreground mb-1">Server URL</div>
           <div className="font-mono text-sm">{serverUrl}</div>
+        </div>
+
+        {/* Model download progress */}
+        <div className="space-y-2">
+          <ModelProgress modelName="qwen-tts-1.7B" displayName="Qwen TTS 1.7B" />
+          <ModelProgress modelName="qwen-tts-0.6B" displayName="Qwen TTS 0.6B" />
+          <ModelProgress modelName="whisper-base" displayName="Whisper Base" />
+          <ModelProgress modelName="whisper-small" displayName="Whisper Small" />
+          <ModelProgress modelName="whisper-medium" displayName="Whisper Medium" />
+          <ModelProgress modelName="whisper-large" displayName="Whisper Large" />
         </div>
 
         {isLoading ? (
@@ -35,10 +46,19 @@ export function ServerStatus() {
               <CheckCircle2 className="h-4 w-4 text-green-500" />
               <span className="text-sm">Connected</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Badge variant={health.model_loaded ? 'default' : 'secondary'}>
-                Model: {health.model_loaded ? 'Loaded' : 'Not Loaded'}
+                Model: {health.model_loaded 
+                  ? `Loaded${health.model_size ? ` (${health.model_size})` : ''}` 
+                  : health.model_downloaded === false 
+                    ? 'Not Downloaded' 
+                    : 'Not Loaded'}
               </Badge>
+              {health.model_downloaded === true && !health.model_loaded && (
+                <Badge variant="outline">
+                  Model Cached (will load on first use)
+                </Badge>
+              )}
               <Badge variant={health.gpu_available ? 'default' : 'secondary'}>
                 GPU: {health.gpu_available ? 'Available' : 'Not Available'}
               </Badge>
