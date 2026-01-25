@@ -64,9 +64,23 @@ async def health():
     if gpu_available:
         vram_used = torch.cuda.memory_allocated() / 1024 / 1024  # MB
     
-    # Check if model is loaded
-    model_loaded = tts_model.is_loaded()
-    model_size = tts_model.model_size if model_loaded else None
+    # Check if model is loaded - use the same logic as model status endpoint
+    model_loaded = False
+    model_size = None
+    try:
+        # Use the same check as model status endpoint
+        if tts_model.is_loaded():
+            model_loaded = True
+            # Get the actual loaded model size
+            # Check _current_model_size first (more reliable for actually loaded models)
+            model_size = getattr(tts_model, '_current_model_size', None)
+            if not model_size:
+                # Fallback to model_size attribute (which should be set when model loads)
+                model_size = getattr(tts_model, 'model_size', None)
+    except Exception:
+        # If there's an error checking, assume not loaded
+        model_loaded = False
+        model_size = None
     
     # Check if default model is downloaded (cached)
     model_downloaded = None
@@ -240,6 +254,9 @@ async def generate_speech(
         
         # Generate audio
         tts_model = tts.get_tts_model()
+        # Load the requested model size if different from current
+        model_size = data.model_size or "1.7B"
+        tts_model.load_model(model_size)
         audio, sample_rate = await tts_model.generate(
             data.text,
             voice_prompt,

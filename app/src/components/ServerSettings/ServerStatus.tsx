@@ -47,18 +47,9 @@ export function ServerStatus() {
               <span className="text-sm">Connected</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant={health.model_loaded ? 'default' : 'secondary'}>
-                Model: {health.model_loaded 
-                  ? `Loaded${health.model_size ? ` (${health.model_size})` : ''}` 
-                  : health.model_downloaded === false 
-                    ? 'Not Downloaded' 
-                    : 'Not Loaded'}
+              <Badge variant={health.model_loaded || health.model_downloaded ? 'default' : 'secondary'}>
+                {health.model_loaded || health.model_downloaded ? 'Model Ready' : 'No Model'}
               </Badge>
-              {health.model_downloaded === true && !health.model_loaded && (
-                <Badge variant="outline">
-                  Model Cached (will load on first use)
-                </Badge>
-              )}
               <Badge variant={health.gpu_available ? 'default' : 'secondary'}>
                 GPU: {health.gpu_available ? 'Available' : 'Not Available'}
               </Badge>

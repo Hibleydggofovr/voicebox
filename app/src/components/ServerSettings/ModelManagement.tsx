@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 export function ModelManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
 
   const { data: modelStatus, isLoading } = useQuery({
     queryKey: ['modelStatus'],
@@ -18,7 +20,10 @@ export function ModelManagement() {
   });
 
   const downloadMutation = useMutation({
-    mutationFn: (modelName: string) => apiClient.triggerModelDownload(modelName),
+    mutationFn: (modelName: string) => {
+      setDownloadingModel(modelName);
+      return apiClient.triggerModelDownload(modelName);
+    },
     onSuccess: (_, modelName) => {
       toast({
         title: 'Download started',
@@ -30,11 +35,18 @@ export function ModelManagement() {
       }, 1000);
     },
     onError: (error: Error) => {
+      setDownloadingModel(null);
       toast({
         title: 'Download failed',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      // Clear downloading state after a delay to allow progress to show
+      setTimeout(() => {
+        setDownloadingModel(null);
+      }, 2000);
     },
   });
 
@@ -70,7 +82,7 @@ export function ModelManagement() {
                       key={model.model_name}
                       model={model}
                       onDownload={() => downloadMutation.mutate(model.model_name)}
-                      isDownloading={downloadMutation.isPending}
+                      isDownloading={downloadingModel === model.model_name}
                       formatSize={formatSize}
                     />
                   ))}
@@ -88,7 +100,7 @@ export function ModelManagement() {
                       key={model.model_name}
                       model={model}
                       onDownload={() => downloadMutation.mutate(model.model_name)}
-                      isDownloading={downloadMutation.isPending}
+                      isDownloading={downloadingModel === model.model_name}
                       formatSize={formatSize}
                     />
                   ))}

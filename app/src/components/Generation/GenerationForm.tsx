@@ -31,6 +31,7 @@ const generationSchema = z.object({
   text: z.string().min(1, 'Text is required').max(5000),
   language: z.enum(['en', 'zh']),
   seed: z.number().int().optional(),
+  modelSize: z.enum(['1.7B', '0.6B']).optional(),
 });
 
 type GenerationFormValues = z.infer<typeof generationSchema>;
@@ -47,6 +48,7 @@ export function GenerationForm() {
       text: '',
       language: 'en',
       seed: undefined,
+      modelSize: '1.7B',
     },
   });
 
@@ -57,6 +59,7 @@ export function GenerationForm() {
         text: data.text,
         language: data.language,
         seed: data.seed,
+        model_size: data.modelSize,
       });
 
       toast({
@@ -126,7 +129,7 @@ export function GenerationForm() {
               )}
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <FormField
                 control={form.control}
                 name="language"
@@ -144,6 +147,29 @@ export function GenerationForm() {
                         <SelectItem value="zh">Chinese</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="modelSize"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Model Size</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="1.7B">Qwen TTS 1.7B (Higher Quality)</SelectItem>
+                        <SelectItem value="0.6B">Qwen TTS 0.6B (Faster)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Larger models produce better quality</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

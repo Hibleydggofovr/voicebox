@@ -49,6 +49,7 @@ class GenerationRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
     language: str = Field(default="en", pattern="^(en|zh)$")
     seed: Optional[int] = Field(None, ge=0)
+    model_size: Optional[str] = Field(default="1.7B", pattern="^(1\\.7B|0\\.6B)$")
 
 
 class GenerationResponse(BaseModel):
