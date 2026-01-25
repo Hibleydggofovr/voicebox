@@ -21,7 +21,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { useAddSample } from '@/lib/hooks/useProfiles';
+import { useAddSample, useProfile } from '@/lib/hooks/useProfiles';
+import { useTranscription } from '@/lib/hooks/useTranscription';
+import { Mic } from 'lucide-react';
 
 const sampleSchema = z.object({
   file: z.instanceof(File, { message: 'Please select an audio file' }),
@@ -41,6 +43,8 @@ interface SampleUploadProps {
 
 export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProps) {
   const addSample = useAddSample();
+  const transcribe = useTranscription();
+  const { data: profile } = useProfile(profileId);
   const { toast } = useToast();
 
   const form = useForm<SampleFormValues>({
@@ -49,6 +53,38 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
       referenceText: '',
     },
   });
+
+  const selectedFile = form.watch('file');
+
+  async function handleTranscribe() {
+    const file = form.getValues('file');
+    if (!file) {
+      toast({
+        title: 'No file selected',
+        description: 'Please select an audio file first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const language = profile?.language as 'en' | 'zh' | undefined;
+      const result = await transcribe.mutateAsync({ file, language });
+      
+      form.setValue('referenceText', result.text, { shouldValidate: true });
+      
+      toast({
+        title: 'Transcription complete',
+        description: 'Audio has been transcribed successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Transcription failed',
+        description: error instanceof Error ? error.message : 'Failed to transcribe audio',
+        variant: 'destructive',
+      });
+    }
+  }
 
   async function onSubmit(data: SampleFormValues) {
     try {
@@ -63,8 +99,7 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
         description: 'Audio sample has been added successfully.',
       });
 
-      form.reset();
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (error) {
       toast({
         title: 'Error',
@@ -74,8 +109,15 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
     }
   }
 
+  function handleOpenChange(newOpen: boolean) {
+    if (!newOpen) {
+      form.reset();
+    }
+    onOpenChange(newOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Audio Sample</DialogTitle>
@@ -105,9 +147,23 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
                         }}
                         {...field}
                       />
+                      {selectedFile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleTranscribe}
+                          disabled={transcribe.isPending}
+                          className="flex items-center gap-2"
+                        >
+                          <Mic className="h-4 w-4" />
+                          {transcribe.isPending ? 'Transcribing...' : 'Transcribe'}
+                        </Button>
+                      )}
                     </div>
                   </FormControl>
-                  <FormDescription>Supported formats: WAV, MP3, M4A</FormDescription>
+                  <FormDescription>
+                    Supported formats: WAV, MP3, M4A. Click "Transcribe" to automatically extract text from the audio.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -135,7 +191,7 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
             />
 
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={addSample.isPending}>
