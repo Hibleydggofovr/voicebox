@@ -27,9 +27,11 @@
       "minimumSystemVersion": "11.0",
       "infoPlist": "Info.plist"
     },
-    "resources": [
-      "gen/**/*"
-    ]
+    "resources": {
+      "gen/Assets.car": "./",
+      "gen/voicebox.icns": "./",
+      "gen/partial.plist": "./"
+    }
   },
   "app": {
     "security": {
