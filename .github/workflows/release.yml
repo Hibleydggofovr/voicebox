@@ -41,9 +41,9 @@ jobs:
       - name: Install LLVM (macOS)
         if: matrix.platform == 'macos-latest' || matrix.platform == 'macos-15-intel'
         run: |
-          brew install llvm
-          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
-          echo "LLVM_CONFIG=$(brew --prefix llvm)/bin/llvm-config" >> $GITHUB_ENV
+          brew install llvm@20
+          echo "$(brew --prefix llvm@20)/bin" >> $GITHUB_PATH
+          echo "LLVM_CONFIG=$(brew --prefix llvm@20)/bin/llvm-config" >> $GITHUB_ENV
 
       - name: Setup Python
         uses: actions/setup-python@v5
