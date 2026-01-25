@@ -3,6 +3,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen, emit } from '@tauri-apps/api/event';
 
 /**
  * Check if running in Tauri environment
@@ -43,5 +44,37 @@ export async function stopServer(): Promise<void> {
   } catch (error) {
     console.error('Failed to stop server:', error);
     throw error;
+  }
+}
+
+/**
+ * Setup window close handler to check setting and stop server if needed
+ */
+export async function setupWindowCloseHandler(): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  try {
+    // Listen for window close request from Rust
+    await listen<null>('window-close-requested', async () => {
+      // Import store here to avoid circular dependency
+      const { useServerStore } = await import('@/stores/serverStore');
+      const keepRunning = useServerStore.getState().keepServerRunningOnClose;
+
+      if (!keepRunning) {
+        // Stop server before closing
+        try {
+          await stopServer();
+        } catch (error) {
+          console.error('Failed to stop server on close:', error);
+        }
+      }
+
+      // Emit event back to Rust to allow close
+      await emit('window-close-allowed');
+    });
+  } catch (error) {
+    console.error('Failed to setup window close handler:', error);
   }
 }

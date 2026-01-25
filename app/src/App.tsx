@@ -7,7 +7,7 @@ import { ModelManagement } from '@/components/ServerSettings/ModelManagement';
 import { Toaster } from '@/components/ui/toaster';
 import { ProfileList } from '@/components/VoiceProfiles/ProfileList';
 import { Sidebar } from '@/components/Sidebar';
-import { isTauri, startServer, stopServer } from '@/lib/tauri';
+import { isTauri, startServer, setupWindowCloseHandler } from '@/lib/tauri';
 
 // Track if server is starting to prevent duplicate starts
 let serverStarting = false;
@@ -16,9 +16,19 @@ function App() {
   const [activeTab, setActiveTab] = useState('profiles');
   const [serverReady, setServerReady] = useState(false);
 
-  // Auto-start server when running in Tauri
+  // Setup window close handler and auto-start server when running in Tauri
   useEffect(() => {
-    if (!isTauri() || serverStarting) {
+    if (!isTauri()) {
+      return;
+    }
+
+    // Setup window close handler to check setting and stop server if needed
+    setupWindowCloseHandler().catch((error) => {
+      console.error('Failed to setup window close handler:', error);
+    });
+
+    // Auto-start server
+    if (serverStarting) {
       return;
     }
 
@@ -36,13 +46,13 @@ function App() {
       });
 
     // Cleanup: stop server on actual unmount (not StrictMode remount)
+    // Note: Window close is handled separately in Tauri Rust code
     return () => {
-      // In production builds, we want to stop the server on unmount
       // In dev mode, React StrictMode causes remounts, so we skip cleanup
+      // In production, window close event handles server shutdown based on setting
       if (import.meta.env?.PROD) {
-        stopServer().catch((error) => {
-          console.error('Failed to stop server on cleanup:', error);
-        });
+        // Only stop if setting says to stop (handled by window close event)
+        // This cleanup is mainly for React remounts in dev mode
         serverStarting = false;
       }
     };
