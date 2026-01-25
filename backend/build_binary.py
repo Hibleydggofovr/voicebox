@@ -60,8 +60,8 @@ def build_server():
         '--collect-data', 'qwen_tts',
         '--noconfirm',
         '--clean',
-    ]
-    
+    ])
+
     # Change to backend directory
     os.chdir(backend_dir)
     
