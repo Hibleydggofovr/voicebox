@@ -1,14 +1,13 @@
 import { Mic, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useDeleteProfile, useProfiles } from '@/lib/hooks/useProfiles';
+import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useUIStore } from '@/stores/uiStore';
 import { ProfileCard } from './ProfileCard';
 import { ProfileForm } from './ProfileForm';
 
 export function ProfileList() {
   const { data: profiles, isLoading, error } = useProfiles();
-  const _deleteProfile = useDeleteProfile();
   const setDialogOpen = useUIStore((state) => state.setProfileDialogOpen);
 
   if (isLoading) {

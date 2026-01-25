@@ -22,11 +22,12 @@ from .database import (
 )
 from .utils.audio import validate_reference_audio, load_audio, save_audio
 from .tts import get_tts_model
+from . import config
 
 
-# Profile storage directory
-PROFILES_DIR = Path("data/profiles")
-PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+def _get_profiles_dir() -> Path:
+    """Get profiles directory from config."""
+    return config.get_profiles_dir()
 
 
 async def create_profile(
@@ -58,7 +59,7 @@ async def create_profile(
     db.refresh(db_profile)
     
     # Create profile directory
-    profile_dir = PROFILES_DIR / db_profile.id
+    profile_dir = _get_profiles_dir() / db_profile.id
     profile_dir.mkdir(parents=True, exist_ok=True)
     
     return VoiceProfileResponse.model_validate(db_profile)
@@ -94,7 +95,7 @@ async def add_profile_sample(
     
     # Create sample ID and directory
     sample_id = str(uuid.uuid4())
-    profile_dir = PROFILES_DIR / profile_id
+    profile_dir = _get_profiles_dir() / profile_id
     profile_dir.mkdir(parents=True, exist_ok=True)
     
     # Copy audio file to profile directory
@@ -235,7 +236,7 @@ async def delete_profile(
     db.commit()
     
     # Delete profile directory
-    profile_dir = PROFILES_DIR / profile_id
+    profile_dir = _get_profiles_dir() / profile_id
     if profile_dir.exists():
         shutil.rmtree(profile_dir)
     

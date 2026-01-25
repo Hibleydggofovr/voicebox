@@ -14,13 +14,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
 import { useDeleteGeneration, useHistory } from '@/lib/hooks/useHistory';
 import { formatDate, formatDuration } from '@/lib/utils/format';
-import { useServerStore } from '@/stores/serverStore';
 
 export function HistoryTable() {
   const [page, setPage] = useState(0);
   const limit = 20;
   const { toast } = useToast();
-  const _serverUrl = useServerStore((state) => state.serverUrl);
 
   const { data: historyData, isLoading } = useHistory({
     limit,

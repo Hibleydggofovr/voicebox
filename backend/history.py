@@ -12,11 +12,12 @@ from sqlalchemy import or_
 
 from .models import GenerationRequest, GenerationResponse, HistoryQuery, HistoryResponse, HistoryListResponse
 from .database import Generation as DBGeneration, VoiceProfile as DBVoiceProfile
+from . import config
 
 
-# Generations storage directory
-GENERATIONS_DIR = Path("data/generations")
-GENERATIONS_DIR.mkdir(parents=True, exist_ok=True)
+def _get_generations_dir() -> Path:
+    """Get generations directory from config."""
+    return config.get_generations_dir()
 
 
 async def create_generation(

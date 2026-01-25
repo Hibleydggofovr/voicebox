@@ -9,6 +9,8 @@ from datetime import datetime
 import uuid
 from pathlib import Path
 
+from . import config
+
 Base = declarative_base()
 
 
@@ -59,20 +61,25 @@ class Project(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-# Database setup
-_db_path = Path("data/voicebox.db")
-_db_path.parent.mkdir(parents=True, exist_ok=True)
-
-engine = create_engine(
-    f"sqlite:///{_db_path}",
-    connect_args={"check_same_thread": False},
-)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Database setup will be initialized in init_db()
+engine = None
+SessionLocal = None
+_db_path = None
 
 
 def init_db():
     """Initialize database tables."""
+    global engine, SessionLocal, _db_path
+
+    _db_path = config.get_db_path()
+    _db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    engine = create_engine(
+        f"sqlite:///{_db_path}",
+        connect_args={"check_same_thread": False},
+    )
+
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
 
 

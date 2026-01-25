@@ -17,12 +17,9 @@ import tempfile
 from pathlib import Path
 import uuid
 
-from . import database, models, profiles, history, tts, transcribe
-from .database import get_db, init_db, Generation as DBGeneration, VoiceProfile as DBVoiceProfile
+from . import database, models, profiles, history, tts, transcribe, config
+from .database import get_db, Generation as DBGeneration, VoiceProfile as DBVoiceProfile
 from .utils.progress import get_progress_manager
-
-# Initialize database
-init_db()
 
 app = FastAPI(
     title="voicebox API",
@@ -269,7 +266,7 @@ async def generate_speech(
         
         # Save audio
         generation_id = str(uuid.uuid4())
-        audio_path = history.GENERATIONS_DIR / f"{generation_id}.wav"
+        audio_path = config.get_generations_dir() / f"{generation_id}.wav"
         
         from .utils.audio import save_audio
         save_audio(audio, str(audio_path), sample_rate)
@@ -740,10 +737,23 @@ if __name__ == "__main__":
         default=8000,
         help="Port to bind to",
     )
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Data directory for database, profiles, and generated audio",
+    )
     args = parser.parse_args()
 
+    # Set data directory if provided
+    if args.data_dir:
+        config.set_data_dir(args.data_dir)
+
+    # Initialize database after data directory is set
+    database.init_db()
+
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host=args.host,
         port=args.port,
         reload=False,  # Disable reload in production

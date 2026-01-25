@@ -13,6 +13,7 @@ from .utils.cache import get_cache_key, get_cached_voice_prompt, cache_voice_pro
 from .utils.audio import normalize_audio
 from .utils.progress import get_progress_manager
 from .utils.hf_progress import HFProgressTracker, create_hf_progress_callback
+from . import config
 
 
 class TTSModel:
@@ -63,7 +64,7 @@ class TTSModel:
             raise ValueError(f"Unknown model size: {model_size}")
         
         # Check if model exists locally (backwards compatibility)
-        local_path = Path("data/models") / local_model_map[model_size]
+        local_path = config.get_models_dir() / local_model_map[model_size]
         if local_path.exists():
             print(f"Found local model at {local_path}")
             return str(local_path)

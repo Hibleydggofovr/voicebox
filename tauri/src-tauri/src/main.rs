@@ -15,10 +15,33 @@ async fn start_server(
     state: State<'_, ServerState>,
     remote: Option<bool>,
 ) -> Result<String, String> {
+    // Check if server is already running
+    if state.child.lock().unwrap().is_some() {
+        return Ok("Server already running on http://localhost:8000".to_string());
+    }
+
+    // Get app data directory
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    // Ensure data directory exists
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("Failed to create data dir: {}", e))?;
+
     let mut sidecar = app
         .shell()
         .sidecar("voicebox-server")
         .map_err(|e| format!("Failed to get sidecar: {}", e))?;
+
+    // Pass data directory to Python server
+    sidecar = sidecar.args([
+        "--data-dir",
+        data_dir
+            .to_str()
+            .ok_or_else(|| "Invalid data dir path".to_string())?,
+    ]);
 
     if remote.unwrap_or(false) {
         sidecar = sidecar.args(["--host", "0.0.0.0"]);
@@ -31,13 +54,61 @@ async fn start_server(
     // Store child process
     *state.child.lock().unwrap() = Some(child);
 
-    // Wait for server to be ready (listen for startup log)
+    // Wait for server to be ready by listening for startup log
+    let timeout = tokio::time::Duration::from_secs(30);
+    let start_time = tokio::time::Instant::now();
+
+    loop {
+        if start_time.elapsed() > timeout {
+            return Err("Server startup timeout".to_string());
+        }
+
+        match tokio::time::timeout(tokio::time::Duration::from_millis(100), rx.recv()).await {
+            Ok(Some(event)) => {
+                match event {
+                    tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                        let line_str = String::from_utf8_lossy(&line);
+                        println!("Server output: {}", line_str);
+
+                        if line_str.contains("Uvicorn running") || line_str.contains("Application startup complete") {
+                            println!("Server is ready!");
+                            break;
+                        }
+                    }
+                    tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                        let line_str = String::from_utf8_lossy(&line);
+                        eprintln!("Server: {}", line_str);
+
+                        // Uvicorn logs to stderr, so check there too
+                        if line_str.contains("Uvicorn running") || line_str.contains("Application startup complete") {
+                            println!("Server is ready!");
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Ok(None) => {
+                return Err("Server process ended unexpectedly".to_string());
+            }
+            Err(_) => {
+                // Timeout on this recv, continue loop
+                continue;
+            }
+        }
+    }
+
+    // Spawn task to continue reading output
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
-            if let tauri_plugin_shell::process::CommandEvent::Stdout(line) = event {
-                if String::from_utf8_lossy(&line).contains("Uvicorn running") {
-                    break;
+            match event {
+                tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                    println!("Server: {}", String::from_utf8_lossy(&line));
                 }
+                tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                    eprintln!("Server error: {}", String::from_utf8_lossy(&line));
+                }
+                _ => {}
             }
         }
     });
@@ -61,11 +132,11 @@ pub fn run() {
             child: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![start_server, stop_server])
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(debug_assertions)]
             {
                 // Get all windows and open devtools on the first one
-                if let Some((_, window)) = app.webview_windows().iter().next() {
+                if let Some((_, window)) = _app.webview_windows().iter().next() {
                     window.open_devtools();
                     println!("Dev tools opened");
                 } else {
