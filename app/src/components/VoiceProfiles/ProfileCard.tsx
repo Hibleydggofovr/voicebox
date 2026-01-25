@@ -1,7 +1,16 @@
 import { Edit, Eye, Mic, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { CircleButton } from '@/components/ui/circle-button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils/cn';
 import type { VoiceProfileResponse } from '@/lib/api/types';
@@ -16,6 +25,7 @@ interface ProfileCardProps {
 
 export function ProfileCard({ profile }: ProfileCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deleteProfile = useDeleteProfile();
   const setEditingProfileId = useUIStore((state) => state.setEditingProfileId);
   const setProfileDialogOpen = useUIStore((state) => state.setProfileDialogOpen);
@@ -33,12 +43,14 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     setProfileDialogOpen(true);
   };
 
-  const handleDelete = () => {
-    if (
-      confirm(`Are you sure you want to delete "${profile.name}"? This action cannot be undone.`)
-    ) {
-      deleteProfile.mutate(profile.id);
-    }
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteProfile.mutate(profile.id);
+    setDeleteDialogOpen(false);
   };
 
   return (
@@ -67,12 +79,15 @@ export function ProfileCard({ profile }: ProfileCardProps) {
               />
               <CircleButton
                 icon={Edit}
-                onClick={handleEdit}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEdit();
+                }}
                 aria-label="Edit profile"
               />
               <CircleButton
                 icon={Trash2}
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 disabled={deleteProfile.isPending}
                 aria-label="Delete profile"
               />
@@ -93,6 +108,25 @@ export function ProfileCard({ profile }: ProfileCardProps) {
       </Card>
 
       <ProfileDetail profileId={profile.id} open={detailOpen} onOpenChange={setDetailOpen} />
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Profile</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{profile.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleteProfile.isPending}>
+              {deleteProfile.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

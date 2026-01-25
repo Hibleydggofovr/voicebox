@@ -31,7 +31,7 @@ export function ProfileList() {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between mb-4 shrink-0">
-        <h2 className="text-2xl font-bold">Voice Profiles</h2>
+        <h2 className="text-2xl font-bold">Voicebox</h2>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           New Profile
@@ -53,7 +53,7 @@ export function ProfileList() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 grid-cols-3 auto-rows-fr">
+          <div className="grid gap-4 grid-cols-3 auto-rows-fr p-1">
             {allProfiles.map((profile) => (
               <ProfileCard key={profile.id} profile={profile} />
             ))}

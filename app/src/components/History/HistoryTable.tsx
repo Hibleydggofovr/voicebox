@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils/cn';
 import { apiClient } from '@/lib/api/client';
 import { useDeleteGeneration, useHistory } from '@/lib/hooks/useHistory';
 import { formatDate, formatDuration } from '@/lib/utils/format';
@@ -60,8 +61,6 @@ export function HistoryTable() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <h2 className="text-2xl font-bold mb-4 shrink-0">Generation History</h2>
-
       {history.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground flex-1 flex items-center justify-center">
           No generation history yet. Generate your first audio to see it here.
@@ -81,8 +80,13 @@ export function HistoryTable() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {history.map((gen) => (
-                    <TableRow key={gen.id}>
+                  {history.map((gen) => {
+                    const isCurrentlyPlaying = currentAudioId === gen.id && isPlaying;
+                    return (
+                    <TableRow 
+                      key={gen.id}
+                      className={cn(isCurrentlyPlaying && 'bg-muted/50')}
+                    >
                       <TableCell className="max-w-[200px] truncate">{gen.text}</TableCell>
                       <TableCell>{gen.profile_name}</TableCell>
                       <TableCell>
@@ -123,7 +127,8 @@ export function HistoryTable() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
           </div>
