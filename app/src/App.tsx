@@ -7,6 +7,7 @@ import { ModelManagement } from '@/components/ServerSettings/ModelManagement';
 import { Toaster } from '@/components/ui/toaster';
 import { ProfileList } from '@/components/VoiceProfiles/ProfileList';
 import { Sidebar } from '@/components/Sidebar';
+import { AudioPlayer } from '@/components/AudioPlayer/AudioPlayer';
 import { isTauri, startServer, setupWindowCloseHandler } from '@/lib/tauri';
 
 // Track if server is starting to prevent duplicate starts
@@ -83,40 +84,45 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="flex-1 ml-20">
-        <div className="container mx-auto px-8 py-8 max-w-7xl">
-          {activeTab === 'profiles' && (
-            <div className="space-y-4">
-              <ProfileList />
-            </div>
-          )}
-
-          {activeTab === 'generate' && (
-            <div className="space-y-4">
-              <GenerationForm />
-            </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div className="space-y-4">
-              <HistoryTable />
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <ConnectionForm />
-                <ServerStatus />
+        <main className="flex-1 ml-20 pb-20">
+          <div className="container mx-auto px-8 py-8 max-w-7xl">
+            {activeTab === 'profiles' && (
+              <div className="space-y-4">
+                <ProfileList />
               </div>
-              <ModelManagement />
-            </div>
-          )}
-        </div>
-      </main>
+            )}
+
+            {activeTab === 'generate' && (
+              <div className="space-y-4">
+                <GenerationForm />
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="space-y-4">
+                <HistoryTable />
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <ConnectionForm />
+                  <ServerStatus />
+                </div>
+                <ModelManagement />
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* Audio Player - always visible except on settings */}
+      {activeTab !== 'settings' && <AudioPlayer />}
 
       <Toaster />
     </div>

@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
 import { useDeleteGeneration, useHistory } from '@/lib/hooks/useHistory';
 import { formatDate, formatDuration } from '@/lib/utils/format';
+import { usePlayerStore } from '@/stores/playerStore';
 
 export function HistoryTable() {
   const [page, setPage] = useState(0);
@@ -26,17 +27,14 @@ export function HistoryTable() {
   });
 
   const deleteGeneration = useDeleteGeneration();
+  const setAudio = usePlayerStore((state) => state.setAudio);
+  const currentAudioId = usePlayerStore((state) => state.audioId);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
 
-  const handlePlay = (audioId: string) => {
+  const handlePlay = (audioId: string, text: string) => {
     const audioUrl = apiClient.getAudioUrl(audioId);
-    const audio = new Audio(audioUrl);
-    audio.play().catch((_error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to play audio',
-        variant: 'destructive',
-      });
-    });
+    // If clicking the same audio that's playing, it will be handled by the player
+    setAudio(audioUrl, audioId, text.substring(0, 50));
   };
 
   const handleDownload = (audioId: string, text: string) => {
@@ -98,8 +96,11 @@ export function HistoryTable() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handlePlay(gen.id)}
+                        onClick={() => handlePlay(gen.id, gen.text)}
                         aria-label="Play audio"
+                        className={
+                          currentAudioId === gen.id && isPlaying ? 'text-primary' : ''
+                        }
                       >
                         <Play className="h-4 w-4" />
                       </Button>
