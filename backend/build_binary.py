@@ -45,22 +45,6 @@ def build_server():
         '--exclude-module', 'sklearn',
         '--exclude-module', 'pandas',
         '--exclude-module', 'torchaudio',
-        '--exclude-module', 'triton',
-        '--exclude-module', 'torch.distributed',
-        '--exclude-module', 'torch.jit',
-        '--exclude-module', 'torch._dynamo',
-        '--exclude-module', 'torch._inductor',
-        '--exclude-module', 'nvidia.cuda_nvrtc',
-        '--exclude-module', 'nvidia.cuda_runtime',
-        '--exclude-module', 'nvidia.cuda_cupti',
-        '--exclude-module', 'nvidia.cudnn',
-        '--exclude-module', 'nvidia.cublas',
-        '--exclude-module', 'nvidia.cufft',
-        '--exclude-module', 'nvidia.curand',
-        '--exclude-module', 'nvidia.cusolver',
-        '--exclude-module', 'nvidia.cusparse',
-        '--exclude-module', 'nvidia.nccl',
-        '--exclude-module', 'nvidia.nvtx',
     ])
 
     # Add hidden imports
