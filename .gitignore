@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+bun.lockb
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+*.egg
+target/
+*.app
+*.dmg
+*.exe
+*.msi
+*.deb
+*.AppImage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (user-generated)
+data/profiles/*
+data/generations/*
+data/projects/*
+data/voicebox.db
+!data/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Generated files
+app/src/lib/api/
+app/openapi.json
+tauri/src-tauri/binaries/*
+
+# Temporary
+tmp/
+temp/
+*.tmp

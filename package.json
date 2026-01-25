@@ -1,0 +1,32 @@
+{
+  "name": "voicebox",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "app",
+    "tauri",
+    "web"
+  ],
+  "scripts": {
+    "dev": "cd tauri && bun run tauri dev",
+    "dev:web": "cd web && bun run dev",
+    "dev:backend": "source backend/venv/bin/activate && uvicorn backend.main:app --reload --port 8000",
+    "build": "cd tauri && bun run tauri build",
+    "build:web": "cd web && bun run build",
+    "generate:api": "./scripts/generate-api.sh",
+    "build:server": "./scripts/build-server.sh",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "ci": "biome ci ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.12",
+    "@types/node": "^20.0.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.6.0"
+  }
+}

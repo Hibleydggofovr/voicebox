@@ -1,0 +1,438 @@
+# voicebox Backend
+
+Production-quality FastAPI backend for Qwen3-TTS voice cloning.
+
+## Features
+
+- ✅ **Voice Profile Management** - Create, update, delete voice profiles with multi-sample support
+- ✅ **Voice Cloning** - Generate speech using voice profiles with caching
+- ✅ **Generation History** - Full history tracking with search and filtering
+- ✅ **Transcription** - Whisper-based audio transcription
+- ✅ **Multi-Sample Profiles** - Combine multiple reference samples for better quality
+- ✅ **Voice Prompt Caching** - Dual memory + disk caching for fast generation
+- ✅ **Audio Validation** - Automatic validation of reference audio quality
+- ✅ **Model Management** - Lazy loading and VRAM management
+
+## Architecture
+
+```
+backend/
+├── main.py              # FastAPI app with all routes
+├── models.py            # Pydantic request/response models
+├── tts.py              # Qwen3-TTS inference
+├── transcribe.py       # Whisper ASR
+├── profiles.py         # Voice profile CRUD
+├── history.py          # Generation history
+├── studio.py           # Audio editing (TODO)
+├── database.py         # SQLite ORM
+└── utils/
+    ├── audio.py        # Audio processing utilities
+    ├── cache.py        # Voice prompt caching
+    └── validation.py   # Input validation
+```
+
+## API Endpoints
+
+### Health & Info
+
+#### `GET /`
+Root endpoint with version info.
+
+#### `GET /health`
+Health check with model status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "gpu_available": true,
+  "vram_used_mb": 1024.5
+}
+```
+
+### Voice Profiles
+
+#### `POST /profiles`
+Create a new voice profile.
+
+**Request:**
+```json
+{
+  "name": "My Voice",
+  "description": "Optional description",
+  "language": "en"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "name": "My Voice",
+  "description": "Optional description",
+  "language": "en",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+#### `GET /profiles`
+List all voice profiles.
+
+#### `GET /profiles/{profile_id}`
+Get a specific profile.
+
+#### `PUT /profiles/{profile_id}`
+Update a profile.
+
+#### `DELETE /profiles/{profile_id}`
+Delete a profile and all associated samples.
+
+#### `POST /profiles/{profile_id}/samples`
+Add a sample to a profile.
+
+**Form Data:**
+- `file`: Audio file (WAV, MP3, etc.)
+- `reference_text`: Transcript of the audio
+
+**Response:**
+```json
+{
+  "id": "sample-uuid",
+  "profile_id": "profile-uuid",
+  "audio_path": "/path/to/sample.wav",
+  "reference_text": "This is my voice"
+}
+```
+
+#### `GET /profiles/{profile_id}/samples`
+List all samples for a profile.
+
+#### `DELETE /profiles/samples/{sample_id}`
+Delete a specific sample.
+
+### Generation
+
+#### `POST /generate`
+Generate speech from text using a voice profile.
+
+**Request:**
+```json
+{
+  "profile_id": "uuid",
+  "text": "Hello, this is a test.",
+  "language": "en",
+  "seed": 42
+}
+```
+
+**Response:**
+```json
+{
+  "id": "generation-uuid",
+  "profile_id": "profile-uuid",
+  "text": "Hello, this is a test.",
+  "language": "en",
+  "audio_path": "/path/to/audio.wav",
+  "duration": 2.5,
+  "seed": 42,
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### History
+
+#### `GET /history`
+List generation history with optional filters.
+
+**Query Parameters:**
+- `profile_id` (optional): Filter by profile
+- `search` (optional): Search in text content
+- `limit` (default: 50): Results per page
+- `offset` (default: 0): Pagination offset
+
+#### `GET /history/{generation_id}`
+Get a specific generation.
+
+#### `DELETE /history/{generation_id}`
+Delete a generation.
+
+#### `GET /history/stats`
+Get generation statistics.
+
+**Response:**
+```json
+{
+  "total_generations": 100,
+  "total_duration_seconds": 250.5,
+  "generations_by_profile": {
+    "profile-uuid-1": 50,
+    "profile-uuid-2": 50
+  }
+}
+```
+
+### Audio Files
+
+#### `GET /audio/{generation_id}`
+Download generated audio file.
+
+Returns WAV file with appropriate headers.
+
+### Transcription
+
+#### `POST /transcribe`
+Transcribe audio file to text.
+
+**Form Data:**
+- `file`: Audio file
+- `language` (optional): Language hint (en or zh)
+
+**Response:**
+```json
+{
+  "text": "Transcribed text here",
+  "duration": 5.5
+}
+```
+
+### Model Management
+
+#### `POST /models/load`
+Manually load TTS model.
+
+**Query Parameters:**
+- `model_size`: Model size (1.7B or 0.6B)
+
+#### `POST /models/unload`
+Unload TTS model to free memory.
+
+## Database Schema
+
+### profiles
+- `id`: UUID primary key
+- `name`: Profile name (unique)
+- `description`: Optional description
+- `language`: Language code (en/zh)
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+### profile_samples
+- `id`: UUID primary key
+- `profile_id`: Foreign key to profiles
+- `audio_path`: Path to audio file
+- `reference_text`: Transcript
+
+### generations
+- `id`: UUID primary key
+- `profile_id`: Foreign key to profiles
+- `text`: Generated text
+- `language`: Language code
+- `audio_path`: Path to audio file
+- `duration`: Duration in seconds
+- `seed`: Random seed (optional)
+- `created_at`: Creation timestamp
+
+### projects
+- `id`: UUID primary key
+- `name`: Project name
+- `data`: JSON data
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+## File Structure
+
+```
+data/
+├── profiles/
+│   └── {profile_id}/
+│       ├── {sample_id}.wav
+│       └── ...
+├── generations/
+│   └── {generation_id}.wav
+├── cache/
+│   └── {hash}.prompt
+├── projects/
+│   └── {project_id}.json
+└── voicebox.db
+```
+
+## Setup
+
+### 1. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Initialize Database
+
+```bash
+python -c "from database import init_db; init_db()"
+```
+
+### 3. Download Models (Automatic)
+
+The Qwen3-TTS models are automatically downloaded from HuggingFace Hub on first use, similar to how Whisper models work.
+
+**No manual download required!** The models will be cached locally after the first download.
+
+Available models:
+- **1.7B** (recommended): `Qwen/Qwen3-TTS-12Hz-1.7B-Base` (~4GB)
+- **0.6B** (faster): `Qwen/Qwen3-TTS-12Hz-0.6B-Base` (~2GB)
+
+**Note:** The first generation will take longer as the model downloads. Subsequent generations will use the cached model.
+
+#### Manual Download (Optional)
+
+If you prefer to download models manually or have limited internet during runtime:
+
+```bash
+# Install huggingface-cli
+pip install huggingface_hub
+
+# Download 1.7B model
+huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-Base
+
+# Or use Python
+python -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen3-TTS-12Hz-1.7B-Base')"
+```
+
+Models are cached in `~/.cache/huggingface/hub/` by default.
+
+### 4. Run Server
+
+```bash
+# Development (local only)
+python -m backend.main
+
+# Production (allow remote access)
+python -m backend.main --host 0.0.0.0 --port 8000
+```
+
+## Usage Examples
+
+### Creating a Voice Profile
+
+```bash
+# 1. Create profile
+curl -X POST http://localhost:8000/profiles \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Voice", "language": "en"}'
+
+# Response: {"id": "abc-123", ...}
+
+# 2. Add sample
+curl -X POST http://localhost:8000/profiles/abc-123/samples \
+  -F "file=@sample.wav" \
+  -F "reference_text=This is my voice sample"
+```
+
+### Generating Speech
+
+```bash
+curl -X POST http://localhost:8000/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profile_id": "abc-123",
+    "text": "Hello, this is a test.",
+    "language": "en",
+    "seed": 42
+  }'
+
+# Response: {"id": "gen-456", "audio_path": "/path/to/audio.wav", ...}
+
+# Download audio
+curl http://localhost:8000/audio/gen-456 -o output.wav
+```
+
+### Transcribing Audio
+
+```bash
+curl -X POST http://localhost:8000/transcribe \
+  -F "file=@audio.wav" \
+  -F "language=en"
+
+# Response: {"text": "Transcribed text", "duration": 5.5}
+```
+
+## Advanced Features
+
+### Multi-Sample Profiles
+
+Add multiple samples to a profile for better quality:
+
+```bash
+# Add first sample
+curl -X POST http://localhost:8000/profiles/abc-123/samples \
+  -F "file=@sample1.wav" \
+  -F "reference_text=First sample"
+
+# Add second sample
+curl -X POST http://localhost:8000/profiles/abc-123/samples \
+  -F "file=@sample2.wav" \
+  -F "reference_text=Second sample"
+
+# Generation will automatically combine all samples
+```
+
+### Voice Prompt Caching
+
+Voice prompts are automatically cached for faster generation:
+- First generation: ~5-10 seconds (creates prompt)
+- Subsequent generations: ~1-2 seconds (uses cached prompt)
+
+Cache is stored in `data/cache/` and persists across server restarts.
+
+### VRAM Management
+
+Models are lazy-loaded and can be manually unloaded:
+
+```bash
+# Unload TTS model
+curl -X POST http://localhost:8000/models/unload
+
+# Load specific model size
+curl -X POST "http://localhost:8000/models/load?model_size=0.6B"
+```
+
+## Error Handling
+
+All endpoints return proper HTTP status codes:
+
+- `200 OK`: Success
+- `400 Bad Request`: Invalid input
+- `404 Not Found`: Resource not found
+- `500 Internal Server Error`: Server error
+
+Error responses include details:
+
+```json
+{
+  "detail": "Profile not found"
+}
+```
+
+## Performance Tips
+
+1. **Use multi-sample profiles** - Better quality than single sample
+2. **Let caching work** - Voice prompts are cached automatically
+3. **Use 0.6B model on CPU** - Faster than 1.7B with acceptable quality
+4. **Use 1.7B model on GPU** - Best quality, still fast
+5. **Unload Whisper after transcription** - Frees VRAM for TTS
+
+## TODO
+
+- [ ] WebSocket support for generation progress
+- [ ] Batch generation endpoint
+- [ ] Audio effects (M3GAN, etc.)
+- [ ] Voice design (text-to-voice)
+- [ ] Audio studio timeline features
+- [ ] Project management
+- [ ] Authentication & rate limiting
+- [ ] Export/import profiles
+
+## License
+
+See main project LICENSE.

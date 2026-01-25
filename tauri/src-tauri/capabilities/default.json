@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "default",
+  "description": "Default permissions for voicebox",
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:webview:default",
+    "core:webview:allow-internal-toggle-devtools",
+    "shell:allow-open",
+    "shell:allow-execute",
+    "shell:allow-spawn"
+  ]
+}

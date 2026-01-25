@@ -1,0 +1,22 @@
+# FastAPI and server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# ML models
+torch>=2.1.0
+transformers>=4.36.0
+accelerate>=0.26.0
+huggingface_hub>=0.20.0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+numpy>=1.24.0
+
+# Utilities
+python-multipart>=0.0.6

@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+bun.lockb
+
+# Build outputs
+dist
+target
+.tauri
+
+# Generated files
+app/src/lib/api
+
+# Config files (don't lint/format)
+*.config.js
+*.config.ts
+
+# Tailwind CSS files (contains @tailwind directives)
+**/index.css
