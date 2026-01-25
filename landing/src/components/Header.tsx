@@ -7,11 +7,11 @@ import { GITHUB_REPO } from '@/lib/constants';
 
 export function Header() {
   return (
-    <header className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-50">
+    <header className="border-b border-border bg-background/60 backdrop-blur-2xl sticky top-0 z-50 supports-[backdrop-filter]:bg-background/40">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl sm:text-2xl hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl sm:text-2xl hover:opacity-80 transition-opacity tracking-tight">
             voicebox
           </Link>
 

@@ -9,7 +9,7 @@ interface SectionProps {
 
 export function Section({ children, className, id }: SectionProps) {
   return (
-    <section id={id} className={cn('space-y-4 sm:space-y-6', className)}>
+    <section id={id} className={cn('space-y-6 sm:space-y-8', className)}>
       {children}
     </section>
   );

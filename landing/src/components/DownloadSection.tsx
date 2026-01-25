@@ -35,10 +35,10 @@ export function DownloadSection() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         {downloads.map(({ platform, icon: Icon, link, description }) => (
-          <Card key={platform} className="hover:border-primary/50 transition-colors">
+          <Card key={platform} className="hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-3 rounded-lg bg-muted">
+                <div className="p-3 rounded-xl bg-muted/50 backdrop-blur-sm border border-border">
                   <Icon className="h-8 w-8" />
                 </div>
                 <div>
