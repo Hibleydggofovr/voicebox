@@ -2,6 +2,7 @@ import { Download, Play, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CircleButton } from '@/components/ui/circle-button';
 import {
   Table,
   TableBody,
@@ -29,6 +30,8 @@ export function HistoryTable() {
   const setAudio = usePlayerStore((state) => state.setAudio);
   const currentAudioId = usePlayerStore((state) => state.audioId);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const audioUrl = usePlayerStore((state) => state.audioUrl);
+  const isPlayerVisible = !!audioUrl;
 
   const handlePlay = (audioId: string, text: string) => {
     const audioUrl = apiClient.getAudioUrl(audioId);
@@ -67,16 +70,19 @@ export function HistoryTable() {
         </div>
       ) : (
         <>
-          <div className="flex-1 min-h-0 overflow-y-auto border rounded-md max-h-[calc(100vh-280px)]">
-            <Table>
+          <div className={cn(
+            "flex-1 min-h-0 overflow-y-auto border rounded-md overflow-x-hidden",
+            isPlayerVisible && "max-h-[calc(100vh-280px)]"
+          )}>
+            <Table className="w-full table-fixed">
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead>Text</TableHead>
-                    <TableHead>Profile</TableHead>
-                    <TableHead>Language</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-[40%]">Text</TableHead>
+                    <TableHead className="w-[15%]">Profile</TableHead>
+                    <TableHead className="w-[10%]">Language</TableHead>
+                    <TableHead className="w-[10%]">Duration</TableHead>
+                    <TableHead className="w-[15%]">Created</TableHead>
+                    <TableHead className="w-[10%] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -85,45 +91,37 @@ export function HistoryTable() {
                     return (
                     <TableRow 
                       key={gen.id}
-                      className={cn(isCurrentlyPlaying && 'bg-muted/50')}
+                      className={cn(
+                        isCurrentlyPlaying && 'bg-muted/50',
+                        'cursor-pointer'
+                      )}
+                      onClick={() => handlePlay(gen.id, gen.text)}
                     >
-                      <TableCell className="max-w-[200px] truncate">{gen.text}</TableCell>
-                      <TableCell>{gen.profile_name}</TableCell>
+                      <TableCell className="truncate">{gen.text}</TableCell>
+                      <TableCell className="truncate">{gen.profile_name}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{gen.language}</Badge>
+                        <Badge variant="outline" className="text-xs">{gen.language}</Badge>
                       </TableCell>
-                      <TableCell>{formatDuration(gen.duration)}</TableCell>
-                      <TableCell className="text-sm">{formatDate(gen.created_at)}</TableCell>
+                      <TableCell className="text-sm">{formatDuration(gen.duration)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground/60">{formatDate(gen.created_at)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                        <div className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                          <CircleButton
+                            icon={Play}
                             onClick={() => handlePlay(gen.id, gen.text)}
                             aria-label="Play audio"
-                            className={
-                              currentAudioId === gen.id && isPlaying ? 'text-primary' : ''
-                            }
-                          >
-                            <Play className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                          />
+                          <CircleButton
+                            icon={Download}
                             onClick={() => handleDownload(gen.id, gen.text)}
                             aria-label="Download audio"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                          />
+                          <CircleButton
+                            icon={Trash2}
                             onClick={() => deleteGeneration.mutate(gen.id)}
                             disabled={deleteGeneration.isPending}
                             aria-label="Delete generation"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

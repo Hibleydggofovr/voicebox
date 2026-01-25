@@ -27,6 +27,102 @@
       }
     }
   ],
+  "appearances" : [
+    {
+      "appearance" : "light",
+      "groups" : [
+        {
+          "layers" : [
+            {
+              "blend-mode" : "normal",
+              "glass" : true,
+              "image-name" : "Voicebox.png",
+              "name" : "Voicebox"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "appearance" : "dark",
+      "groups" : [
+        {
+          "layers" : [
+            {
+              "blend-mode" : "normal",
+              "glass" : true,
+              "image-name" : "Voicebox-Dark.png",
+              "name" : "Voicebox Dark"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "appearance" : "light",
+      "contrast" : "clear",
+      "groups" : [
+        {
+          "layers" : [
+            {
+              "blend-mode" : "normal",
+              "glass" : true,
+              "image-name" : "Voicebox-ClearLight.png",
+              "name" : "Voicebox Clear Light"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "appearance" : "dark",
+      "contrast" : "clear",
+      "groups" : [
+        {
+          "layers" : [
+            {
+              "blend-mode" : "normal",
+              "glass" : true,
+              "image-name" : "Voicebox-ClearDark.png",
+              "name" : "Voicebox Clear Dark"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "appearance" : "light",
+      "contrast" : "tinted",
+      "groups" : [
+        {
+          "layers" : [
+            {
+              "blend-mode" : "normal",
+              "glass" : true,
+              "image-name" : "Voicebox-TintedLight.png",
+              "name" : "Voicebox Tinted Light"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "appearance" : "dark",
+      "contrast" : "tinted",
+      "groups" : [
+        {
+          "layers" : [
+            {
+              "blend-mode" : "normal",
+              "glass" : true,
+              "image-name" : "Voicebox-TintedDark.png",
+              "name" : "Voicebox Tinted Dark"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "supported-platforms" : {
     "circles" : [
       "watchOS"

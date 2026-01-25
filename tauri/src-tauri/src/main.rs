@@ -132,6 +132,22 @@ pub fn run() {
         .manage(ServerState {
             child: Mutex::new(None),
         })
+        .setup(|app| {
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            #[cfg(debug_assertions)]
+            {
+                // Get all windows and open devtools on the first one
+                if let Some((_, window)) = app.webview_windows().iter().next() {
+                    window.open_devtools();
+                    println!("Dev tools opened");
+                } else {
+                    println!("No window found to open dev tools");
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![start_server, stop_server])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -176,19 +192,6 @@ pub fn run() {
                     window_for_close.unlisten(listener_id);
                 });
             }
-        })
-        .setup(|_app| {
-            #[cfg(debug_assertions)]
-            {
-                // Get all windows and open devtools on the first one
-                if let Some((_, window)) = _app.webview_windows().iter().next() {
-                    window.open_devtools();
-                    println!("Dev tools opened");
-                } else {
-                    println!("No window found to open dev tools");
-                }
-            }
-            Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
