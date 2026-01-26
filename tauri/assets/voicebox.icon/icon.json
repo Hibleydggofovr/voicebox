@@ -4,15 +4,13 @@
     {
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "glass" : true,
-          "image-name" : "Voicebox.png",
-          "name" : "Voicebox",
+          "image-name" : "Voicebox_Microphone.png",
+          "name" : "Voicebox_Microphone",
           "position" : {
-            "scale" : 0.37,
+            "scale" : 0.36,
             "translation-in-points" : [
-              -0.12338405356129378,
-              297.27705195772353
+              0.140625,
+              270.1875
             ]
           }
         }
@@ -25,102 +23,6 @@
         "enabled" : true,
         "value" : 0.5
       }
-    }
-  ],
-  "appearances" : [
-    {
-      "appearance" : "light",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox.png",
-              "name" : "Voicebox"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "dark",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-Dark.png",
-              "name" : "Voicebox Dark"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "light",
-      "contrast" : "clear",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-ClearLight.png",
-              "name" : "Voicebox Clear Light"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "dark",
-      "contrast" : "clear",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-ClearDark.png",
-              "name" : "Voicebox Clear Dark"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "light",
-      "contrast" : "tinted",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-TintedLight.png",
-              "name" : "Voicebox Tinted Light"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "dark",
-      "contrast" : "tinted",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-TintedDark.png",
-              "name" : "Voicebox Tinted Dark"
-            }
-          ]
-        }
-      ]
     }
   ],
   "supported-platforms" : {

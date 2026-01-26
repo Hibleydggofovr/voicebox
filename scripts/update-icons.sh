@@ -10,6 +10,7 @@ EXPORTS_DIR="tauri/assets/voicebox_exports"
 ICON_BUNDLE="tauri/assets/voicebox.icon"
 ASSETS_DIR="$ICON_BUNDLE/Assets"
 ICONS_DIR="tauri/src-tauri/icons"
+LANDING_LOGO="landing/public/voicebox-logo.png"
 SOURCE_ICON="$EXPORTS_DIR/voicebox-iOS-Default-1024x1024@1x.png"
 
 echo "🎨 Updating all Voicebox icons from exports..."
@@ -22,183 +23,27 @@ if [ ! -f "$SOURCE_ICON" ]; then
 fi
 
 # ============================================
-# PART 1: Update voicebox.icon Bundle
+# PART 1: Compile Liquid Glass Icon Bundle
 # ============================================
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📦 Part 1: Updating Liquid Glass Icon Bundle"
+echo "📦 Part 1: Compiling Liquid Glass Icon Bundle"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-mkdir -p "$ASSETS_DIR"
+echo "Compiling voicebox.icon with actool..."
+# Remove old generated icons to force rebuild
+rm -rf tauri/src-tauri/gen/*.icns tauri/src-tauri/gen/Assets.car 2>/dev/null
 
-echo "Copying appearance variants..."
-cp "$EXPORTS_DIR/voicebox-iOS-Default-1024x1024@1x.png" "$ASSETS_DIR/Voicebox.png"
-echo "  ✓ Default"
+cd tauri/src-tauri
+cargo build 2>/dev/null || echo "  ⚠ Cargo build had warnings (this is normal)"
+cd ../..
 
-[ -f "$EXPORTS_DIR/voicebox-iOS-Dark-1024x1024@1x.png" ] && {
-  cp "$EXPORTS_DIR/voicebox-iOS-Dark-1024x1024@1x.png" "$ASSETS_DIR/Voicebox-Dark.png"
-  echo "  ✓ Dark"
-}
+if [ -f "tauri/src-tauri/gen/voicebox.icns" ]; then
+  echo "  ✓ voicebox.icns generated"
+else
+  echo "  ⚠ Warning: voicebox.icns not generated (will use fallback)"
+fi
 
-[ -f "$EXPORTS_DIR/voicebox-iOS-ClearLight-1024x1024@1x.png" ] && {
-  cp "$EXPORTS_DIR/voicebox-iOS-ClearLight-1024x1024@1x.png" "$ASSETS_DIR/Voicebox-ClearLight.png"
-  echo "  ✓ Clear Light"
-}
-
-[ -f "$EXPORTS_DIR/voicebox-iOS-ClearDark-1024x1024@1x.png" ] && {
-  cp "$EXPORTS_DIR/voicebox-iOS-ClearDark-1024x1024@1x.png" "$ASSETS_DIR/Voicebox-ClearDark.png"
-  echo "  ✓ Clear Dark"
-}
-
-[ -f "$EXPORTS_DIR/voicebox-iOS-TintedLight-1024x1024@1x.png" ] && {
-  cp "$EXPORTS_DIR/voicebox-iOS-TintedLight-1024x1024@1x.png" "$ASSETS_DIR/Voicebox-TintedLight.png"
-  echo "  ✓ Tinted Light"
-}
-
-[ -f "$EXPORTS_DIR/voicebox-iOS-TintedDark-1024x1024@1x.png" ] && {
-  cp "$EXPORTS_DIR/voicebox-iOS-TintedDark-1024x1024@1x.png" "$ASSETS_DIR/Voicebox-TintedDark.png"
-  echo "  ✓ Tinted Dark"
-}
-
-echo ""
-echo "Updating icon.json..."
-
-cat > "$ICON_BUNDLE/icon.json" << 'EOF'
-{
-  "fill" : "automatic",
-  "groups" : [
-    {
-      "layers" : [
-        {
-          "blend-mode" : "normal",
-          "glass" : true,
-          "image-name" : "Voicebox.png",
-          "name" : "Voicebox",
-          "position" : {
-            "scale" : 0.37,
-            "translation-in-points" : [
-              -0.12338405356129378,
-              297.27705195772353
-            ]
-          }
-        }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
-    }
-  ],
-  "appearances" : [
-    {
-      "appearance" : "light",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox.png",
-              "name" : "Voicebox"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "dark",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-Dark.png",
-              "name" : "Voicebox Dark"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "light",
-      "contrast" : "clear",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-ClearLight.png",
-              "name" : "Voicebox Clear Light"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "dark",
-      "contrast" : "clear",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-ClearDark.png",
-              "name" : "Voicebox Clear Dark"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "light",
-      "contrast" : "tinted",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-TintedLight.png",
-              "name" : "Voicebox Tinted Light"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "appearance" : "dark",
-      "contrast" : "tinted",
-      "groups" : [
-        {
-          "layers" : [
-            {
-              "blend-mode" : "normal",
-              "glass" : true,
-              "image-name" : "Voicebox-TintedDark.png",
-              "name" : "Voicebox Tinted Dark"
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "supported-platforms" : {
-    "circles" : [
-      "watchOS"
-    ],
-    "squares" : "shared"
-  }
-}
-EOF
-
-echo "  ✓ icon.json updated"
 echo ""
 
 # ============================================
@@ -219,8 +64,13 @@ sips -s format png -z 128 128 "$SOURCE_ICON" --out "$ICONS_DIR/128x128.png" 2>/d
 sips -s format png -z 256 256 "$SOURCE_ICON" --out "$ICONS_DIR/128x128@2x.png" 2>/dev/null
 sips -s format png -z 512 512 "$SOURCE_ICON" --out "$ICONS_DIR/icon.png" 2>/dev/null
 
-# Generate ICNS
-echo "Generating icon.icns..."
+# Copy Liquid Glass compiled ICNS or generate fallback
+echo "Copying icon.icns..."
+if [ -f "tauri/src-tauri/gen/voicebox.icns" ]; then
+  cp tauri/src-tauri/gen/voicebox.icns "$ICONS_DIR/icon.icns"
+  echo "  ✓ Copied Liquid Glass compiled icon.icns"
+else
+  echo "  ⚠ Liquid Glass icon not found, generating fallback icon.icns..."
 mkdir -p /tmp/voicebox-iconset.iconset
 sips -s format png -z 16 16 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_16x16.png 2>/dev/null
 sips -s format png -z 32 32 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_16x16@2x.png 2>/dev/null
@@ -231,9 +81,11 @@ sips -s format png -z 256 256 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset
 sips -s format png -z 256 256 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_256x256.png 2>/dev/null
 sips -s format png -z 512 512 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_256x256@2x.png 2>/dev/null
 sips -s format png -z 512 512 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_512x512.png 2>/dev/null
-sips -s format png -z 1024 1024 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_512x512@2x.png 2>/dev/null
-iconutil -c icns /tmp/voicebox-iconset.iconset -o "$ICONS_DIR/icon.icns"
-rm -rf /tmp/voicebox-iconset.iconset
+  sips -s format png -z 1024 1024 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_512x512@2x.png 2>/dev/null
+  iconutil -c icns /tmp/voicebox-iconset.iconset -o "$ICONS_DIR/icon.icns"
+  rm -rf /tmp/voicebox-iconset.iconset
+  echo "  ✓ Generated fallback icon.icns"
+fi
 
 # Windows Square Logos
 echo "Generating Windows icons..."
@@ -300,6 +152,10 @@ sips -s format png -z 192 192 "$SOURCE_ICON" --out "$ICONS_DIR/android/mipmap-xx
 sips -s format png -z 192 192 "$SOURCE_ICON" --out "$ICONS_DIR/android/mipmap-xxxhdpi/ic_launcher_round.png" 2>/dev/null
 sips -s format png -z 192 192 "$SOURCE_ICON" --out "$ICONS_DIR/android/mipmap-xxxhdpi/ic_launcher_foreground.png" 2>/dev/null
 
+# Landing Page Logo
+echo "Generating landing page logo..."
+sips -s format png -z 1024 1024 "$SOURCE_ICON" --out "$LANDING_LOGO" 2>/dev/null
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ All icons updated successfully!"
@@ -311,5 +167,6 @@ echo "  ✓ macOS/Desktop fallback icons"
 echo "  ✓ Windows Square logos"
 echo "  ✓ iOS AppIcons (18 sizes)"
 echo "  ✓ Android mipmap icons (5 densities)"
+echo "  ✓ Landing page logo"
 echo ""
 echo "Next: Rebuild the app with 'cd tauri && bun run tauri build'"
