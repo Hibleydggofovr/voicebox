@@ -1,8 +1,8 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface HeroProps {
   title: ReactNode;
@@ -21,7 +21,7 @@ export function Hero({ title, description, actions, className, showLogo = true }
           {showLogo && (
             <div className="flex lg:justify-start justify-center mb-6">
               <Image
-                src="/voicebox-logo.png"
+                src="/voicebox-logo-2.png"
                 alt="Voicebox Logo"
                 width={1024}
                 height={1024}

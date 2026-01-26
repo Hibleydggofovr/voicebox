@@ -79,12 +79,12 @@ export function HistoryTable() {
             <Table className="w-full table-fixed">
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead className="w-[40%]">Text</TableHead>
-                  <TableHead className="w-[15%]">Profile</TableHead>
-                  <TableHead className="w-[10%]">Language</TableHead>
-                  <TableHead className="w-[10%]">Duration</TableHead>
-                  <TableHead className="w-[15%]">Created</TableHead>
-                  <TableHead className="w-[10%] text-right">Actions</TableHead>
+                  <TableHead className="w-[35%]">Text</TableHead>
+                  <TableHead className="w-[12%]">Profile</TableHead>
+                  <TableHead className="w-[8%]">Language</TableHead>
+                  <TableHead className="w-[8%]">Duration</TableHead>
+                  <TableHead className="w-[12%]">Created</TableHead>
+                  <TableHead className="w-[15%] text-right min-w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -107,9 +107,9 @@ export function HistoryTable() {
                       <TableCell className="text-xs text-muted-foreground/60">
                         {formatDate(gen.created_at)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right min-w-[100px]">
                         <div
-                          className="flex justify-end gap-0.5"
+                          className="flex justify-end gap-0.5 flex-nowrap"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <CircleButton

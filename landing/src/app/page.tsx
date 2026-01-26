@@ -1,14 +1,13 @@
 'use client';
 
-import Link from 'next/link';
-import { Github, Zap, Cpu, Cloud, Shield, Code } from 'lucide-react';
+import { Cloud, Code, Cpu, Github, Shield, Zap } from 'lucide-react';
+import Image from 'next/image';
+import { AppleIcon, LinuxIcon, WindowsIcon } from '@/components/PlatformIcons';
 import { Button } from '@/components/ui/button';
 import { Hero } from '@/components/ui/hero';
 import { Section, SectionTitle } from '@/components/ui/section';
-import { Card, CardContent } from '@/components/ui/card';
-import { FeatureCard } from '@/components/ui/feature-card';
-import { GITHUB_REPO, DOWNLOAD_LINKS } from '@/lib/constants';
-import { AppleIcon, WindowsIcon, LinuxIcon } from '@/components/PlatformIcons';
+import { DOWNLOAD_LINKS, GITHUB_REPO } from '@/lib/constants';
+import { FeatureCard } from '../components/ui/feature-card';
 
 export default function Home() {
   const features = [
@@ -53,9 +52,19 @@ export default function Home() {
       {/* Hero Section */}
       <Hero
         title="voicebox"
-        description="Professional voice cloning powered by Qwen3-TTS. Create natural-sounding speech from text with near-perfect voice replication."
+        description="Open source voice cloning powered by Qwen3-TTS. Create natural-sounding speech from text with near-perfect voice replication."
         actions={
           <div className="space-y-4 w-full lg:w-auto">
+            <div className="w-full max-w-2xl mb-6">
+              <Image
+                src="/App.webp"
+                alt="Voicebox Application Screenshot"
+                width={1920}
+                height={1080}
+                className="w-full h-auto rounded-lg border border-border shadow-lg"
+                priority
+              />
+            </div>
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold mb-1">Download</h2>
               <p className="text-sm text-muted-foreground">Choose your platform</p>

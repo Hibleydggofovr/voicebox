@@ -11,7 +11,7 @@ ICON_BUNDLE="tauri/assets/voicebox.icon"
 ASSETS_DIR="$ICON_BUNDLE/Assets"
 ICONS_DIR="tauri/src-tauri/icons"
 LANDING_LOGO="landing/public/voicebox-logo.png"
-SOURCE_ICON="$EXPORTS_DIR/voicebox-iOS-Default-1024x1024@1x.png"
+SOURCE_ICON="$EXPORTS_DIR/voicebox-iOS-Dark-1024x1024@1x.png"
 
 echo "🎨 Updating all Voicebox icons from exports..."
 echo ""

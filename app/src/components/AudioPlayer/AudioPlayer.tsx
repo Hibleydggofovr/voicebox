@@ -73,11 +73,22 @@ export function AudioPlayer() {
       });
 
       try {
+        // Get computed CSS variable values
+        const root = document.documentElement;
+        const getCSSVar = (varName: string) => {
+          const value = getComputedStyle(root).getPropertyValue(varName).trim();
+          return value ? `hsl(${value})` : '';
+        };
+
+        const waveColor = getCSSVar('--muted');
+        const progressColor = getCSSVar('--accent');
+        const cursorColor = getCSSVar('--accent');
+
         const wavesurfer = WaveSurfer.create({
           container: container,
-          waveColor: '#ffffff',
-          progressColor: '#d3d3d3',
-          cursorColor: 'hsl(var(--primary))',
+          waveColor: waveColor,
+          progressColor: progressColor,
+          cursorColor: cursorColor,
           barWidth: 2,
           barRadius: 2,
           height: 80,

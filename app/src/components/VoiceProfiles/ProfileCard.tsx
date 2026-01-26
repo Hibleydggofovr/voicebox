@@ -2,6 +2,7 @@ import { Edit, Eye, Mic, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CircleButton } from '@/components/ui/circle-button';
 import {
   Dialog,
@@ -11,11 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils/cn';
 import type { VoiceProfileResponse } from '@/lib/api/types';
 import { useDeleteProfile } from '@/lib/hooks/useProfiles';
-import { formatDate } from '@/lib/utils/format';
+import { cn } from '@/lib/utils/cn';
 import { useUIStore } from '@/stores/uiStore';
 import { ProfileDetail } from './ProfileDetail';
 
@@ -57,54 +56,51 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     <>
       <Card
         className={cn(
-          'cursor-pointer hover:shadow-md transition-all',
+          'cursor-pointer hover:shadow-md transition-all flex flex-col',
           isSelected && 'ring-2 ring-primary shadow-md',
         )}
         onClick={handleSelect}
       >
         <CardHeader className="p-3 pb-2">
-          <CardTitle className="flex items-center justify-between gap-2 text-base font-medium">
-            <span className="flex items-center gap-1.5 min-w-0 flex-1">
-              <Mic className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{profile.name}</span>
-            </span>
-            <div className="flex gap-0.5 shrink-0">
-              <CircleButton
-                icon={Eye}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDetailOpen(true);
-                }}
-                aria-label="View details"
-              />
-              <CircleButton
-                icon={Edit}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEdit();
-                }}
-                aria-label="Edit profile"
-              />
-              <CircleButton
-                icon={Trash2}
-                onClick={handleDeleteClick}
-                disabled={deleteProfile.isPending}
-                aria-label="Delete profile"
-              />
+          <CardTitle className="flex items-center gap-1.5 text-base font-medium">
+            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <Mic className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
+            <span className="break-words">{profile.name}</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-3 pt-0">
+        <CardContent className="p-3 pt-0 flex flex-col flex-1">
           <p className="text-xs text-muted-foreground mb-1.5 line-clamp-2 leading-relaxed">
             {profile.description || 'No description'}
           </p>
-          <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="mb-2">
             <Badge variant="outline" className="text-xs h-5 px-1.5">
               {profile.language}
             </Badge>
-            <p className="text-xs text-muted-foreground/60 text-right">
-              {formatDate(profile.created_at)}
-            </p>
+          </div>
+          <div className="flex gap-0.5 justify-end items-end mt-auto">
+            <CircleButton
+              icon={Eye}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailOpen(true);
+              }}
+              aria-label="View details"
+            />
+            <CircleButton
+              icon={Edit}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit();
+              }}
+              aria-label="Edit profile"
+            />
+            <CircleButton
+              icon={Trash2}
+              onClick={handleDeleteClick}
+              disabled={deleteProfile.isPending}
+              aria-label="Delete profile"
+            />
           </div>
         </CardContent>
       </Card>
