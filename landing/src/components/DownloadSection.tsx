@@ -35,7 +35,10 @@ export function DownloadSection() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         {downloads.map(({ platform, icon: Icon, link, description }) => (
-          <Card key={platform} className="hover:border-primary/20 hover:shadow-lg hover:shadow-primary/3 transition-all duration-200 hover:-translate-y-0.5">
+          <Card
+            key={platform}
+            className="hover:border-primary/20 hover:shadow-lg hover:shadow-primary/3 transition-all duration-200 hover:-translate-y-0.5"
+          >
             <CardContent className="p-6">
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="p-3 rounded-xl bg-muted/50 backdrop-blur-sm border border-border">
@@ -45,11 +48,7 @@ export function DownloadSection() {
                   <h3 className="text-lg font-semibold mb-1">{platform}</h3>
                   <p className="text-sm text-muted-foreground">{description}</p>
                 </div>
-                <Button
-                  asChild
-                  size="lg"
-                  className="w-full"
-                >
+                <Button asChild size="lg" className="w-full">
                   <a href={link} download>
                     <Download className="h-4 w-4 mr-2" />
                     Download

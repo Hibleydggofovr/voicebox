@@ -77,9 +77,7 @@ export function ConnectionForm() {
               )}
             />
 
-            {isDirty && (
-              <Button type="submit">Update Connection</Button>
-            )}
+            {isDirty && <Button type="submit">Update Connection</Button>}
           </form>
         </Form>
 
@@ -106,8 +104,8 @@ export function ConnectionForm() {
                 Keep server running when app closes
               </label>
               <p className="text-sm text-muted-foreground">
-                When enabled, the server will continue running in the background after closing the app.
-                Disabled by default.
+                When enabled, the server will continue running in the background after closing the
+                app. Disabled by default.
               </p>
             </div>
           </div>

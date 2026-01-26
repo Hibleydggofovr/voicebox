@@ -28,7 +28,8 @@ export function useAudioRecording({
       // Check if getUserMedia is available
       // In Tauri, navigator.mediaDevices might not be available immediately
       if (typeof navigator === 'undefined') {
-        const errorMsg = 'Navigator API is not available. This might be a Tauri configuration issue.';
+        const errorMsg =
+          'Navigator API is not available. This might be a Tauri configuration issue.';
         setError(errorMsg);
         throw new Error(errorMsg);
       }
@@ -36,7 +37,7 @@ export function useAudioRecording({
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         // Try waiting a bit for Tauri webview to initialize
         await new Promise((resolve) => setTimeout(resolve, 100));
-        
+
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           const isTauriEnv = isTauri();
           console.error('MediaDevices check:', {
@@ -45,7 +46,7 @@ export function useAudioRecording({
             hasGetUserMedia: !!navigator?.mediaDevices?.getUserMedia,
             isTauri: isTauriEnv,
           });
-          
+
           const errorMsg = isTauriEnv
             ? 'Microphone access is not available. Please ensure:\n1. The app has microphone permissions in System Settings (macOS: System Settings > Privacy & Security > Microphone)\n2. You restart the app after granting permissions\n3. You are using Tauri v2 with a webview that supports getUserMedia'
             : 'Microphone access is not available. Please ensure you are using a secure context (HTTPS or localhost) and that your browser has microphone permissions enabled.';
@@ -87,7 +88,7 @@ export function useAudioRecording({
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         onRecordingComplete?.(blob);
-        
+
         // Stop all tracks
         streamRef.current?.getTracks().forEach((track) => {
           track.stop();

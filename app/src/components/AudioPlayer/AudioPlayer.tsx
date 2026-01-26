@@ -34,12 +34,12 @@ export function AudioPlayer() {
     if (!audioUrl) {
       return;
     }
-    
+
     if (wavesurferRef.current) {
       console.log('WaveSurfer already initialized, skipping');
       return;
     }
-    
+
     console.log('Creating NEW WaveSurfer instance');
 
     // Wait for container to be properly rendered
@@ -241,7 +241,7 @@ export function AudioPlayer() {
   // Load audio when URL changes (only if WaveSurfer is already initialized)
   useEffect(() => {
     const wavesurfer = wavesurferRef.current;
-    
+
     if (!audioUrl || !wavesurfer) {
       // Reset state when no audio or WaveSurfer not ready
       if (!audioUrl && wavesurfer) {
@@ -259,7 +259,7 @@ export function AudioPlayer() {
     // CRITICAL: Force stop any current playback and cancel any pending loads
     // This must happen BEFORE any early returns
     console.log('Audio URL changed to:', audioUrl);
-    
+
     // COMPLETELY stop and destroy the current audio
     try {
       // First pause if playing
@@ -267,7 +267,7 @@ export function AudioPlayer() {
         console.log('Pausing current playback');
         wavesurfer.pause();
       }
-      
+
       // Stop the media element explicitly
       const mediaElement = wavesurfer.getMediaElement();
       if (mediaElement) {
@@ -276,7 +276,7 @@ export function AudioPlayer() {
         mediaElement.currentTime = 0;
         mediaElement.src = '';
       }
-      
+
       // Use empty() to completely destroy the waveform and media element
       console.log('Calling wavesurfer.empty() to destroy audio');
       wavesurfer.empty();
@@ -284,7 +284,7 @@ export function AudioPlayer() {
       console.error('Error stopping previous audio:', error);
       // Continue anyway to load new audio
     }
-    
+
     // Reset loading state to allow new load (cancel any pending loads)
     loadingRef.current = false;
 

@@ -3,11 +3,13 @@ import { GenerationForm } from '@/components/Generation/GenerationForm';
 import { HistoryTable } from '@/components/History/HistoryTable';
 import { ConnectionForm } from '@/components/ServerSettings/ConnectionForm';
 import { ServerStatus } from '@/components/ServerSettings/ServerStatus';
+import { UpdateStatus } from '@/components/ServerSettings/UpdateStatus';
 import { ModelManagement } from '@/components/ServerSettings/ModelManagement';
 import { Toaster } from '@/components/ui/toaster';
 import { ProfileList } from '@/components/VoiceProfiles/ProfileList';
 import { Sidebar } from '@/components/Sidebar';
 import { AudioPlayer } from '@/components/AudioPlayer/AudioPlayer';
+import { UpdateNotification } from '@/components/UpdateNotification';
 import { isTauri, startServer, setupWindowCloseHandler } from '@/lib/tauri';
 
 // Track if server is starting to prevent duplicate starts
@@ -90,12 +92,15 @@ function App() {
 
         <main className="flex-1 ml-20 overflow-hidden flex flex-col">
           <div className="container mx-auto px-8 py-8 max-w-[1800px] h-full overflow-hidden flex flex-col">
+            <UpdateNotification />
+
             {activeTab === 'settings' ? (
               <div className="space-y-4 overflow-y-auto">
                 <div className="grid gap-4 md:grid-cols-2">
                   <ConnectionForm />
                   <ServerStatus />
                 </div>
+                {isTauri() && <UpdateStatus />}
                 <ModelManagement />
               </div>
             ) : (
@@ -107,7 +112,7 @@ function App() {
                   <div className="shrink-0 flex flex-col">
                     <ProfileList />
                   </div>
-                  
+
                   {/* Generator - Bottom Left */}
                   <div className="shrink-0">
                     <GenerationForm />

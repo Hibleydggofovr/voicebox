@@ -28,8 +28,7 @@ export const useServerStore = create<ServerStore>()(
       setMode: (mode) => set({ mode }),
 
       keepServerRunningOnClose: false,
-      setKeepServerRunningOnClose: (keepRunning) =>
-        set({ keepServerRunningOnClose: keepRunning }),
+      setKeepServerRunningOnClose: (keepRunning) => set({ keepServerRunningOnClose: keepRunning }),
     }),
     {
       name: 'voicebox-server',

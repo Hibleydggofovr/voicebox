@@ -57,8 +57,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     <>
       <Card
         className={cn(
-          "cursor-pointer hover:shadow-md transition-all",
-          isSelected && "ring-2 ring-primary shadow-md"
+          'cursor-pointer hover:shadow-md transition-all',
+          isSelected && 'ring-2 ring-primary shadow-md',
         )}
         onClick={handleSelect}
       >
@@ -102,7 +102,9 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             <Badge variant="outline" className="text-xs h-5 px-1.5">
               {profile.language}
             </Badge>
-            <p className="text-xs text-muted-foreground/60 text-right">{formatDate(profile.created_at)}</p>
+            <p className="text-xs text-muted-foreground/60 text-right">
+              {formatDate(profile.created_at)}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -121,7 +123,11 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleteProfile.isPending}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteProfile.isPending}
+            >
               {deleteProfile.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>

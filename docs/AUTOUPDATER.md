@@ -148,47 +148,28 @@ Add your private key to GitHub secrets:
 - Add `TAURI_SIGNING_PRIVATE_KEY` with the content of `~/.tauri/voicebox.key`
 - Add `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty string if no password)
 
-## 5. Implementing Update Check in Frontend
+## 5. Frontend Integration (Already Completed)
 
-Add the updater package:
+The frontend integration is already complete in this project with the following components:
 
-```bash
-bun add @tauri-apps/plugin-updater
-```
+### Automatic Update Notifications
+- `app/src/components/UpdateNotification.tsx` - Shows a banner when updates are available
+- Automatically checks for updates on app startup
+- Displays download/install progress
+- Only shows in Tauri desktop builds
 
-Example implementation:
+### Manual Update Check
+- `app/src/components/ServerSettings/UpdateStatus.tsx` - Settings panel for updates
+- Allows manual update checks via "Check for Updates" button
+- Shows current version and update status
+- Located in the Settings tab (only visible in Tauri builds)
 
-```typescript
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+### Update Hook
+- `app/src/hooks/useAutoUpdater.ts` - React hook for update functionality
+- Handles update checking, downloading, and installation
+- Includes Tauri context detection (won't run in web builds)
 
-async function checkForUpdates() {
-  try {
-    const update = await check();
-
-    if (update?.available) {
-      console.log(`Update available: ${update.version}`);
-
-      // Show UI to user
-      const shouldUpdate = confirm(
-        `Version ${update.version} is available. Install now?`
-      );
-
-      if (shouldUpdate) {
-        await update.downloadAndInstall();
-        await relaunch();
-      }
-    }
-  } catch (error) {
-    console.error('Update check failed:', error);
-  }
-}
-
-// Check on app startup
-checkForUpdates();
-
-// Or add a manual check button
-```
+The components are already integrated into the main App layout.
 
 ## Security Notes
 

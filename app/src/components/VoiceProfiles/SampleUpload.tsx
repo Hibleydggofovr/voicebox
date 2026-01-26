@@ -108,9 +108,9 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
     try {
       const language = profile?.language as 'en' | 'zh' | undefined;
       const result = await transcribe.mutateAsync({ file, language });
-      
+
       form.setValue('referenceText', result.text, { shouldValidate: true });
-      
+
       toast({
         title: 'Transcription complete',
         description: 'Audio has been transcribed successfully.',
@@ -223,7 +223,8 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Supported formats: WAV, MP3, M4A. Click "Transcribe" to automatically extract text from the audio.
+                        Supported formats: WAV, MP3, M4A. Click "Transcribe" to automatically
+                        extract text from the audio.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -277,7 +278,8 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
                                 Stop Recording
                               </Button>
                               <p className="text-sm text-muted-foreground text-center">
-                                Recording in progress... ({formatAudioDuration(30 - duration)} remaining)
+                                Recording in progress... ({formatAudioDuration(30 - duration)}{' '}
+                                remaining)
                               </p>
                             </div>
                           )}

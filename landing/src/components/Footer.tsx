@@ -10,7 +10,8 @@ export function Footer() {
           <div>
             <h3 className="font-bold text-lg mb-4">voicebox</h3>
             <p className="text-muted-foreground text-sm">
-              Professional voice cloning powered by Qwen3-TTS. Desktop app for Mac, Windows, and Linux.
+              Professional voice cloning powered by Qwen3-TTS. Desktop app for Mac, Windows, and
+              Linux.
             </p>
           </div>
           <div>
@@ -27,7 +28,12 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <Link href={GITHUB_REPO} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                <Link
+                  href={GITHUB_REPO}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
                   GitHub
                 </Link>
               </li>
@@ -37,17 +43,32 @@ export function Footer() {
             <h4 className="font-semibold mb-3">Resources</h4>
             <ul className="space-y-2 text-muted-foreground text-sm">
               <li>
-                <Link href={GITHUB_REPO} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                <Link
+                  href={GITHUB_REPO}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
                   Source Code
                 </Link>
               </li>
               <li>
-                <Link href={`${GITHUB_REPO}/releases`} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                <Link
+                  href={`${GITHUB_REPO}/releases`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
                   Releases
                 </Link>
               </li>
               <li>
-                <Link href={`${GITHUB_REPO}/issues`} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                <Link
+                  href={`${GITHUB_REPO}/issues`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
                   Issues
                 </Link>
               </li>

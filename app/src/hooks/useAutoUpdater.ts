@@ -11,6 +11,10 @@ export interface UpdateStatus {
   error?: string;
 }
 
+const isTauri = () => {
+  return '__TAURI_INTERNALS__' in window;
+};
+
 export function useAutoUpdater(checkOnMount = false) {
   const [status, setStatus] = useState<UpdateStatus>({
     checking: false,
@@ -22,6 +26,10 @@ export function useAutoUpdater(checkOnMount = false) {
   const [update, setUpdate] = useState<Update | null>(null);
 
   const checkForUpdates = async () => {
+    if (!isTauri()) {
+      return;
+    }
+
     try {
       setStatus((prev) => ({ ...prev, checking: true, error: undefined }));
 
@@ -56,7 +64,7 @@ export function useAutoUpdater(checkOnMount = false) {
   };
 
   const downloadAndInstall = async () => {
-    if (!update) return;
+    if (!update || !isTauri()) return;
 
     try {
       setStatus((prev) => ({ ...prev, downloading: true, error: undefined }));
@@ -91,7 +99,7 @@ export function useAutoUpdater(checkOnMount = false) {
   };
 
   useEffect(() => {
-    if (checkOnMount) {
+    if (checkOnMount && isTauri()) {
       checkForUpdates();
     }
   }, [checkOnMount]);

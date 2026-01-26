@@ -66,9 +66,7 @@ export function SampleList({ profileId }: SampleListProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => handlePlay(sample.audio_path, sample.reference_text, sample.id)}
-                  className={
-                    currentAudioId === sample.id && isPlaying ? 'text-primary' : ''
-                  }
+                  className={currentAudioId === sample.id && isPlaying ? 'text-primary' : ''}
                 >
                   <Play className="h-4 w-4 mr-1" />
                   Play

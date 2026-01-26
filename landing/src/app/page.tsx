@@ -14,12 +14,14 @@ export default function Home() {
   const features = [
     {
       title: 'Near-Perfect Voice Cloning',
-      description: 'Powered by Alibaba\'s Qwen3-TTS model for exceptional voice quality and accuracy.',
+      description:
+        "Powered by Alibaba's Qwen3-TTS model for exceptional voice quality and accuracy.",
       icon: <Zap className="h-6 w-6" />,
     },
     {
       title: 'Multi-Sample Support',
-      description: 'Combine multiple voice samples for higher quality and more natural-sounding results.',
+      description:
+        'Combine multiple voice samples for higher quality and more natural-sounding results.',
       icon: <Code className="h-6 w-6" />,
     },
     {
@@ -29,12 +31,14 @@ export default function Home() {
     },
     {
       title: 'Local or Remote',
-      description: 'Run GPU inference locally or connect to a remote machine. One-click server setup.',
+      description:
+        'Run GPU inference locally or connect to a remote machine. One-click server setup.',
       icon: <Cloud className="h-6 w-6" />,
     },
     {
       title: 'Audio Transcription',
-      description: 'Powered by Whisper for accurate speech-to-text. Extract reference text from voice samples automatically.',
+      description:
+        'Powered by Whisper for accurate speech-to-text. Extract reference text from voice samples automatically.',
       icon: <Shield className="h-6 w-6" />,
     },
     {
@@ -58,7 +62,11 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
               <Button asChild size="lg" className="w-full px-0">
-                <a href={DOWNLOAD_LINKS.macArm} download className="flex items-center w-full relative">
+                <a
+                  href={DOWNLOAD_LINKS.macArm}
+                  download
+                  className="flex items-center w-full relative"
+                >
                   <div className="flex items-center gap-2 flex-shrink-0 pl-4">
                     <AppleIcon className="h-5 w-5" />
                     <div className="h-5 w-px bg-border" />
@@ -67,7 +75,11 @@ export default function Home() {
                 </a>
               </Button>
               <Button asChild size="lg" className="w-full px-0">
-                <a href={DOWNLOAD_LINKS.macIntel} download className="flex items-center w-full relative">
+                <a
+                  href={DOWNLOAD_LINKS.macIntel}
+                  download
+                  className="flex items-center w-full relative"
+                >
                   <div className="flex items-center gap-2 flex-shrink-0 pl-4">
                     <AppleIcon className="h-5 w-5" />
                     <div className="h-5 w-px bg-border" />
@@ -76,7 +88,11 @@ export default function Home() {
                 </a>
               </Button>
               <Button asChild size="lg" className="w-full px-0">
-                <a href={DOWNLOAD_LINKS.windows} download className="flex items-center w-full relative">
+                <a
+                  href={DOWNLOAD_LINKS.windows}
+                  download
+                  className="flex items-center w-full relative"
+                >
                   <div className="flex items-center gap-2 flex-shrink-0 pl-4">
                     <WindowsIcon className="h-5 w-5" />
                     <div className="h-5 w-px bg-border" />
@@ -85,7 +101,11 @@ export default function Home() {
                 </a>
               </Button>
               <Button asChild size="lg" className="w-full px-0">
-                <a href={DOWNLOAD_LINKS.linux} download className="flex items-center w-full relative">
+                <a
+                  href={DOWNLOAD_LINKS.linux}
+                  download
+                  className="flex items-center w-full relative"
+                >
                   <div className="flex items-center gap-2 flex-shrink-0 pl-4">
                     <LinuxIcon className="h-5 w-5" />
                     <div className="h-5 w-px bg-border" />
@@ -94,12 +114,7 @@ export default function Home() {
                 </a>
               </Button>
             </div>
-            <Button 
-              variant="outline" 
-              size="lg"
-              asChild
-              className="w-full"
-            >
+            <Button variant="outline" size="lg" asChild className="w-full">
               <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
                 <Github className="h-4 w-4 mr-2" />
                 View on GitHub
@@ -126,7 +141,6 @@ export default function Home() {
           ))}
         </div>
       </Section>
-
     </div>
   );
 }

@@ -19,18 +19,16 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          
+
           return (
             <button
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200",
-                "hover:bg-accent hover:text-accent-foreground",
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-lg"
-                  : "text-muted-foreground"
+                'w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200',
+                'hover:bg-accent hover:text-accent-foreground',
+                isActive ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground',
               )}
               title={tab.label}
               aria-label={tab.label}

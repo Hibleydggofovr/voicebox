@@ -11,29 +11,22 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl sm:text-2xl hover:opacity-80 transition-opacity tracking-tight">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-bold text-xl sm:text-2xl hover:opacity-80 transition-opacity tracking-tight"
+          >
             voicebox
           </Link>
 
           {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="hidden sm:flex"
-            >
+            <Button variant="outline" size="sm" asChild className="hidden sm:flex">
               <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
                 <Github className="h-4 w-4 mr-2" />
                 GitHub
               </a>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              asChild
-              className="sm:hidden"
-            >
+            <Button variant="ghost" size="icon" asChild className="sm:hidden">
               <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
                 <Github className="h-5 w-5" />
               </a>

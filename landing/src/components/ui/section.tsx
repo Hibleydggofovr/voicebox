@@ -17,7 +17,12 @@ export function Section({ children, className, id }: SectionProps) {
 
 export function SectionTitle({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <h2 className={cn('text-2xl sm:text-3xl md:text-4xl font-bold text-center md:text-left', className)}>
+    <h2
+      className={cn(
+        'text-2xl sm:text-3xl md:text-4xl font-bold text-center md:text-left',
+        className,
+      )}
+    >
       {children}
     </h2>
   );

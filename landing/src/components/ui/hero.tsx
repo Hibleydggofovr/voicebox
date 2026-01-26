@@ -37,11 +37,9 @@ export function Hero({ title, description, actions, className, showLogo = true }
             {description}
           </p>
         </div>
-        
+
         {/* Right side - Actions */}
-        <div className="flex flex-col items-start lg:items-end gap-4">
-          {actions}
-        </div>
+        <div className="flex flex-col items-start lg:items-end gap-4">{actions}</div>
       </div>
     </section>
   );

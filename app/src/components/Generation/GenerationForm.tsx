@@ -33,6 +33,7 @@ const generationSchema = z.object({
   language: z.enum(['en', 'zh']),
   seed: z.number().int().optional(),
   modelSize: z.enum(['1.7B', '0.6B']).optional(),
+  instruct: z.string().max(500).optional(),
 });
 
 type GenerationFormValues = z.infer<typeof generationSchema>;
@@ -50,6 +51,7 @@ export function GenerationForm() {
       language: 'en',
       seed: undefined,
       modelSize: '1.7B',
+      instruct: '',
     },
   });
 
@@ -70,6 +72,7 @@ export function GenerationForm() {
         language: data.language,
         seed: data.seed,
         model_size: data.modelSize,
+        instruct: data.instruct || undefined,
       });
 
       toast({
@@ -119,11 +122,33 @@ export function GenerationForm() {
                   <FormControl>
                     <Textarea
                       placeholder="Enter the text you want to generate..."
-                      className="min-h-[200px]"
+                      className="min-h-[150px]"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>Max 5000 characters</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="instruct"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Delivery Instructions (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="e.g. Speak slowly with emphasis, Warm and friendly tone, Professional and authoritative..."
+                      className="min-h-[80px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Natural language instructions to control speech delivery (tone, emotion, pace).
+                    Max 500 characters
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
