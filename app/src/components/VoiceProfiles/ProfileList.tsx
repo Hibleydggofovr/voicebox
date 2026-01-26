@@ -1,4 +1,4 @@
-import { Mic, Plus } from 'lucide-react';
+import { Mic, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useProfiles } from '@/lib/hooks/useProfiles';
@@ -33,12 +33,12 @@ export function ProfileList() {
       <div className="flex items-center justify-between mb-4 shrink-0">
         <h2 className="text-2xl font-bold">Voicebox</h2>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+          <Sparkles className="mr-2 h-4 w-4" />
           New Profile
         </Button>
       </div>
 
-      <div className="min-h-[280px] shrink-0">
+      <div className="shrink-0">
         {allProfiles.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -47,13 +47,13 @@ export function ProfileList() {
                 No voice profiles yet. Create your first profile to get started.
               </p>
               <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Create Profile
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 grid-cols-3 auto-rows-fr p-1">
+          <div className="grid gap-4 grid-cols-3 auto-rows-auto p-1">
             {allProfiles.map((profile) => (
               <ProfileCard key={profile.id} profile={profile} />
             ))}

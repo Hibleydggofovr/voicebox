@@ -1,8 +1,13 @@
-import { Download, Play, Trash2 } from 'lucide-react';
+import { Download, MoreHorizontal, Play, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CircleButton } from '@/components/ui/circle-button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -79,12 +84,12 @@ export function HistoryTable() {
             <Table className="w-full table-fixed">
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead className="w-[35%]">Text</TableHead>
-                  <TableHead className="w-[12%]">Profile</TableHead>
-                  <TableHead className="w-[8%]">Language</TableHead>
-                  <TableHead className="w-[8%]">Duration</TableHead>
-                  <TableHead className="w-[12%]">Created</TableHead>
-                  <TableHead className="w-[15%] text-right min-w-[100px]">Actions</TableHead>
+                  <TableHead className="w-[38%]">Text</TableHead>
+                  <TableHead className="w-[13%]">Profile</TableHead>
+                  <TableHead className="w-[9%]">Language</TableHead>
+                  <TableHead className="w-[9%]">Duration</TableHead>
+                  <TableHead className="w-[13%]">Created</TableHead>
+                  <TableHead className="w-[8%] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -107,27 +112,45 @@ export function HistoryTable() {
                       <TableCell className="text-xs text-muted-foreground/60">
                         {formatDate(gen.created_at)}
                       </TableCell>
-                      <TableCell className="text-right min-w-[100px]">
+                      <TableCell className="text-right">
                         <div
-                          className="flex justify-end gap-0.5 flex-nowrap"
+                          className="flex justify-end"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <CircleButton
-                            icon={Play}
-                            onClick={() => handlePlay(gen.id, gen.text)}
-                            aria-label="Play audio"
-                          />
-                          <CircleButton
-                            icon={Download}
-                            onClick={() => handleDownload(gen.id, gen.text)}
-                            aria-label="Download audio"
-                          />
-                          <CircleButton
-                            icon={Trash2}
-                            onClick={() => deleteGeneration.mutate(gen.id)}
-                            disabled={deleteGeneration.isPending}
-                            aria-label="Delete generation"
-                          />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 rounded-full"
+                                aria-label="Actions"
+                              >
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handlePlay(gen.id, gen.text)}
+                              >
+                                <Play className="mr-2 h-4 w-4" />
+                                Play
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDownload(gen.id, gen.text)}
+                              >
+                                <Download className="mr-2 h-4 w-4" />
+                                Download
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => deleteGeneration.mutate(gen.id)}
+                                disabled={deleteGeneration.isPending}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
