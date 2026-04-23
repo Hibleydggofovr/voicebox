@@ -1,6 +1,7 @@
 import { Check, ChevronDown, Keyboard, Laptop, Lock, Trash2, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AccessibilityNotice } from '@/components/AccessibilityGate/AccessibilityGate';
+import { InputMonitoringNotice } from '@/components/InputMonitoringGate/InputMonitoringGate';
 import { CapturePill, type PillState } from '@/components/CapturePill/CapturePill';
 import { ChordPicker } from '@/components/ChordPicker/ChordPicker';
 import { Button } from '@/components/ui/button';
@@ -140,13 +141,13 @@ export function CapturesPage() {
   const preserveTechnical = settings?.preserve_technical ?? true;
   const allowAutoPaste = settings?.allow_auto_paste ?? true;
   const defaultVoiceId = settings?.default_playback_voice_id ?? null;
+  const hotkeyEnabled = settings?.hotkey_enabled ?? false;
   const pushToTalkKeys = settings?.chord_push_to_talk_keys ?? ['MetaRight', 'AltGr'];
   const toggleToTalkKeys = settings?.chord_toggle_to_talk_keys ?? ['MetaRight', 'AltGr', 'Space'];
 
   // Mock-only settings — not yet wired to a backend. Keep local so the UI
   // still responds while Phase 7 (hotkey / clipboard / paste) catches up.
   const [archiveAudio, setArchiveAudio] = useState(true);
-  const [hotkeyEnabled, setHotkeyEnabled] = useState(true);
   const [copyToClipboard, setCopyToClipboard] = useState(true);
   const [retention, setRetention] = useState('forever');
   const [chordEditor, setChordEditor] = useState<'push' | 'toggle' | null>(null);
@@ -162,14 +163,21 @@ export function CapturesPage() {
         title="Dictation"
         description="Capture from anywhere on your machine with a global shortcut."
       >
-        <SettingRow
-          title="Global shortcut"
-          description="Hold the shortcut to record. Release to transcribe. Requires an Accessibility permission the first time you enable it."
-          htmlFor="hotkeyEnabled"
-          action={
-            <Toggle id="hotkeyEnabled" checked={hotkeyEnabled} onCheckedChange={setHotkeyEnabled} />
-          }
-        />
+        <div>
+          <SettingRow
+            title="Global shortcut"
+            description="Hold the shortcut to record from anywhere on your machine. Release to transcribe. macOS will ask for Input Monitoring permission the first time you turn this on."
+            htmlFor="hotkeyEnabled"
+            action={
+              <Toggle
+                id="hotkeyEnabled"
+                checked={hotkeyEnabled}
+                onCheckedChange={(v) => update({ hotkey_enabled: v })}
+              />
+            }
+          />
+          <InputMonitoringNotice enabled={hotkeyEnabled} />
+        </div>
 
         <SettingRow
           title="Push-to-talk shortcut"

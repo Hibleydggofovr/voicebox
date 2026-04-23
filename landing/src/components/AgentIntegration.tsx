@@ -60,18 +60,7 @@ const TONE_CLASSES: Record<Scenario['log'][number]['tone'], string> = {
 
 // ─── Console mockup ─────────────────────────────────────────────────────────
 
-function AgentConsole() {
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    const iv = window.setInterval(() => {
-      setIdx((i) => (i + 1) % SCENARIOS.length);
-    }, 4200);
-    return () => window.clearInterval(iv);
-  }, []);
-
-  const scenario = SCENARIOS[idx];
-
+function AgentConsole({ scenario, cycleKey }: { scenario: Scenario; cycleKey: number }) {
   return (
     <div className="rounded-xl border border-app-line bg-app-darkerBox overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
       {/* Titlebar */}
@@ -88,12 +77,11 @@ function AgentConsole() {
       </div>
 
       {/* Body */}
-      <div className="p-5 font-mono text-[12px] leading-relaxed min-h-[280px] flex flex-col">
-        {/* Log lines */}
-        <div className="space-y-1.5 mb-5">
+      <div className="p-5 font-mono text-[12px] leading-relaxed min-h-[220px] flex flex-col">
+        <div className="space-y-1.5">
           {scenario.log.map((line, i) => (
             <motion.div
-              key={`${idx}-line-${i}`}
+              key={`${cycleKey}-line-${i}`}
               className="flex items-start gap-2"
               initial={{ opacity: 0, y: 2 }}
               animate={{ opacity: 1, y: 0 }}
@@ -111,13 +99,57 @@ function AgentConsole() {
           ))}
         </div>
 
-        {/* The pill in speaking state — the payoff */}
+        {/* Idle cursor so the terminal doesn't feel empty */}
+        <div className="mt-auto flex items-center gap-2 pt-4">
+          <span className="text-ink-faint/50">$</span>
+          <span className="inline-block h-3.5 w-[7px] bg-ink-faint/40 animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Desktop-floating pill stage ────────────────────────────────────────────
+
+function AgentSpeakStage({ scenario, cycleKey }: { scenario: Scenario; cycleKey: number }) {
+  return (
+    <div
+      className="relative rounded-xl border border-app-line bg-app-darkerBox/60 overflow-hidden min-h-[180px] flex-1"
+      style={{
+        backgroundImage: `
+          linear-gradient(to right, hsl(30 10% 94% / 0.04) 1px, transparent 1px),
+          linear-gradient(to bottom, hsl(30 10% 94% / 0.04) 1px, transparent 1px)
+        `,
+        backgroundSize: '28px 28px',
+      }}
+    >
+      {/* Caption in the corner — "this is on the desktop, not in a terminal" */}
+      <div className="absolute top-3 left-4 text-[9px] font-mono uppercase tracking-[0.22em] text-ink-faint/50">
+        On your desktop
+      </div>
+
+      {/* Voice-tinted glow behind the pill */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <motion.div
-          key={`pill-${idx}`}
-          className="mt-auto self-start inline-flex items-center gap-2.5 px-3 h-9 rounded-full bg-black/55 backdrop-blur-sm shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
-          initial={{ opacity: 0, y: 6 }}
+          key={`glow-${cycleKey}`}
+          className="w-[320px] h-[140px] rounded-full blur-[70px]"
+          style={{
+            background: `linear-gradient(135deg, ${scenario.voiceGradient[0]}, ${scenario.voiceGradient[1]})`,
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.3 }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+
+      {/* Pill + utterance caption */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
+        <motion.div
+          key={`pill-${cycleKey}`}
+          className="inline-flex items-center gap-3 px-4 h-11 rounded-full bg-black/55 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.6 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
         >
           <div
             className="h-4 w-4 rounded-full shrink-0 ring-1 ring-white/10"
@@ -125,19 +157,19 @@ function AgentConsole() {
               background: `linear-gradient(135deg, ${scenario.voiceGradient[0]}, ${scenario.voiceGradient[1]})`,
             }}
           />
-          <span className="text-[11px] font-medium text-foreground/90">
+          <span className="text-[12px] font-medium text-foreground/90 shrink-0">
             Speaking · <span className="text-accent">{scenario.voice}</span>
           </span>
-          <div className="flex items-center gap-[2px] h-4">
+          <div className="flex items-center gap-[2.5px] h-5 shrink-0">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <motion.div
                 key={`bar-${scenario.voice}-${i}`}
-                className="w-[2px] rounded-full bg-accent"
-                animate={{ height: ['4px', '12px', '6px', '10px', '4px'] }}
+                className="w-[2.5px] rounded-full bg-accent"
+                animate={{ height: ['5px', '14px', '7px', '12px', '5px'] }}
                 transition={{
-                  duration: 0.9,
+                  duration: 1.0,
                   repeat: Infinity,
-                  delay: i * 0.08,
+                  delay: i * 0.09,
                   ease: 'easeInOut',
                 }}
               />
@@ -145,13 +177,12 @@ function AgentConsole() {
           </div>
         </motion.div>
 
-        {/* The utterance — what the agent said */}
         <motion.div
-          key={`utter-${idx}`}
-          className="mt-3 text-[11px] text-ink-dull"
+          key={`utter-${cycleKey}`}
+          className="text-[12px] text-ink-dull/80 italic text-center max-w-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.8 }}
+          transition={{ duration: 0.4, delay: 0.9 }}
         >
           &ldquo;{scenario.utterance}&rdquo;
         </motion.div>
@@ -165,8 +196,7 @@ function AgentConsole() {
 const MCP_CONFIG = `{
   "mcpServers": {
     "voicebox": {
-      "command": "voicebox",
-      "args": ["mcp"]
+      "url": "http://127.0.0.1:17493/mcp"
     }
   }
 }`;
@@ -246,13 +276,24 @@ const BULLETS = [
 // ─── Section ────────────────────────────────────────────────────────────────
 
 export function AgentIntegration() {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const iv = window.setInterval(() => {
+      setIdx((i) => (i + 1) % SCENARIOS.length);
+    }, 4200);
+    return () => window.clearInterval(iv);
+  }, []);
+
+  const scenario = SCENARIOS[idx];
+
   return (
-    <section id="agents" className="border-t border-border py-24">
+    <section id="mcp" className="border-t border-border py-24">
       <div className="mx-auto max-w-6xl px-6">
         {/* Header */}
         <div className="max-w-3xl mx-auto text-center mb-14">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent mb-4">
-            Agents
+            MCP
           </div>
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-5">
             Every agent gets a voice.
@@ -265,10 +306,13 @@ export function AgentIntegration() {
           </p>
         </div>
 
-        {/* Code + console split */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
+        {/* Code (left) + console with pill stage stacked underneath (right) */}
+        <div className="grid md:grid-cols-2 gap-6 mb-12 items-stretch">
           <CodePanel />
-          <AgentConsole />
+          <div className="flex flex-col gap-4">
+            <AgentConsole scenario={scenario} cycleKey={idx} />
+            <AgentSpeakStage scenario={scenario} cycleKey={idx} />
+          </div>
         </div>
 
         {/* Bullets */}

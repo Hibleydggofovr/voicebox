@@ -134,6 +134,7 @@ async def run_generation(
             db=bg_db,
             error="Generation cancelled",
         )
+        _notify_speak_end(generation_id, status="cancelled")
     except Exception as e:
         traceback.print_exc()
         await history.update_generation_status(
@@ -142,9 +143,26 @@ async def run_generation(
             db=bg_db,
             error=str(e),
         )
+        _notify_speak_end(generation_id, status="failed")
+    else:
+        _notify_speak_end(generation_id, status="completed")
     finally:
         task_manager.complete_generation(generation_id)
         bg_db.close()
+
+
+def _notify_speak_end(generation_id: str, *, status: str) -> None:
+    """Publish a speak-end event; the frontend ignores unknown ids."""
+    try:
+        from ..mcp_server import events as mcp_events
+
+        mcp_events.publish(
+            "speak-end",
+            {"generation_id": generation_id, "status": status},
+        )
+    except Exception:
+        # Never let event pub/sub break generation completion.
+        pass
 
 
 def _save_generate(

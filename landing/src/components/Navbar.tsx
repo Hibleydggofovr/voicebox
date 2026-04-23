@@ -51,7 +51,7 @@ export function Navbar() {
             href="/#features"
             className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Features
+            Clone
           </a>
           <a
             href="/capture"
@@ -63,10 +63,10 @@ export function Navbar() {
             </span>
           </a>
           <a
-            href="/#agents"
+            href="/#mcp"
             className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Agents
+            MCP
           </a>
           <a
             href="/#about"

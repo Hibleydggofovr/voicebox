@@ -224,6 +224,13 @@ def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
             "chord_toggle_to_talk_keys TEXT NOT NULL DEFAULT '[\"MetaRight\",\"AltGr\",\"Space\"]'",
             "chord_toggle_to_talk_keys",
         )
+    if "hotkey_enabled" not in columns:
+        _add_column(
+            engine,
+            "capture_settings",
+            "hotkey_enabled BOOLEAN NOT NULL DEFAULT 0",
+            "hotkey_enabled",
+        )
 
 
 def _normalize_storage_paths(engine, tables: set[str]) -> None:

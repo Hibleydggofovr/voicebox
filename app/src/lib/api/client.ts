@@ -45,6 +45,9 @@ import type {
   CaptureSource,
   GenerationSettings,
   GenerationSettingsUpdate,
+  MCPClientBinding,
+  MCPClientBindingListResponse,
+  MCPClientBindingUpsert,
 } from './types';
 
 function formatErrorDetail(detail: unknown, fallback: string): string {
@@ -501,6 +504,27 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(patch),
     });
+  }
+
+  // MCP bindings — per-MCP-client voice/engine/intent mapping.
+  async listMCPBindings(): Promise<MCPClientBindingListResponse> {
+    return this.request<MCPClientBindingListResponse>('/mcp/bindings');
+  }
+
+  async upsertMCPBinding(
+    data: MCPClientBindingUpsert,
+  ): Promise<MCPClientBinding> {
+    return this.request<MCPClientBinding>('/mcp/bindings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMCPBinding(clientId: string): Promise<{ deleted: string }> {
+    return this.request<{ deleted: string }>(
+      `/mcp/bindings/${encodeURIComponent(clientId)}`,
+      { method: 'DELETE' },
+    );
   }
 
   // Model Management

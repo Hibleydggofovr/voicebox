@@ -1,0 +1,193 @@
+---
+title: "Voice Personalities"
+description: "Attach a personality to a voice profile and use Compose, Rewrite, or Respond to generate in-character speech — all powered by a local LLM."
+---
+
+## Overview
+
+A **personality** is an optional free-form description attached to a voice
+profile — who this voice is, how they speak, what they care about. Set one
+and three new actions appear on the profile, each powered by a bundled
+Qwen3 LLM running entirely locally:
+
+- **Compose** — generate a fresh utterance in this character's voice
+- **Rewrite** — restate your text in their voice while preserving every idea
+- **Respond** — treat your text as a prompt and produce the character's reply
+
+The LLM produces the text. The voice profile speaks it. No cloud round-trip,
+no external API — the whole loop runs on your hardware.
+
+<Callout type="info">
+  Personalities shipped in **0.5.0**. The same local LLM doubles as the
+  refinement model for [Dictation](/overview/dictation) — one LLM in the app,
+  not two, sharing one model cache and one GPU-memory footprint.
+</Callout>
+
+## Setting a personality
+
+Open a voice profile's edit view. The **Personality** field is free-form text
+up to **2,000 characters**. Describe the voice however helps you — past
+lines they'd say, speech patterns, tone, boundaries.
+
+Good descriptions tend to include:
+
+- A one-line identity (who they are)
+- Speech patterns (rhythm, vocabulary, what they avoid)
+- Representative phrases — example lines show the LLM the target tone
+  better than adjectives
+- What the character *wouldn't* do (they don't explain, they don't
+  apologize, they refuse to break character, etc.)
+
+You can set a personality on any voice profile type — cloned or preset. The
+three modes work identically regardless of engine.
+
+## The three modes
+
+Each mode is tuned for a specific job and the LLM temperature is adjusted
+to match.
+
+### Compose
+
+Generate a fresh utterance in the character's voice, with no seed text.
+Click again to get a different take.
+
+- **When to use:** prototyping, sampling a character's voice, brainstorming
+  a line without typing one first
+- **Temperature:** hot — variety is the point
+- **Typical output:** a short, punchy line that fits the character's
+  register
+
+### Rewrite
+
+Take your input text and restate it in the character's voice while
+preserving every idea. High-fidelity mode — the content doesn't change, only
+the voice does.
+
+- **When to use:** turning a dictated memo into in-character speech; lifting
+  a plain-English script into a specific voice without editing by hand
+- **Temperature:** cold — faithfulness wins
+- **Typical output:** same ideas, same order, different phrasing and cadence
+
+### Respond
+
+Treat your input as a prompt and produce the character's reply — as if
+you'd said it *to* them.
+
+- **When to use:** spoken-input agents; Q&A with a specific voice;
+  interactive character experiences
+- **Temperature:** balanced — creative but grounded
+- **Typical output:** a reply to your prompt, written in-character
+
+## Speech-only framing
+
+All three modes enforce **speech-only** output. The LLM is prompted to
+produce things a person would actually say out loud — no narration, no
+action tags (`*sighs*`, `[laughs]`), no meta-commentary, no markdown
+formatting, no stage directions.
+
+This is deliberate: the output is going straight into TTS, and anything that
+isn't speakable ends up either ignored or read literally. The speech-only
+framing also makes the output land cleanly inside dialogue, so you can drop
+a Respond result straight into a Story.
+
+## The local LLM
+
+The bundled LLM is **Qwen3**, available in three sizes:
+
+| Model | Download size | Best for |
+|---|---|---|
+| Qwen3 0.6B | ~400 MB | Default. Very fast, good for casual use. |
+| Qwen3 1.7B | ~1.1 GB | Sweet spot for character personalities with specific phrasing. |
+| Qwen3 4B | ~2.5 GB | Full quality. Slowest. Useful for very particular tone. |
+
+The model runs through the same backend split Voicebox already uses for TTS
+— **MLX** (4-bit community quants) on Apple Silicon, **PyTorch** (transformers
+`AutoModelForCausalLM`) everywhere else. Downloads go through the same cache
+and model-management UI as TTS models.
+
+Pick a size in **Settings → Captures → Refinement → Refinement model** — the
+personality modes reuse it. If you switch models, both refinement and
+personality output pick up the change on the next call.
+
+## Using the modes
+
+The three actions appear as buttons on the profile when a personality is
+set. For each:
+
+<Steps>
+  <Step title="Type or dictate your input">
+    Rewrite and Respond need input text. Compose doesn't.
+  </Step>
+  <Step title="Click the mode">
+    The LLM runs, then the result fills the generate box.
+  </Step>
+  <Step title="Hit generate">
+    The TTS engine speaks the LLM output in the profile's voice. The result
+    lands in generation history as a normal generation.
+  </Step>
+</Steps>
+
+Each button also has an inline regenerate affordance — click again to
+resample. Compose will give you something totally different; Rewrite and
+Respond will give you a variation on the same content.
+
+## Use cases
+
+- **Agents that speak in a voice you own.** Combine Respond with the
+  built-in [MCP Server](/overview/mcp-server) so Claude Code, Cursor,
+  Cline, or any MCP-aware agent can talk back through a profile with a
+  personality. The agent calls `voicebox.speak({ text, profile, intent:
+  "respond" })` and Voicebox produces in-character speech in your cloned
+  voice.
+- **Interactive characters.** Games, narrative tools, accessibility
+  experiences. A character with a personality description plus a cloned
+  voice becomes a reusable prop.
+- **Accessibility.** People who can't speak in their original voice can
+  keep a personality description of how they used to sound and use Rewrite
+  to turn typed input into in-character speech.
+- **Creative drafting.** Write a plain outline, Rewrite line-by-line into
+  the character's voice, drop the audio into a Story.
+
+## API surface
+
+Personalities and the three modes are accessible via REST:
+
+| Method | Endpoint | Body |
+|---|---|---|
+| `PUT` | `/profiles/{id}` | Include a `personality` field up to 2,000 chars to set it. |
+| `POST` | `/profiles/{id}/speak` | Runs the LLM + TTS in one shot. Body includes `text`, `intent` (`compose`, `rewrite`, or `respond`), optional `engine`, `language`. |
+
+The `/profiles/{id}/speak` endpoint is the same primitive MCP's
+`voicebox.speak` tool calls when that ships. Scripts and agents can use it
+directly today.
+
+## Limits and gotchas
+
+- **The personality is a prompt, not a fine-tune.** The LLM will sometimes
+  drift out of character, especially on Compose at high temperature. Click
+  again for another take.
+- **Long personalities are not always better.** 2,000 chars is a ceiling,
+  not a goal. A sharp 300-char description with two example lines
+  typically outperforms a long one.
+- **Speech-only framing is enforced, but not bulletproof.** Very large
+  prompts or unusual inputs can sneak an action tag through. If you see
+  `[laughs]` in TTS output, it's usually a personality-field hint the
+  model anchored onto — remove it from the description.
+- **Rewrite is stricter than Respond.** If the output is changing your
+  meaning, you probably want Respond (or a wholesale Compose with context
+  in the input), not Rewrite.
+
+## Next steps
+
+<Cards>
+  <Card title="Dictation" href="/overview/dictation">
+    Dictate the input for Rewrite or Respond from anywhere on your machine.
+  </Card>
+  <Card title="Captures" href="/overview/captures">
+    Captures feed personalities naturally — dictate a memo, rewrite it in
+    a character voice, generate speech.
+  </Card>
+  <Card title="Creating Voice Profiles" href="/overview/creating-voice-profiles">
+    Add a personality to an existing profile.
+  </Card>
+</Cards>

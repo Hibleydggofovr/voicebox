@@ -166,48 +166,13 @@ impl Chord {
 // Monitor
 // ========================================================================
 
-/// Hardcoded Pass 1 defaults. Two right-hand modifiers so the usual left-hand
-/// shortcuts pass through unaffected. Replaced in Pass 2 by reading from the
-/// server-side `capture_settings` table via a Tauri command the frontend
-/// invokes whenever `useCaptureSettings` resolves.
-///
-/// - **macOS:** `MetaRight + AltGr` — right Command + right Option. (rdev
-///   labels right-Option as `AltGr` for Linux-convention symmetry; on macOS
-///   it's the physical right-option key.)
-/// - **Windows / Linux:** `ControlRight + ShiftRight` — right Ctrl + right
-///   Shift. Deliberately avoids `AltGr`: on international Windows layouts
-///   the OS synthesises `AltGr` as `Ctrl+Alt`, so any `AltGr`-involving
-///   default would fire on every `@`, `€`, `\` keypress on German / French
-///   / Spanish keyboards.
-pub fn default_bindings() -> Bindings {
-    #[cfg(target_os = "macos")]
-    let (m1, m2) = (Key::MetaRight, Key::AltGr);
-    #[cfg(not(target_os = "macos"))]
-    let (m1, m2) = (Key::ControlRight, Key::ShiftRight);
-
-    let mut b = Bindings::new();
-    b.insert(ChordAction::PushToTalk, {
-        let mut s = HashSet::new();
-        s.insert(m1);
-        s.insert(m2);
-        s
-    });
-    b.insert(ChordAction::ToggleToTalk, {
-        let mut s = HashSet::new();
-        s.insert(m1);
-        s.insert(m2);
-        s.insert(Key::Space);
-        s
-    });
-    b
-}
-
 pub struct HotkeyMonitor {
     chord: Arc<Mutex<Chord>>,
 }
 
 impl HotkeyMonitor {
     pub fn spawn(app: AppHandle, bindings: Bindings) -> Self {
+        eprintln!("[HotkeyMonitor] spawn() called with {} bindings", bindings.len());
         let chord = Arc::new(Mutex::new(Chord::new(bindings)));
         let chord_for_thread = chord.clone();
         let app_for_thread = app.clone();
@@ -219,7 +184,9 @@ impl HotkeyMonitor {
             #[cfg(target_os = "macos")]
             rdev::set_is_main_thread(false);
 
+            eprintln!("[HotkeyMonitor] background thread entering rdev::listen");
             let result = listen(move |event| {
+                eprintln!("[HotkeyMonitor] rdev event: {:?}", event.event_type);
                 let input = match event.event_type {
                     EventType::KeyPress(k) => KeyEvent::Down(k),
                     EventType::KeyRelease(k) => KeyEvent::Up(k),
@@ -231,11 +198,17 @@ impl HotkeyMonitor {
                     Err(_) => return,
                 };
 
+                if !effects.is_empty() {
+                    eprintln!("[HotkeyMonitor] chord matched, effects: {:?}", effects);
+                }
+
                 for effect in effects {
                     apply_effect(&app_for_thread, effect);
                 }
             });
 
+            // listen() blocks forever on success; reaching here means it errored.
+            eprintln!("[HotkeyMonitor] rdev::listen returned (this only happens on error): {:?}", result);
             if let Err(err) = result {
                 eprintln!(
                     "HotkeyMonitor: rdev::listen failed ({:?}). Global chord detection is disabled. On macOS, grant Input Monitoring in System Settings → Privacy & Security → Input Monitoring and relaunch.",

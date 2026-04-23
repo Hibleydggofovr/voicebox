@@ -10,6 +10,7 @@ export type PillState =
   | 'recording'
   | 'transcribing'
   | 'refining'
+  | 'speaking'
   | 'completed'
   | 'rest'
   | 'error';
@@ -18,13 +19,14 @@ const PILL_LABELS: Record<Exclude<PillState, 'rest' | 'error'>, string> = {
   recording: 'Recording',
   transcribing: 'Transcribing',
   refining: 'Refining',
+  speaking: 'Speaking',
   completed: 'Done',
 };
 
 function barModeFor(
   state: Exclude<PillState, 'error'>,
 ): 'generating' | 'playing' | 'idle' {
-  if (state === 'recording') return 'playing';
+  if (state === 'recording' || state === 'speaking') return 'playing';
   if (state === 'completed' || state === 'rest') return 'idle';
   return 'generating';
 }

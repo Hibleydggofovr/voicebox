@@ -208,6 +208,9 @@ export interface CaptureSettings {
   preserve_technical: boolean;
   allow_auto_paste: boolean;
   default_playback_voice_id: string | null;
+  /** Whether the global keyboard hotkey is armed. Off by default — turning
+   *  this on triggers the macOS Input Monitoring TCC prompt. */
+  hotkey_enabled: boolean;
   /** rdev::Key variant names. Defaults: ["MetaRight","AltGr"]. */
   chord_push_to_talk_keys: string[];
   /** rdev::Key variant names. Defaults: ["MetaRight","AltGr","Space"]. */
@@ -464,4 +467,29 @@ export interface ApplyEffectsRequest {
   source_version_id?: string;
   label?: string;
   set_as_default?: boolean;
+}
+
+/* ─── MCP ─────────────────────────────────────────────────────────────── */
+
+export interface MCPClientBinding {
+  client_id: string;
+  label: string | null;
+  profile_id: string | null;
+  default_engine: string | null;
+  default_intent: 'respond' | 'rewrite' | 'compose' | null;
+  last_seen_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MCPClientBindingUpsert {
+  client_id: string;
+  label?: string | null;
+  profile_id?: string | null;
+  default_engine?: string | null;
+  default_intent?: 'respond' | 'rewrite' | 'compose' | null;
+}
+
+export interface MCPClientBindingListResponse {
+  items: MCPClientBinding[];
 }

@@ -275,6 +275,27 @@ async def get_profile(
     return _profile_to_response(profile)
 
 
+def get_profile_orm_by_name_or_id(
+    name_or_id: str,
+    db: Session,
+) -> DBVoiceProfile | None:
+    """Resolve a profile from a user-supplied string that may be either id or name.
+
+    Id is tried first (fast path, matches UUIDs). Name fallback is
+    case-insensitive so agents can say "Morgan" regardless of casing.
+    """
+    if not name_or_id:
+        return None
+    row = db.query(DBVoiceProfile).filter(DBVoiceProfile.id == name_or_id).first()
+    if row is not None:
+        return row
+    return (
+        db.query(DBVoiceProfile)
+        .filter(func.lower(DBVoiceProfile.name) == name_or_id.lower())
+        .first()
+    )
+
+
 async def get_profile_samples(
     profile_id: str,
     db: Session,

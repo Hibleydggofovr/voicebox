@@ -248,6 +248,7 @@ class CaptureSettingsResponse(BaseModel):
     preserve_technical: bool = True
     allow_auto_paste: bool = True
     default_playback_voice_id: Optional[str] = None
+    hotkey_enabled: bool = False
     chord_push_to_talk_keys: List[str] = Field(default_factory=lambda: ["MetaRight", "AltGr"])
     chord_toggle_to_talk_keys: List[str] = Field(
         default_factory=lambda: ["MetaRight", "AltGr", "Space"]
@@ -269,6 +270,7 @@ class CaptureSettingsUpdate(BaseModel):
     preserve_technical: Optional[bool] = None
     allow_auto_paste: Optional[bool] = None
     default_playback_voice_id: Optional[str] = None
+    hotkey_enabled: Optional[bool] = None
     chord_push_to_talk_keys: Optional[List[str]] = Field(default=None, min_length=1, max_length=6)
     chord_toggle_to_talk_keys: Optional[List[str]] = Field(default=None, min_length=1, max_length=6)
 
@@ -292,6 +294,68 @@ class GenerationSettingsUpdate(BaseModel):
     crossfade_ms: Optional[int] = Field(default=None, ge=0, le=500)
     normalize_audio: Optional[bool] = None
     autoplay_on_generate: Optional[bool] = None
+
+
+class MCPClientBindingResponse(BaseModel):
+    """Per-MCP-client voice binding — what voice / engine / intent the server
+    should use when a given client_id calls voicebox.speak without args."""
+
+    client_id: str
+    label: Optional[str] = None
+    profile_id: Optional[str] = None
+    default_engine: Optional[str] = Field(
+        None,
+        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
+    )
+    default_intent: Optional[str] = Field(
+        None, pattern="^(respond|rewrite|compose)$"
+    )
+    last_seen_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MCPClientBindingUpsert(BaseModel):
+    """Create or update a binding. Matched by ``client_id``."""
+
+    client_id: str = Field(..., min_length=1, max_length=64)
+    label: Optional[str] = Field(None, max_length=128)
+    profile_id: Optional[str] = None
+    default_engine: Optional[str] = Field(
+        None,
+        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
+    )
+    default_intent: Optional[str] = Field(
+        None, pattern="^(respond|rewrite|compose)$"
+    )
+
+
+class MCPClientBindingListResponse(BaseModel):
+    items: List[MCPClientBindingResponse]
+
+
+class SpeakRequest(BaseModel):
+    """Body for POST /speak — non-MCP REST surface that mirrors voicebox.speak."""
+
+    text: str = Field(..., min_length=1, max_length=10000)
+    profile: Optional[str] = Field(
+        None,
+        description="Voice profile name or id. Falls back to per-client binding, then default.",
+    )
+    engine: Optional[str] = Field(
+        None,
+        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
+    )
+    intent: Optional[str] = Field(
+        None, pattern="^(respond|rewrite|compose)$"
+    )
+    language: Optional[str] = Field(
+        None,
+        pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it|he|ar|da|el|fi|hi|ms|nl|no|pl|sv|sw|tr)$",
+    )
 
 
 class LLMGenerateRequest(BaseModel):

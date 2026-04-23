@@ -196,6 +196,12 @@ class CaptureSettings(Base):
     preserve_technical = Column(Boolean, nullable=False, default=True)
     allow_auto_paste = Column(Boolean, nullable=False, default=True)
     default_playback_voice_id = Column(String, nullable=True)
+    # Default OFF — opting in is what triggers the macOS Input Monitoring TCC
+    # prompt. We deliberately don't spawn the global keyboard tap until the
+    # user flips this on so a fresh-install user doesn't see a scary
+    # "Voicebox would like to receive keystrokes from any application" dialog
+    # before they've even opened the Captures tab.
+    hotkey_enabled = Column(Boolean, nullable=False, default=False)
     # Lists of rdev::Key variant names (e.g. "MetaRight", "AltGr"). Right-hand
     # modifiers by default so they don't collide with left-hand system
     # shortcuts (Cmd+Opt+I devtools, Cmd+Opt+Esc force-quit).
@@ -218,6 +224,29 @@ class GenerationSettings(Base):
     crossfade_ms = Column(Integer, nullable=False, default=50)
     normalize_audio = Column(Boolean, nullable=False, default=True)
     autoplay_on_generate = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MCPClientBinding(Base):
+    """Per-MCP-client settings (voice profile, engine, intent).
+
+    Lets users bind distinct voices to distinct agents — e.g. Claude Code
+    speaks in "Morgan," Cursor in "Scarlett." The MCP client identifies
+    itself via the ``X-Voicebox-Client-Id`` HTTP header; direct-HTTP
+    clients set it in their MCP config's ``headers`` block, the stdio
+    shim forwards it from the ``VOICEBOX_CLIENT_ID`` env var.
+    """
+
+    __tablename__ = "mcp_client_bindings"
+
+    client_id = Column(String, primary_key=True)
+    label = Column(String, nullable=True)  # display name
+    profile_id = Column(String, ForeignKey("profiles.id"), nullable=True)
+    default_engine = Column(String, nullable=True)
+    # "respond" | "rewrite" | "compose" — null means plain TTS (no LLM transform).
+    default_intent = Column(String, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { CapturePill } from '@/components/CapturePill/CapturePill';
 import type { FocusSnapshot } from '@/lib/api/types';
 import { useCaptureRecordingSession } from '@/lib/hooks/useCaptureRecordingSession';
+import { useSpeakEvents } from '@/lib/hooks/useSpeakEvents';
 
 /**
  * Floating dictate surface shown in a separate transparent Tauri window.
@@ -82,27 +83,47 @@ export function DictateWindow() {
     };
   }, []);
 
-  // When the pill cycle ends, tell Rust to tuck the window away. The Rust
-  // side is responsible for the hide + park-off-screen + click-through
-  // combo because calling hide() directly from JS has been unreliable for
-  // transparent always-on-top windows on macOS. Showing is the reverse —
-  // the HotkeyMonitor restores position, clicks, and visibility when a
-  // chord next fires.
+  // Subscribe to agent-initiated speak events so the pill surfaces while
+  // voicebox.speak (MCP) or POST /speak is producing audio. We ask Rust
+  // to show the pill window by emitting `dictate:show` — the existing
+  // `dictate:hide` happens on cycle end below.
+  const speaking = useSpeakEvents();
+  const prevSpeakingIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (session.pillState === 'hidden') {
+    const id = speaking?.generationId ?? null;
+    if (id && id !== prevSpeakingIdRef.current) {
+      emit('dictate:show').catch(() => {});
+    }
+    prevSpeakingIdRef.current = id;
+  }, [speaking?.generationId]);
+
+  // Compose the effective pill state: speak events override the capture
+  // session when both would render, because agent speech is always
+  // category-mattering (the user can't hear two pills). Elapsed time
+  // restarts for speaking so the timer reflects playback length.
+  const isSpeaking = Boolean(speaking);
+  const effectiveState = isSpeaking ? 'speaking' : session.pillState;
+  const effectiveElapsed = isSpeaking ? speaking!.elapsedMs : session.pillElapsedMs;
+
+  // When the pill cycle ends (no capture AND no speak), tell Rust to tuck
+  // the window away. Rust owns the hide + park-off-screen + click-through
+  // combo because calling hide() directly from JS has been unreliable for
+  // transparent always-on-top windows on macOS.
+  useEffect(() => {
+    if (effectiveState === 'hidden') {
       emit('dictate:hide').catch(() => {});
     }
-  }, [session.pillState]);
+  }, [effectiveState]);
 
   return (
     <div
       className="h-screen w-screen flex items-center justify-center px-3"
       style={{ background: 'transparent' }}
     >
-      {session.pillState !== 'hidden' ? (
+      {effectiveState !== 'hidden' ? (
         <CapturePill
-          state={session.pillState}
-          elapsedMs={session.pillElapsedMs}
+          state={effectiveState}
+          elapsedMs={effectiveElapsed}
           errorMessage={session.errorMessage}
           onDismiss={session.dismissError}
           onStop={session.isRecording ? session.stopRecording : undefined}

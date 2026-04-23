@@ -46,6 +46,7 @@ import { BOTTOM_SAFE_AREA_PADDING } from '@/lib/constants/ui';
 import { useCaptureRecordingSession } from '@/lib/hooks/useCaptureRecordingSession';
 import { useCaptureSettings } from '@/lib/hooks/useSettings';
 import { cn } from '@/lib/utils/cn';
+import { displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
 import { usePlayerStore } from '@/stores/playerStore';
 
 const CAPTURE_AUDIO_MIME = 'audio/*,.wav,.mp3,.m4a,.flac,.ogg,.webm';
@@ -84,6 +85,30 @@ function formatDate(iso: string): string {
 function snippetOf(capture: CaptureResponse): string {
   const source = capture.transcript_refined || capture.transcript_raw || '';
   return source.trim() || '(no transcript)';
+}
+
+function ChordKeys({ keys }: { keys: string[] }) {
+  if (keys.length === 0) return null;
+  return (
+    <div className="flex items-center gap-1">
+      {keys.map((k) => {
+        const side = modifierSideHint(k);
+        return (
+          <span
+            key={k}
+            className="relative inline-flex items-center justify-center h-6 min-w-[1.5rem] px-1.5 rounded-md border border-border bg-muted/60 font-mono text-[11px] font-medium shadow-sm text-foreground"
+          >
+            {displayLabelForKey(k)}
+            {side ? (
+              <span className="absolute -top-1 -right-1 h-3 min-w-[0.75rem] px-0.5 rounded-sm bg-accent text-[7px] font-bold leading-none flex items-center justify-center text-accent-foreground">
+                {side}
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 function SourceBadge({ source }: { source: CaptureSource }) {
@@ -160,6 +185,9 @@ export function CapturesTab() {
   const { settings: captureSettings } = useCaptureSettings();
   const sttModel = captureSettings?.stt_model ?? 'turbo';
   const llmModel = captureSettings?.llm_model ?? '0.6B';
+  const hotkeyEnabled = captureSettings?.hotkey_enabled ?? false;
+  const pushToTalkKeys = captureSettings?.chord_push_to_talk_keys ?? [];
+  const toggleToTalkKeys = captureSettings?.chord_toggle_to_talk_keys ?? [];
 
   const session = useCaptureRecordingSession({
     onCaptureCreated: (capture) => setSelectedId(capture.id),
@@ -394,17 +422,11 @@ export function CapturesTab() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="px-4 py-12 text-center text-sm text-muted-foreground space-y-3">
+              <div className="px-4 py-12 text-center text-sm text-muted-foreground">
                 {search ? (
                   <p>No captures match "{search}"</p>
                 ) : (
-                  <>
-                    <p>No captures yet.</p>
-                    <Button variant="outline" size="sm" onClick={handleUploadClick}>
-                      <Upload className="h-3.5 w-3.5 mr-1.5" />
-                      Import audio
-                    </Button>
-                  </>
+                  <p>No captures yet.</p>
                 )}
               </div>
             ) : (
@@ -744,22 +766,53 @@ export function CapturesTab() {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground pt-20">
-            <div className="text-center space-y-3">
-              <Captions className="h-10 w-10 mx-auto opacity-40" />
-              {capturesLoading ? (
+            {capturesLoading ? (
+              <div className="text-center space-y-3">
+                <Captions className="h-10 w-10 mx-auto opacity-40" />
                 <p className="text-sm">Loading captures…</p>
-              ) : captures.length ? (
+              </div>
+            ) : captures.length ? (
+              <div className="text-center space-y-3">
+                <Captions className="h-10 w-10 mx-auto opacity-40" />
                 <p className="text-sm">Pick a capture to see the transcript.</p>
-              ) : (
-                <>
-                  <p className="text-sm">No captures yet.</p>
-                  <Button variant="outline" size="sm" onClick={handleUploadClick}>
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    Import audio
-                  </Button>
-                </>
-              )}
-            </div>
+              </div>
+            ) : hotkeyEnabled && (pushToTalkKeys.length || toggleToTalkKeys.length) ? (
+              <div className="max-w-sm mx-auto text-center space-y-5">
+                <div className="space-y-2">
+                  {pushToTalkKeys.length ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <ChordKeys keys={pushToTalkKeys} />
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Hold to record
+                      </span>
+                    </div>
+                  ) : null}
+                  {toggleToTalkKeys.length ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <ChordKeys keys={toggleToTalkKeys} />
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Toggle hands-free
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+                <p className="text-sm">
+                  Press the shortcut anywhere on your machine to start your first capture.
+                </p>
+              </div>
+            ) : (
+              <div className="max-w-sm mx-auto text-center space-y-3">
+                <Captions className="h-10 w-10 mx-auto opacity-40" />
+                <p className="text-sm">No captures yet.</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Turn on the global shortcut to dictate from anywhere — or click
+                  Dictate above for an in-app capture.
+                </p>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/settings/captures">Open Captures settings</Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

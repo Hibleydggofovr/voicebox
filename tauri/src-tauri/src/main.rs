@@ -8,6 +8,7 @@ mod clipboard;
 mod focus_capture;
 #[cfg(desktop)]
 mod hotkey_monitor;
+mod input_monitoring;
 #[cfg(desktop)]
 mod key_codes;
 mod synthetic_keys;
@@ -55,6 +56,39 @@ fn build_dictate_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewW
     }
 
     Ok(window)
+}
+
+/// Position, undo click-through, and show the dictate pill window.
+///
+/// The hide path parks the window at (-10_000, -10_000) and toggles
+/// `ignore_cursor_events(true)` so invisible click targets don't leak; we
+/// undo both here. Mirrors the logic the hotkey_monitor's
+/// `Effect::StartRecording` path runs, minus the focus snapshot — this is
+/// for agent-initiated speech, not dictation, so there's no focused text
+/// field to paste into.
+#[cfg(desktop)]
+pub fn show_dictate_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window(DICTATE_WINDOW_LABEL) {
+        // current_monitor() returns None when the window has been parked
+        // off any display by the hide path; fall back to the primary.
+        let monitor = window
+            .current_monitor()
+            .ok()
+            .flatten()
+            .or_else(|| window.primary_monitor().ok().flatten());
+        if let Some(monitor) = monitor {
+            let monitor_pos = monitor.position();
+            let monitor_size = monitor.size();
+            if let Ok(win_size) = window.outer_size() {
+                let x = monitor_pos.x
+                    + (monitor_size.width as i32 - win_size.width as i32) / 2;
+                let y = monitor_pos.y + (monitor_size.height as f64 * 0.04) as i32;
+                let _ = window.set_position(PhysicalPosition::new(x, y));
+            }
+        }
+        let _ = window.set_ignore_cursor_events(false);
+        let _ = window.show();
+    }
 }
 
 const LEGACY_PORT: u16 = 8000;
@@ -791,22 +825,34 @@ fn check_accessibility_permission() -> bool {
     accessibility::is_trusted()
 }
 
-/// Push a new chord configuration into the running `HotkeyMonitor`. The
-/// frontend calls this both at startup (replaying the saved chord from
-/// capture_settings) and any time the user edits the chord in the picker —
-/// no app restart needed because the engine swap is atomic under the
-/// monitor's mutex.
-///
-/// Returns an error when a key name doesn't map to an `rdev::Key`, so the
-/// picker UI can surface "this key isn't supported" instead of silently
-/// dropping it from the chord.
-#[cfg(desktop)]
+/// Reports whether the process can observe global keyboard events. Read by
+/// the Captures settings UI to surface a "missing — open Settings" hint
+/// beside the hotkey toggle. No prompt side-effect.
 #[command]
-fn update_chord_bindings(
-    monitor: State<'_, hotkey_monitor::HotkeyMonitor>,
-    push_to_talk: Vec<String>,
-    toggle_to_talk: Vec<String>,
-) -> Result<(), String> {
+fn check_input_monitoring_permission() -> bool {
+    input_monitoring::is_trusted()
+}
+
+/// Holds the lazily-spawned global hotkey monitor. The monitor is `None`
+/// until the user opts in via the Captures settings toggle — that opt-in is
+/// what triggers the macOS Input Monitoring TCC prompt, so a fresh-install
+/// user who never enables the hotkey never sees the prompt.
+///
+/// Once spawned, the monitor stays alive for the rest of the process: rdev's
+/// `listen` blocks forever and offers no stop signal. "Disable" therefore
+/// swaps the chord engine to empty bindings (matches nothing, fires nothing)
+/// rather than tearing down the CGEventTap.
+#[cfg(desktop)]
+#[derive(Default)]
+pub struct HotkeyState {
+    monitor: Mutex<Option<hotkey_monitor::HotkeyMonitor>>,
+}
+
+#[cfg(desktop)]
+fn build_chord_bindings(
+    push_to_talk: &[String],
+    toggle_to_talk: &[String],
+) -> Result<hotkey_monitor::Bindings, String> {
     use hotkey_monitor::{Bindings, ChordAction};
     use rdev::Key;
     use std::collections::HashSet;
@@ -824,14 +870,103 @@ fn update_chord_bindings(
         Ok(chord)
     }
 
-    let push_chord = build_chord("push-to-talk", &push_to_talk)?;
-    let toggle_chord = build_chord("toggle-to-talk", &toggle_to_talk)?;
+    let push_chord = build_chord("push-to-talk", push_to_talk)?;
+    let toggle_chord = build_chord("toggle-to-talk", toggle_to_talk)?;
 
     let mut bindings = Bindings::new();
     bindings.insert(ChordAction::PushToTalk, push_chord);
     bindings.insert(ChordAction::ToggleToTalk, toggle_chord);
+    Ok(bindings)
+}
 
-    monitor.update_bindings(bindings);
+/// Spawn the global hotkey monitor on first call; subsequent calls just push
+/// the new bindings into the existing monitor. Idempotent on purpose — the
+/// frontend invokes this both at startup (when `capture_settings.hotkey_enabled`
+/// is true) and from the settings toggle.
+///
+/// On macOS this is the call that triggers the "Voicebox would like to receive
+/// keystrokes from any application" TCC prompt, since `rdev::listen` creates
+/// the CGEventTap inside `HotkeyMonitor::spawn`.
+#[cfg(desktop)]
+#[command]
+fn enable_hotkey(
+    app: tauri::AppHandle,
+    state: State<'_, HotkeyState>,
+    push_to_talk: Vec<String>,
+    toggle_to_talk: Vec<String>,
+) -> Result<(), String> {
+    eprintln!("[enable_hotkey] called: push={:?}, toggle={:?}", push_to_talk, toggle_to_talk);
+    let bindings = build_chord_bindings(&push_to_talk, &toggle_to_talk)?;
+
+    // Fire the Input Monitoring TCC prompt explicitly from the user's
+    // toggle click, before rdev::listen would do it implicitly via
+    // CGEventTap creation. Two reasons: (1) the prompt timing becomes
+    // deterministic — it appears in response to a click instead of as a
+    // mysterious side-effect of "the app started"; (2) on subsequent
+    // launches we can short-circuit the spawn entirely if the user
+    // revoked the grant, instead of leaning on rdev silently failing.
+    // The call returns the current grant state; we ignore it because
+    // rdev::listen will surface its own error via stderr, and the
+    // settings UI polls `check_input_monitoring_permission` separately.
+    let granted = input_monitoring::request();
+    eprintln!("[enable_hotkey] IOHIDRequestAccess returned granted={}", granted);
+    eprintln!("[enable_hotkey] IOHIDCheckAccess says trusted={}", input_monitoring::is_trusted());
+
+    // The dictate pill webview must exist before the first chord fires so it
+    // can subscribe to `dictate:start`. Build it here (idempotent — Tauri
+    // returns the existing window when one with this label already exists).
+    if app.get_webview_window(DICTATE_WINDOW_LABEL).is_none() {
+        if let Err(e) = build_dictate_window(&app) {
+            eprintln!("Failed to build dictate window: {}", e);
+        }
+    }
+
+    let mut slot = state.monitor.lock().map_err(|e| e.to_string())?;
+    match slot.as_ref() {
+        Some(monitor) => monitor.update_bindings(bindings),
+        None => {
+            *slot = Some(hotkey_monitor::HotkeyMonitor::spawn(app, bindings));
+        }
+    }
+    Ok(())
+}
+
+/// Quiet the global hotkey by swapping the chord engine to empty bindings.
+/// The CGEventTap stays alive (rdev::listen has no stop) but the chord state
+/// machine matches nothing, so no `dictate:*` events fire and the dictate
+/// pill never shows. A subsequent `enable_hotkey` call re-arms it without
+/// re-prompting for permission.
+#[cfg(desktop)]
+#[command]
+fn disable_hotkey(state: State<'_, HotkeyState>) -> Result<(), String> {
+    let slot = state.monitor.lock().map_err(|e| e.to_string())?;
+    if let Some(monitor) = slot.as_ref() {
+        monitor.update_bindings(hotkey_monitor::Bindings::new());
+    }
+    Ok(())
+}
+
+/// Push a new chord configuration into the running `HotkeyMonitor`. Called
+/// by the chord-picker UI when the user edits the chord. No-ops when the
+/// monitor isn't spawned — the picker is gated behind the enable toggle, so
+/// this can only happen if the frontend races; the next `enable_hotkey` will
+/// pick up the saved chords.
+///
+/// Returns an error when a key name doesn't map to an `rdev::Key`, so the
+/// picker UI can surface "this key isn't supported" instead of silently
+/// dropping it from the chord.
+#[cfg(desktop)]
+#[command]
+fn update_chord_bindings(
+    state: State<'_, HotkeyState>,
+    push_to_talk: Vec<String>,
+    toggle_to_talk: Vec<String>,
+) -> Result<(), String> {
+    let bindings = build_chord_bindings(&push_to_talk, &toggle_to_talk)?;
+    let slot = state.monitor.lock().map_err(|e| e.to_string())?;
+    if let Some(monitor) = slot.as_ref() {
+        monitor.update_bindings(bindings);
+    }
     Ok(())
 }
 
@@ -852,6 +987,26 @@ fn open_accessibility_settings(app: tauri::AppHandle) -> Result<(), String> {
     {
         let _ = app;
         Err("Accessibility settings pane is only implemented on macOS".into())
+    }
+}
+
+/// Open the Privacy & Security → Input Monitoring pane in System Settings.
+/// Used by the Captures settings UI when the toggle is on but the grant
+/// is missing, so the user can flip the system toggle without hunting.
+#[command]
+fn open_input_monitoring_settings(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let url = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent";
+        app.shell()
+            .open(url, None)
+            .map_err(|e| format!("Failed to open Input Monitoring settings: {e}"))?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Err("Input Monitoring settings pane is only implemented on macOS".into())
     }
 }
 
@@ -1044,18 +1199,12 @@ pub fn run() {
                 app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.handle().plugin(tauri_plugin_process::init())?;
 
-                if let Err(e) = build_dictate_window(app.handle()) {
-                    eprintln!("Failed to pre-create dictate window: {}", e);
-                }
-
-                let monitor = hotkey_monitor::HotkeyMonitor::spawn(
-                    app.handle().clone(),
-                    hotkey_monitor::default_bindings(),
-                );
-                // Stored as state so the chord-picker UI can call
-                // `update_chord_bindings` to live-swap the engine's chords
-                // without restarting the listener thread.
-                app.manage(monitor);
+                // HotkeyMonitor is spawned lazily via the `enable_hotkey`
+                // command — see HotkeyState. The dictate pill webview is
+                // built in the same lazy path so we don't pay setup cost
+                // (and don't trigger the macOS Input Monitoring TCC prompt)
+                // for users who never enable the global hotkey.
+                app.manage(HotkeyState::default());
 
                 // The frontend emits `dictate:hide` whenever the pill cycle
                 // finishes (rest-fade → hidden). `hide()` alone has been
@@ -1072,6 +1221,16 @@ pub fn run() {
                         let _ = window.set_position(PhysicalPosition::new(-10_000, -10_000));
                         let _ = window.hide();
                     }
+                });
+
+                // Agent-initiated speech (voicebox.speak over MCP or POST /speak)
+                // pops the pill up so the user can see what's coming out of their
+                // machine. The DictateWindow subscribes to /events/speak via SSE
+                // and emits `dictate:show` on speak-start; we repeat the same
+                // position+show dance the hotkey path uses.
+                let handle_for_show = app.handle().clone();
+                app.handle().listen("dictate:show", move |_event| {
+                    show_dictate_window(&handle_for_show);
                 });
             }
 
@@ -1148,8 +1307,12 @@ pub fn run() {
             debug_capture_focus,
             debug_focus_roundtrip,
             check_accessibility_permission,
+            check_input_monitoring_permission,
             open_accessibility_settings,
+            open_input_monitoring_settings,
             paste_final_text,
+            enable_hotkey,
+            disable_hotkey,
             update_chord_bindings
         ])
         .on_window_event({
