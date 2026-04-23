@@ -29,12 +29,12 @@ function ChecklistRow({ icon, title, description, ready, action }: RowProps) {
     <div
       className={cn(
         'flex items-start gap-3 rounded-lg border p-3.5 transition-colors',
-        ready ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-border bg-muted/20',
+        ready ? 'border-accent/20 bg-accent/5' : 'border-border bg-muted/20',
       )}
     >
       <div className="mt-0.5 shrink-0">
         {ready ? (
-          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+          <CheckCircle2 className="h-5 w-5 text-accent" />
         ) : (
           <Circle className="h-5 w-5 text-muted-foreground/50" />
         )}
