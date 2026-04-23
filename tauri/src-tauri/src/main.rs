@@ -11,6 +11,7 @@ mod hotkey_monitor;
 mod input_monitoring;
 #[cfg(desktop)]
 mod key_codes;
+mod speak_monitor;
 mod synthetic_keys;
 
 use std::sync::Mutex;
@@ -66,33 +67,56 @@ fn build_dictate_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewW
 /// `Effect::StartRecording` path runs, minus the focus snapshot — this is
 /// for agent-initiated speech, not dictation, so there's no focused text
 /// field to paste into.
+/// Build the pill webview if it doesn't exist yet. Idempotent — used by
+/// agent-speech to prime the webview on speak-start so its listeners can
+/// register before the actual show arrives from `audio.onplaying`.
 #[cfg(desktop)]
-pub fn show_dictate_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window(DICTATE_WINDOW_LABEL) {
-        // current_monitor() returns None when the window has been parked
-        // off any display by the hide path; fall back to the primary.
-        let monitor = window
-            .current_monitor()
-            .ok()
-            .flatten()
-            .or_else(|| window.primary_monitor().ok().flatten());
-        if let Some(monitor) = monitor {
-            let monitor_pos = monitor.position();
-            let monitor_size = monitor.size();
-            if let Ok(win_size) = window.outer_size() {
-                let x = monitor_pos.x
-                    + (monitor_size.width as i32 - win_size.width as i32) / 2;
-                let y = monitor_pos.y + (monitor_size.height as f64 * 0.04) as i32;
-                let _ = window.set_position(PhysicalPosition::new(x, y));
-            }
+pub fn ensure_dictate_window(app: &tauri::AppHandle) {
+    if app.get_webview_window(DICTATE_WINDOW_LABEL).is_none() {
+        if let Err(e) = build_dictate_window(app) {
+            eprintln!("ensure_dictate_window: failed to build pill: {e}");
         }
-        let _ = window.set_ignore_cursor_events(false);
-        let _ = window.show();
     }
 }
 
+#[cfg(desktop)]
+pub fn show_dictate_window(app: &tauri::AppHandle) {
+    // Build on demand so agent-initiated speech works before the user has
+    // enabled the global hotkey (the hotkey path is the other place this
+    // window gets built, see `enable_hotkey`).
+    let window = match app.get_webview_window(DICTATE_WINDOW_LABEL) {
+        Some(w) => w,
+        None => match build_dictate_window(app) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("show_dictate_window: failed to build pill window: {e}");
+                return;
+            }
+        },
+    };
+    // current_monitor() returns None when the window has been parked
+    // off any display by the hide path; fall back to the primary.
+    let monitor = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten());
+    if let Some(monitor) = monitor {
+        let monitor_pos = monitor.position();
+        let monitor_size = monitor.size();
+        if let Ok(win_size) = window.outer_size() {
+            let x = monitor_pos.x
+                + (monitor_size.width as i32 - win_size.width as i32) / 2;
+            let y = monitor_pos.y + (monitor_size.height as f64 * 0.04) as i32;
+            let _ = window.set_position(PhysicalPosition::new(x, y));
+        }
+    }
+    let _ = window.set_ignore_cursor_events(false);
+    let _ = window.show();
+}
+
 const LEGACY_PORT: u16 = 8000;
-const SERVER_PORT: u16 = 17493;
+pub(crate) const SERVER_PORT: u16 = 17493;
 
 /// Find a voicebox-server process listening on a given port (Windows only).
 ///
@@ -895,7 +919,6 @@ fn enable_hotkey(
     push_to_talk: Vec<String>,
     toggle_to_talk: Vec<String>,
 ) -> Result<(), String> {
-    eprintln!("[enable_hotkey] called: push={:?}, toggle={:?}", push_to_talk, toggle_to_talk);
     let bindings = build_chord_bindings(&push_to_talk, &toggle_to_talk)?;
 
     // Fire the Input Monitoring TCC prompt explicitly from the user's
@@ -908,9 +931,7 @@ fn enable_hotkey(
     // The call returns the current grant state; we ignore it because
     // rdev::listen will surface its own error via stderr, and the
     // settings UI polls `check_input_monitoring_permission` separately.
-    let granted = input_monitoring::request();
-    eprintln!("[enable_hotkey] IOHIDRequestAccess returned granted={}", granted);
-    eprintln!("[enable_hotkey] IOHIDCheckAccess says trusted={}", input_monitoring::is_trusted());
+    let _ = input_monitoring::request();
 
     // The dictate pill webview must exist before the first chord fires so it
     // can subscribe to `dictate:start`. Build it here (idempotent — Tauri
@@ -1225,13 +1246,17 @@ pub fn run() {
 
                 // Agent-initiated speech (voicebox.speak over MCP or POST /speak)
                 // pops the pill up so the user can see what's coming out of their
-                // machine. The DictateWindow subscribes to /events/speak via SSE
-                // and emits `dictate:show` on speak-start; we repeat the same
-                // position+show dance the hotkey path uses.
+                // machine. The `dictate:show` listener is kept for any frontend
+                // caller that wants to force-surface the pill directly, but the
+                // primary source is `speak_monitor` below — Rust subscribes to
+                // the backend /events/speak SSE stream so the pill surfaces even
+                // when no JS window is active.
                 let handle_for_show = app.handle().clone();
                 app.handle().listen("dictate:show", move |_event| {
                     show_dictate_window(&handle_for_show);
                 });
+
+                speak_monitor::spawn_speak_monitor(app.handle().clone());
             }
 
             // Hide title bar icon on Windows

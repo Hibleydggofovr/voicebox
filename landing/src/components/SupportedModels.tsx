@@ -131,25 +131,6 @@ const MODEL_GROUPS: ModelGroup[] = [
           { icon: Zap, label: '8x faster' },
         ],
       },
-      {
-        name: 'Parakeet v3',
-        author: 'NVIDIA',
-        sizes: ['600M'],
-        description:
-          'Current quality leader for non-English local STT. Very fast, with strong accuracy on European and Asian languages.',
-        tags: [
-          { icon: Languages, label: '25 langs' },
-          { icon: Zap, label: 'Fast' },
-        ],
-      },
-      {
-        name: 'Qwen3-ASR',
-        author: 'Alibaba',
-        sizes: ['600M'],
-        description:
-          'int8 quantized for cross-platform use. Highest multilingual coverage of any engine — 50+ languages with strong accuracy.',
-        tags: [{ icon: Languages, label: '50+ langs' }],
-      },
     ],
   },
   {

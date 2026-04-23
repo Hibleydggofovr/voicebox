@@ -237,6 +237,9 @@ async def get_generation_status(generation_id: str, db: Session = Depends(get_db
                     "status": gen.status or "completed",
                     "duration": gen.duration,
                     "error": gen.error,
+                    # Agent-originated sources ("mcp", "rest") skip main-window
+                    # autoplay — the floating pill plays those directly.
+                    "source": gen.source,
                 }
                 yield f"data: {json.dumps(payload)}\n\n"
 

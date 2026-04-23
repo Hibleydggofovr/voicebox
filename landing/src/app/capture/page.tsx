@@ -60,12 +60,11 @@ export default function CapturePage() {
           <div className="grid md:grid-cols-3 gap-6">
             <div className="rounded-xl border border-border bg-card/40 backdrop-blur-sm p-6">
               <h3 className="text-[15px] font-semibold text-foreground mb-2">
-                Four STT engines, one picker
+                Whisper, sized for every machine
               </h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR. Pick per-capture — broad
-                multilingual, speed, non-English quality, or cross-platform coverage. All local,
-                all downloadable from inside the app.
+                Base, Small, Medium, Large, and Turbo. Pick per-capture — 99 languages at every
+                tier, all local, all downloadable from inside the app.
               </p>
             </div>
             <div className="rounded-xl border border-border bg-card/40 backdrop-blur-sm p-6">

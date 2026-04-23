@@ -172,7 +172,6 @@ pub struct HotkeyMonitor {
 
 impl HotkeyMonitor {
     pub fn spawn(app: AppHandle, bindings: Bindings) -> Self {
-        eprintln!("[HotkeyMonitor] spawn() called with {} bindings", bindings.len());
         let chord = Arc::new(Mutex::new(Chord::new(bindings)));
         let chord_for_thread = chord.clone();
         let app_for_thread = app.clone();
@@ -184,9 +183,7 @@ impl HotkeyMonitor {
             #[cfg(target_os = "macos")]
             rdev::set_is_main_thread(false);
 
-            eprintln!("[HotkeyMonitor] background thread entering rdev::listen");
             let result = listen(move |event| {
-                eprintln!("[HotkeyMonitor] rdev event: {:?}", event.event_type);
                 let input = match event.event_type {
                     EventType::KeyPress(k) => KeyEvent::Down(k),
                     EventType::KeyRelease(k) => KeyEvent::Up(k),
@@ -198,17 +195,11 @@ impl HotkeyMonitor {
                     Err(_) => return,
                 };
 
-                if !effects.is_empty() {
-                    eprintln!("[HotkeyMonitor] chord matched, effects: {:?}", effects);
-                }
-
                 for effect in effects {
                     apply_effect(&app_for_thread, effect);
                 }
             });
 
-            // listen() blocks forever on success; reaching here means it errored.
-            eprintln!("[HotkeyMonitor] rdev::listen returned (this only happens on error): {:?}", result);
             if let Err(err) = result {
                 eprintln!(
                     "HotkeyMonitor: rdev::listen failed ({:?}). Global chord detection is disabled. On macOS, grant Input Monitoring in System Settings → Privacy & Security → Input Monitoring and relaunch.",

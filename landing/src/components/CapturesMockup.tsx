@@ -157,16 +157,16 @@ const CAPTURES: Capture[] = [
     ago: '22 min ago',
     createdAtLabel: 'Apr 22, 3:29 PM',
     source: 'dictation',
-    sttModel: 'parakeet-v3',
+    sttModel: 'turbo',
     language: 'en',
   },
   {
     id: 'c3',
     seed: 37,
     transcriptRaw:
-      "tech overview for the readme seven TTS engines qwen3 kokoro chatterbox luxtts customvoice tada and chatterbox turbo four STT whisper whisper turbo parakeet v3 qwen3 ASR one local LLM qwen 3.5 shared runtime across all of them one model directory one GPU story no fragmented caches pick the right model per job speed on CPU laptops quality on an M series mac all switchable per generation",
+      "tech overview for the readme seven TTS engines qwen3 kokoro chatterbox luxtts customvoice tada and chatterbox turbo whisper for STT in five sizes from base up to large and a turbo variant one local LLM qwen 3.5 shared runtime across all of them one model directory one GPU story no fragmented caches pick the right model per job speed on CPU laptops quality on an M series mac all switchable per generation",
     transcriptRefined:
-      "Tech overview for the README: seven TTS engines — Qwen3, Kokoro, Chatterbox, LuxTTS, CustomVoice, TADA, and Chatterbox Turbo. Four STT — Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR. One local LLM, Qwen 3.5, with a shared runtime across all of them. One model directory, one GPU story, no fragmented caches. Pick the right model per job — speed on CPU laptops, quality on an M-series Mac, switchable per-generation.",
+      "Tech overview for the README: seven TTS engines — Qwen3, Kokoro, Chatterbox, LuxTTS, CustomVoice, TADA, and Chatterbox Turbo. Whisper for STT, in five sizes from Base up to Large, plus a Turbo variant. One local LLM, Qwen 3.5, with a shared runtime across all of them. One model directory, one GPU story, no fragmented caches. Pick the right model per job — speed on CPU laptops, quality on an M-series Mac, switchable per-generation.",
     durationMs: 34000,
     ago: '1 hr ago',
     createdAtLabel: 'Apr 22, 2:51 PM',

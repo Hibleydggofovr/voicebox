@@ -147,15 +147,16 @@ export function DictationHero() {
   );
 }
 
-// ─── Card: Multi-Engine STT ─────────────────────────────────────────────────
+// ─── Card: Whisper, sized for every machine ────────────────────────────────
 
 type EngineRow = { name: string; size: string; langs: string };
 
 const STT_ENGINES: EngineRow[] = [
-  { name: 'Whisper', size: '1.5B', langs: '99 langs' },
+  { name: 'Whisper Base', size: '74M', langs: '99 langs' },
+  { name: 'Whisper Small', size: '244M', langs: '99 langs' },
+  { name: 'Whisper Medium', size: '769M', langs: '99 langs' },
+  { name: 'Whisper Large', size: '1.5B', langs: '99 langs' },
   { name: 'Whisper Turbo', size: '809M', langs: '99 langs' },
-  { name: 'Parakeet v3', size: '600M', langs: '25 langs' },
-  { name: 'Qwen3-ASR', size: '600M', langs: '50+ langs' },
 ];
 
 function MultiEngineSTTAnimation() {
@@ -400,9 +401,9 @@ function AgentVoiceAnimation() {
 
 const CAPTURE_FEATURES = [
   {
-    title: 'Multi-Engine STT',
+    title: 'Whisper, sized for every machine',
     description:
-      'Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR. Pick the model that fits your accent, language, or speed — all running on your hardware.',
+      'Base, Small, Medium, Large, and Turbo. Pick the size that fits your hardware and quality bar — 99 languages across every tier, all running locally.',
     icon: Mic2,
     animation: MultiEngineSTTAnimation,
   },
