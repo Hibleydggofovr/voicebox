@@ -513,37 +513,45 @@ export function CapturesTab() {
                     Configure
                   </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleUploadClick}
-                  disabled={session.isUploading}
-                >
-                  {session.isUploading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4 mr-2" />
-                  )}
-                  {session.isUploading ? 'Uploading...' : 'Import'}
-                </Button>
+                {readiness.allReady && (
+                  <Button
+                    variant="outline"
+                    onClick={handleUploadClick}
+                    disabled={session.isUploading}
+                  >
+                    {session.isUploading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    {session.isUploading ? 'Uploading...' : 'Import'}
+                  </Button>
+                )}
               </>
             )}
-            <Button
-              onClick={session.toggleRecording}
-              disabled={session.isUploading && !session.isRecording}
-              className="relative overflow-hidden transition-all bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              {session.isRecording ? (
-                <>
-                  <Square className="h-4 w-4 mr-2 fill-current" />
-                  Stop
-                </>
-              ) : (
-                <>
-                  <Mic className="h-4 w-4 mr-2" />
-                  Dictate
-                </>
-              )}
-            </Button>
+            {/* Hide Dictate when readiness fails so the user can't kick off
+                a capture that has nowhere to land. Stop stays visible if a
+                recording is somehow already in flight (e.g. a model was
+                uninstalled mid-record) so the user can always cancel. */}
+            {(readiness.allReady || session.isRecording) && (
+              <Button
+                onClick={session.toggleRecording}
+                disabled={session.isUploading && !session.isRecording}
+                className="relative overflow-hidden transition-all bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                {session.isRecording ? (
+                  <>
+                    <Square className="h-4 w-4 mr-2 fill-current" />
+                    Stop
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Dictate
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 

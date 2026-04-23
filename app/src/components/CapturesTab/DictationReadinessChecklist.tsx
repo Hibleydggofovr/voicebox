@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Accessibility,
   CheckCircle2,
@@ -9,10 +9,11 @@ import {
   Keyboard,
   Loader2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
+import type { ActiveDownloadTask } from '@/lib/api/types';
 import type { DictationReadiness, ReadinessGate } from '@/lib/hooks/useDictationReadiness';
 import { cn } from '@/lib/utils/cn';
 
@@ -51,11 +52,22 @@ function ChecklistRow({ icon, title, description, ready, action }: RowProps) {
   );
 }
 
+function progressPercent(task: ActiveDownloadTask | undefined): number | null {
+  if (!task) return null;
+  if (typeof task.progress === 'number') return Math.max(0, Math.min(100, task.progress));
+  if (task.current && task.total) return Math.round((task.current / task.total) * 100);
+  return null;
+}
+
 /**
  * Renders one row per dictation-readiness gate. Each unmet gate gets an
  * inline action — Download for missing models, Open Settings for missing
  * TCC permissions — so the user can resolve everything without leaving
  * Captures.
+ *
+ * Download-in-progress state is sourced from ``/tasks/active`` (same query
+ * the Models page uses) so it survives unmount: navigating away and back
+ * still shows "Downloading…" instead of resetting to "Download".
  *
  * The chord stays disarmed until every row is green; this is what stops the
  * "stuck pill" failure mode of pressing the chord with a missing model.
@@ -63,29 +75,58 @@ function ChecklistRow({ icon, title, description, ready, action }: RowProps) {
 export function DictationReadinessChecklist({ readiness }: { readiness: DictationReadiness }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [downloading, setDownloading] = useState<Set<ReadinessGate>>(new Set());
+
+  const { data: activeTasks } = useQuery({
+    queryKey: ['activeTasks'],
+    queryFn: () => apiClient.getActiveTasks(),
+    // Mirror ModelManagement's cadence: 1s while a download is in flight,
+    // 5s otherwise. Keeps progress feeling live without hammering when idle.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasActive = data?.downloads.some((d) => d.status === 'downloading');
+      return hasActive ? 1000 : 5000;
+    },
+  });
+
+  const downloadByModel = new Map<string, ActiveDownloadTask>();
+  for (const dl of activeTasks?.downloads ?? []) {
+    if (dl.status === 'downloading') downloadByModel.set(dl.model_name, dl);
+  }
+
+  // When a download disappears from activeTasks, it just finished — refetch
+  // readiness immediately so the row flips to ✓ instead of waiting up to 5s
+  // for the next readiness poll.
+  const prevActive = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const current = new Set(downloadByModel.keys());
+    for (const name of prevActive.current) {
+      if (!current.has(name)) {
+        queryClient.invalidateQueries({ queryKey: ['capture-readiness'] });
+        queryClient.invalidateQueries({ queryKey: ['modelStatus'] });
+        break;
+      }
+    }
+    prevActive.current = current;
+  }, [activeTasks, queryClient, downloadByModel]);
 
   const downloadMutation = useMutation({
     mutationFn: async ({ modelName }: { gate: ReadinessGate; modelName: string }) =>
       apiClient.triggerModelDownload(modelName),
     onSuccess: (_data, vars) => {
-      // Bump model status + readiness so the checklist row flips green as
-      // soon as the cache is populated. Keep the gate in `downloading` until
-      // readiness reports `ready: true` to avoid a flash of "Download" on
-      // post-completion polls.
+      // Bump activeTasks so the row immediately shows "Downloading…" without
+      // waiting for the next 5s poll. modelStatus + readiness invalidations
+      // keep adjacent UI in sync.
+      queryClient.invalidateQueries({ queryKey: ['activeTasks'] });
       queryClient.invalidateQueries({ queryKey: ['modelStatus'] });
       queryClient.invalidateQueries({ queryKey: ['capture-readiness'] });
+      const displayName =
+        vars.gate === 'stt' ? readiness.stt?.display_name : readiness.llm?.display_name;
       toast({
         title: 'Download started',
-        description: `${vars.gate === 'stt' ? readiness.stt?.display_name : readiness.llm?.display_name} is downloading. The shortcut will arm itself when it finishes.`,
+        description: `${displayName} is downloading. The shortcut will arm itself when it finishes.`,
       });
     },
-    onError: (err: Error, vars) => {
-      setDownloading((prev) => {
-        const next = new Set(prev);
-        next.delete(vars.gate);
-        return next;
-      });
+    onError: (err: Error) => {
       toast({
         title: 'Download failed',
         description: err.message,
@@ -94,19 +135,40 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
     },
   });
 
-  const startDownload = (gate: ReadinessGate, modelName: string) => {
-    setDownloading((prev) => new Set(prev).add(gate));
-    downloadMutation.mutate({ gate, modelName });
-  };
-
-  // Once readiness flips ready=true for a gate, drop it from `downloading`
-  // so subsequent reopens show the green check, not "Downloading…".
-  const isDownloading = (gate: ReadinessGate, ready: boolean) => !ready && downloading.has(gate);
-
   const sttSize =
     readiness.stt?.size_mb != null ? `${(readiness.stt.size_mb / 1000).toFixed(1)} GB` : null;
   const llmSize =
     readiness.llm?.size_mb != null ? `${(readiness.llm.size_mb / 1000).toFixed(1)} GB` : null;
+
+  function modelDownloadButton(
+    gate: 'stt' | 'llm',
+    modelName: string,
+    ready: boolean,
+  ): React.ReactNode {
+    const task = downloadByModel.get(modelName);
+    const downloading = !ready && !!task;
+    const pct = progressPercent(task);
+    return (
+      <Button
+        size="sm"
+        onClick={() => downloadMutation.mutate({ gate, modelName })}
+        disabled={downloading || downloadMutation.isPending}
+        className="gap-1.5"
+      >
+        {downloading ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            {pct != null ? `Downloading… ${pct}%` : 'Downloading…'}
+          </>
+        ) : (
+          <>
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </>
+        )}
+      </Button>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto space-y-2.5">
@@ -129,26 +191,7 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
               : `Needed to transcribe your audio${sttSize ? ` · ${sttSize}` : ''}.`
           }
           ready={readiness.stt.ready}
-          action={
-            <Button
-              size="sm"
-              onClick={() => startDownload('stt', readiness.stt!.model_name)}
-              disabled={isDownloading('stt', readiness.stt.ready)}
-              className="gap-1.5"
-            >
-              {isDownloading('stt', readiness.stt.ready) ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Downloading…
-                </>
-              ) : (
-                <>
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </>
-              )}
-            </Button>
-          }
+          action={modelDownloadButton('stt', readiness.stt.model_name, readiness.stt.ready)}
         />
       )}
 
@@ -162,26 +205,7 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
               : `Cleans up the raw transcript before paste${llmSize ? ` · ${llmSize}` : ''}.`
           }
           ready={readiness.llm.ready}
-          action={
-            <Button
-              size="sm"
-              onClick={() => startDownload('llm', readiness.llm!.model_name)}
-              disabled={isDownloading('llm', readiness.llm.ready)}
-              className="gap-1.5"
-            >
-              {isDownloading('llm', readiness.llm.ready) ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Downloading…
-                </>
-              ) : (
-                <>
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </>
-              )}
-            </Button>
-          }
+          action={modelDownloadButton('llm', readiness.llm.model_name, readiness.llm.ready)}
         />
       )}
 
