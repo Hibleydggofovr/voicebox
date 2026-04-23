@@ -54,7 +54,8 @@ function ChecklistRow({ icon, title, description, ready, action }: RowProps) {
 
 function progressPercent(task: ActiveDownloadTask | undefined): number | null {
   if (!task) return null;
-  if (typeof task.progress === 'number') return Math.max(0, Math.min(100, task.progress));
+  if (typeof task.progress === 'number')
+    return Math.round(Math.max(0, Math.min(100, task.progress)));
   if (task.current && task.total) return Math.round((task.current / task.total) * 100);
   return null;
 }

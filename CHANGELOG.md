@@ -9,11 +9,9 @@
 
 ## [0.5.0] - 2026-04-22
 
-**The Capture release.** Voicebox stops being a voice-cloning studio and becomes an AI voice studio. The loop closes in both directions: your voice goes into your computer through a global hotkey, and any agent's voice comes out of your computer through a voice you own.
+**The Capture release.** Voicebox stops being just a voice-cloning studio and becomes a full AI voice studio. The loop closes in both directions: your voice goes into your computer through a global hotkey, and any agent's voice comes out of your computer through a voice you own.
 
-Hold a key anywhere on your machine, speak, release — the transcript lands in the focused text field in whatever app you were using. Flip the primitive around and any MCP-aware agent — Claude Code, Cursor, Cline, Spacebot — speaks back through the same on-screen pill in one of your cloned voices. A local LLM sits between the two, so transcripts come out clean and voice profiles can carry a personality that reshapes what the agent actually says before it gets spoken.
-
-Everything still runs on your hardware. No cloud, no accounts, no audio leaving the machine.
+When enabled, hold a key anywhere on your machine, speak, release — the transcript lands in the focused text field in whatever app you were using. Flip the primitive around and any MCP-aware agent — Claude Code, Cursor, Cline, Spacebot — speaks back through the same on-screen pill in one of your cloned voices. A local LLM sits between the two, so transcripts come out clean and voice profiles can carry a personality that reshapes what the agent actually says before it gets spoken.
 
 ### Dictation — speak anywhere, paste anywhere
 
@@ -36,9 +34,25 @@ Temperatures are tuned per mode (compose hot for variety, rewrite cold for fidel
 
 ### Agents — any MCP-aware agent gets a voice
 
-> **Note:** the MCP server implementation is not yet in this tag. The pieces it depends on — the personality/compose/rewrite/respond runtime, voice-binding-per-profile, and the on-screen pill as a generic surface — are all in place. The MCP route lands in a follow-up commit before the final 0.5.0 tag.
+Voicebox ships a built-in **Model Context Protocol** server at `http://127.0.0.1:17493/mcp` so Claude Code, Cursor, Windsurf, Cline, VS Code MCP extensions — any MCP-aware agent — can call into your local Voicebox install. Four tools ship with dotted names:
 
-Once the MCP server ships, any MCP-aware agent — Claude Code, Cursor, Cline, Spacebot — can call `voicebox.speak({ profile, text, intent })` and Voicebox will produce in-character speech in the bound voice. The on-screen pill surfaces whenever an agent is talking so you always see what's coming out of your machine. Pin Claude Code to Morgan, Cursor to Scarlett, Spacebot to its own voice — you can tell which agent is speaking without looking.
+- **`voicebox.speak`** — speak text in any voice profile, with optional `intent: compose | rewrite | respond` to run through the profile's personality LLM first
+- **`voicebox.transcribe`** — Whisper transcription of a base64 blob or an absolute local path
+- **`voicebox.list_captures`** — recent captures with their transcripts
+- **`voicebox.list_profiles`** — available voice profiles (cloned + preset)
+
+- **Streamable HTTP as primary transport.** FastMCP mounted inside the existing FastAPI process (Nov-2025 MCP spec, post-SSE). Cursor / Windsurf / VS Code / Claude Code all support it out of the box — drop a `mcpServers` block with the URL and an `X-Voicebox-Client-Id` header.
+- **Stdio shim for clients that don't speak HTTP MCP.** A `voicebox-mcp` binary ships inside the app bundle as a Tauri sidecar — ~18 MB PyInstaller build with torch / transformers / mlx explicitly excluded. The Settings page renders the install snippet with the right absolute path pre-filled.
+- **Per-client voice binding.** Pin Claude Code to Morgan, Cursor to Scarlett, Cline to its own voice — the `X-Voicebox-Client-Id` header resolves to a bound voice whenever `speak` is called without an explicit `profile`. Managed in **Settings → MCP**, with an auto-stamped `last_seen_at` timestamp on each row so you can tell the install actually took. New clients register their binding row on first call.
+- **Profile resolution precedence.** Explicit `profile` arg (name or id, case-insensitive) → per-client binding → global default from `capture_settings.default_playback_voice_id` → error with a pointer to Settings.
+- **Speaking pill.** Agent-initiated speech surfaces the same on-screen pill as dictation, in a new `speaking` state with the profile name and an elapsed timer. Driven by SSE at `/events/speak`; a Tauri-side `dictate:show` handler repositions and reveals the pill over the current monitor even when the main Voicebox window is hidden. Silent background TTS is a trust hazard — the pill always shows what's coming out of your machine.
+- **`POST /speak` REST wrapper.** Same code path and voice resolution for shell scripts, ACP, A2A, GitHub Actions, or anything else that isn't MCP-native.
+
+**Claude Code one-liner:**
+
+```
+claude mcp add voicebox --transport http --url http://127.0.0.1:17493/mcp --header "X-Voicebox-Client-Id: claude-code"
+```
 
 ### Refinement hardening
 
@@ -68,7 +82,7 @@ Settings → Captures is now the home for the whole dictation flow:
 
 ### Landing page — /capture
 
-New `/capture` route tells the Capture story end-to-end. Hero line: *"Just talk to your computer."* Three pillars — multi-engine STT (Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR), refined transcripts, agents speaking in voices you own. Drop-in MCP config block for Claude Code / Cursor / Cline. Agent-integration section showing per-client voice binding.
+New `/capture` route tells the Capture story end-to-end. Hero line: *"Just talk to your computer."* Three pillars — STT (Whisper, Whisper Turbo), refined transcripts, agents speaking in voices you own. Drop-in MCP config block for Claude Code / Cursor / Cline. Agent-integration section showing per-client voice binding.
 
 ## [0.4.5] - 2026-04-22
 

@@ -394,11 +394,11 @@ export function CapturesTab() {
         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
 
         <div className="absolute top-0 left-0 right-0 z-20 pl-4 pr-4">
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center mb-3">
             <h1 className="text-2xl px-4 font-bold">Captures</h1>
             <Badge
               variant="secondary"
-              className="h-5 px-1.5 text-[10px] font-medium text-accent bg-accent/10 border border-accent/20"
+              className="h-5 px-1.5 -ml-2 text-[10px] font-medium text-accent bg-accent/10 border border-accent/20"
             >
               Beta
             </Badge>
@@ -488,7 +488,7 @@ export function CapturesTab() {
         <div className="absolute top-0 left-0 right-0 z-20 px-8">
           <div className="flex items-center gap-3 py-4">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent" />
               <span>
                 Whisper {sttModel.charAt(0).toUpperCase() + sttModel.slice(1)}
                 <span className="mx-1.5 text-muted-foreground/40">·</span>

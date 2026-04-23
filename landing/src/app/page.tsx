@@ -9,6 +9,7 @@ import {ControlUI} from "@/components/ControlUI";
 import {Features} from "@/components/Features";
 import {Footer} from "@/components/Footer";
 import {Navbar} from "@/components/Navbar";
+import {Personalities} from "@/components/Personalities";
 import {AppleIcon, LinuxIcon, WindowsIcon} from "@/components/PlatformIcons";
 import {SupportedModels} from "@/components/SupportedModels";
 import {TutorialsSection} from "@/components/TutorialsSection";
@@ -140,6 +141,9 @@ export default function Home() {
 
 			{/* ── Agent integration (speak primitive + MCP) ───────────── */}
 			<AgentIntegration />
+
+			{/* ── Personalities (Compose / Rewrite / Respond) ──────────── */}
+			<Personalities />
 
 			{/* ── API Section ──────────────────────────────────────────── */}
 			<ApiSection />
