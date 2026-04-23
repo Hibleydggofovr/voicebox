@@ -63,9 +63,9 @@
 
 ## What is Voicebox?
 
-Voicebox is a **local-first AI voice studio** — a free and open-source alternative to **ElevenLabs** and **WisprFlow** in one app. Clone voices from a few seconds of audio, generate speech in 23 languages across 7 TTS engines, dictate into any text field with a global hotkey, and route captured speech through a local LLM into a cloned voice for end-to-end voice conversations with AI agents.
+Voicebox is a **local-first AI voice studio** — a free and open-source alternative to **ElevenLabs** and **WisprFlow** in one app. Clone voices from a few seconds of audio, generate speech in 23 languages across 7 TTS engines, dictate into any text field with a global hotkey, and give any MCP-aware AI agent a voice of your choosing.
 
-The two cloud incumbents sit on opposite halves of the voice I/O loop — ElevenLabs on output, WisprFlow on input. Voicebox does both, bridges them with a persona LLM, and runs the whole thing on your machine.
+The two cloud incumbents sit on opposite halves of the voice I/O loop — ElevenLabs on output, WisprFlow on input. Voicebox does both, bridges them with a bundled local LLM for refinement and per-profile personas, and runs the whole thing on your machine.
 
 - **Complete privacy** — models, voice data, and captures never leave your machine
 - **7 TTS engines** — Qwen3-TTS, Qwen CustomVoice, LuxTTS, Chatterbox Multilingual, Chatterbox Turbo, HumeAI TADA, and Kokoro
@@ -75,11 +75,10 @@ The two cloud incumbents sit on opposite halves of the voice I/O loop — Eleven
 - **Expressive speech** — paralinguistic tags like `[laugh]`, `[sigh]`, `[gasp]` via Chatterbox Turbo; natural-language delivery control via Qwen CustomVoice
 - **Unlimited length** — auto-chunking with crossfade for scripts, articles, and chapters
 - **Stories editor** — multi-track timeline for conversations, podcasts, and narratives
-- **Voice input** — global hotkey dictation, in-app mic on every text field, 4 STT engines (Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR)
+- **Voice input** — global dictation hotkey with push-to-talk and toggle modes, accessibility-verified auto-paste on macOS, in-app mic on every text field, Whisper-based STT
 - **Agent voice output** — one tool call (`voicebox.speak`) and any MCP-aware agent (Claude Code, Cursor, Cline) speaks to you in a voice you've cloned
-- **Persona loop** — speak to a local LLM, hear the reply in any voice you've cloned, entirely offline
-- **Pipeline routing** — configurable source → transform → sink chains, with a built-in MCP sink for Claude Code, Cursor, and Cline
-- **API-first** — REST + WebSocket API for integrating voice I/O into your own apps and agents
+- **Voice personalities** — attach a free-form persona to any voice profile, then Compose, Rewrite, or Respond via a bundled local LLM — agents can invoke the same modes over MCP
+- **API-first** — REST API plus a built-in MCP server for integrating voice I/O into your own apps and agents
 - **Native performance** — built with Tauri (Rust), not Electron
 - **Runs everywhere** — macOS (MLX/Metal), Windows (CUDA), Linux, AMD ROCm, Intel Arc, Docker
 
@@ -193,34 +192,35 @@ Multi-voice timeline editor for conversations, podcasts, and narratives.
 
 ### Global Dictation & Voice Input
 
-The other half of the voice I/O loop. Hold a hotkey anywhere on your system, speak, release — the transcript pastes into the focused text field. Or hit the mic on any Voicebox text input and dictate directly into the app.
+The other half of the voice I/O loop. Hold a hotkey anywhere on your system, speak, release — on macOS the transcript pastes straight into the focused text field. Or hit the mic on any Voicebox text input and dictate directly into the app.
 
-- **Global hotkey** — hold-to-speak or tap-to-toggle, configurable
-- **Target-aware paste** — accessibility-verified injection into text fields, atomic clipboard save/restore so your clipboard isn't clobbered
+- **Configurable chord bindings** — hold-to-speak and tap-to-toggle chords, each rebindable in the in-app chord picker. Holding push-to-talk and tapping `Space` mid-hold upgrades into a toggle session without a gap in audio
+- **Target-aware paste (macOS)** — accessibility-verified injection into the focused text field, with atomic clipboard save/restore so your clipboard isn't clobbered
+- **First-run permissions UX** — in-app gates walk you through the macOS Accessibility and Input Monitoring grants with deep-links to System Settings
 - **In-app mic button** on every Voicebox text field — generation form, profile descriptions, story titles, anywhere you'd type
-- **Streaming transcription** via `/transcribe/stream` WebSocket — partial transcripts land as you speak
 - **LLM refinement** — optional cleanup of ums, stutters, and false starts before paste
+- **On-screen pill** — floating overlay surfacing `recording`, `transcribing`, `refining`, and `speaking` states. Same pill agents use when they speak to you, so there's one mental model for both directions of the loop
 
-### Multi-Engine STT
+### Speech-to-Text
 
-Four STT engines with different strengths, switchable per-capture:
+Voicebox runs OpenAI Whisper for transcription — the same model that backs dictation, the Captures tab, and the `/transcribe` API. Running on MLX (Apple Silicon) or PyTorch (CUDA / ROCm / DirectML / CPU) depending on your platform.
 
-| Engine             | Languages | Strengths                                                           |
-| ------------------ | --------- | ------------------------------------------------------------------- |
-| **Whisper**        | 99        | The default. Broad language support, mature, battle-tested          |
-| **Whisper Turbo**  | 99        | ~8x faster than Whisper large, minimal quality loss                 |
-| **Parakeet v3**    | 25        | Current quality leader for non-English local STT, very fast         |
-| **Qwen3-ASR 0.6B** | 50+       | Highest multilingual quality, int8 quantized for cross-platform use |
+| Size                          | Notes                                              |
+| ----------------------------- | -------------------------------------------------- |
+| Base / Small / Medium / Large | Standard Whisper quality ladder                    |
+| Turbo                         | ~8x faster than Whisper Large, minimal quality loss |
+
+More engines (Parakeet v3, Qwen3-ASR) are planned — see [Roadmap](#roadmap).
 
 ### Captures
 
 Every dictation, in-app recording, and uploaded audio file lands in the Captures tab — original audio paired with transcript, always preserved.
 
-- **Replay, re-transcribe** with a different model, or edit the transcript inline
+- **Replay, re-transcribe, refine** — rerun STT with any Whisper size, or re-run the raw transcript through the local LLM with different flags (filler cleanup, self-correction removal, technical-term preservation)
+- **Edit inline** — tweak the transcript and save on blur
 - **Play as voice profile** — turn any capture into speech with a cloned voice, one click
-- **Promote to voice sample** — use a capture's audio + transcript as a reference sample for voice cloning
-- **Send to** — clipboard, file, webhook, MCP sink, or back into the generation pipeline
-- **Configurable retention** — keep everything or auto-expire old captures
+- **Promote to voice sample** — use a capture's audio + transcript as a reference sample on any voice profile
+- **Configurable retention** — keep captures forever, or auto-expire after 7 / 30 / 90 days
 
 ### Agent Voice Output
 
@@ -236,36 +236,24 @@ await voicebox.speak({
 
 Also exposed as `POST /speak` for anything that doesn't speak MCP — ACP, A2A, shell scripts, custom harnesses.
 
-- **Bidirectional pill** — `recording`, `transcribing`, `refining`, `rest`, and `speaking` are all states of the same OS-level overlay
-- **Per-agent voice binding** — Claude Code in Morgan, Cursor in Scarlett, so you can tell which agent is talking without looking
-- **Always visible** — no silent background TTS; every agent-initiated speech surfaces the pill
-- **Global mute + per-source rate limits** — a panic button for runaway agents
+- **Bidirectional pill** — `recording`, `transcribing`, `refining`, and `speaking` are all states of the same OS-level overlay, so dictation and agent speech share one surface
+- **Per-agent voice binding** — in **Settings → MCP**, pin Claude Code to Morgan and Cursor to Scarlett so you can tell which agent is talking without looking. Each client's `last_seen_at` timestamp confirms the install actually took
+- **Always visible** — no silent background TTS; every agent-initiated speak surfaces the pill with the voice profile name for the full duration
+- **HTTP + stdio transports** — install as a URL in Claude Code / Cursor / Windsurf / VS Code MCP, or point stdio-only clients at the bundled `voicebox-mcp` binary
 
-### Persona Loop
+### Voice Personalities
 
-One flow on top of `speak()`: STT → persona LLM → `speak(reply)`. Voice profiles gain optional personality metadata and default LLM behavior. End-to-end voice-to-voice with a cloned identity transforming the content, not just reading it.
+Attach a free-form personality to any voice profile — who this voice is, how they speak, what they care about. Three new actions appear on the profile, each powered by a bundled Qwen3 LLM running entirely locally.
 
-- **Local LLM** — Qwen 3.5 0.8B / 2B / 4B, same runtime as TTS (MLX on Apple Silicon, PyTorch elsewhere)
-- **Voice profile personas** — optional personality description and default LLM behavior per profile
-- **Pipeline-native** — STT → persona LLM → TTS is a preset, configurable like any other route
-- **Voice-to-voice ready** — when end-to-end speech LLMs (Moshi, GLM-4-Voice, Qwen2.5 Omni) land, they slot in as a single transform and the pipeline shape stays the same
+- **Compose** — generate a fresh utterance in the character's voice
+- **Rewrite** — restate your text in their voice while preserving every idea
+- **Respond** — treat your text as a prompt and produce the character's reply
 
-Use cases: agent dev loops (talk to Claude Code, hear it back in a cloned voice), interactive characters for games and narrative tools, speech assistance for people who can't speak in their original voice.
+Agents can invoke the same modes over MCP by passing `intent: "compose" | "rewrite" | "respond"` to `voicebox.speak`, turning the tool into a text-in → personality-LLM → TTS pipeline. The same LLM backs dictation's refinement step — one LLM in the app, one model cache, one GPU-memory footprint.
 
-### Pipeline Routing
+**Local LLM options:** Qwen3 0.6B / 1.7B / 4B, sharing the TTS runtime (MLX on Apple Silicon, PyTorch elsewhere).
 
-Every voice event in Voicebox flows through the same shape: **Source → Transforms → Sinks**. Build presets, share them, invoke them from shell scripts and agent harnesses.
-
-| Sources              | Transforms          | Sinks                       |
-| -------------------- | ------------------- | --------------------------- |
-| Global hotkey        | STT model           | Paste into focused field    |
-| In-app mic           | Refinement LLM      | Clipboard                   |
-| Long-form recorder   | Persona LLM         | File on disk                |
-| File drop            | Translation (later) | HTTP webhook                |
-| API call (WS / HTTP) |                     | **MCP server** (agent sink) |
-|                      |                     | TTS loopback (cloned voice) |
-
-Presets are addressable by ID via `POST /pipelines/{id}/run`. The MCP sink means Claude Code, Cursor, and Cline get voice I/O one checkbox away — no custom integration.
+Use cases: agent dev loops (dictate a question, hear the answer in a cloned voice), interactive characters for games and narrative tools, speech assistance for people who can't speak in their original voice.
 
 ### Model Management
 
@@ -289,61 +277,84 @@ Presets are addressable by ID via `POST /pipelines/{id}/run`. The MCP sink means
 
 ## API
 
-Voicebox exposes a full REST + WebSocket API for integrating voice I/O into your own apps and agents.
+Voicebox exposes a REST API for integrating voice I/O into your own apps and agents.
 
 ```bash
 # Generate speech
-curl -X POST http://localhost:17493/generate \
+curl -X POST http://127.0.0.1:17493/generate \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello world", "profile_id": "abc123", "language": "en"}'
 
 # Agent voice output — any app or script can speak in a cloned voice
-curl -X POST http://localhost:17493/speak \
+curl -X POST http://127.0.0.1:17493/speak \
   -H "Content-Type: application/json" \
-  -d '{"text": "Deploy complete.", "profile_id": "morgan"}'
+  -H "X-Voicebox-Client-Id: my-script" \
+  -d '{"text": "Deploy complete.", "profile": "Morgan"}'
 
 # Transcribe an audio file
-curl -X POST http://localhost:17493/transcribe \
+curl -X POST http://127.0.0.1:17493/transcribe \
   -F "audio=@recording.wav" \
   -F "model=whisper-turbo"
 
-# Run a user-configured pipeline (STT → LLM → TTS, for example)
-curl -X POST http://localhost:17493/pipelines/my-agent-reply/run \
-  -F "audio=@input.wav"
-
 # List voice profiles
-curl http://localhost:17493/profiles
+curl http://127.0.0.1:17493/profiles
 ```
 
-Streaming dictation runs over WebSocket at `ws://localhost:17493/transcribe/stream` — audio frames in, partial transcripts out.
+`POST /speak` accepts `profile` as a name (case-insensitive) or id, and resolves via the same precedence as the MCP tool: explicit arg → per-client binding → `capture_settings.default_playback_voice_id`.
 
 ### MCP server
 
-Voicebox ships an MCP server so any MCP-aware agent (Claude Code, Cursor, Cline, etc.) can speak in any voice you've cloned with a single tool call. Add one entry to your MCP config:
+Voicebox ships a built-in **Model Context Protocol** server so any MCP-aware agent (Claude Code, Cursor, Windsurf, Cline, VS Code MCP extensions) can speak, transcribe, and browse captures and profiles.
+
+**Claude Code one-liner:**
+
+```
+claude mcp add voicebox \
+  --transport http \
+  --url http://127.0.0.1:17493/mcp \
+  --header "X-Voicebox-Client-Id: claude-code"
+```
+
+**Any HTTP MCP client** (Cursor, Windsurf, VS Code, etc.):
 
 ```json
 {
   "mcpServers": {
     "voicebox": {
-      "command": "voicebox",
-      "args": ["mcp"]
+      "url": "http://127.0.0.1:17493/mcp",
+      "headers": { "X-Voicebox-Client-Id": "cursor" }
     }
   }
 }
 ```
 
-The `voicebox.speak` tool is then available in the agent:
+**Stdio fallback** for clients that don't speak HTTP MCP — point at the bundled `voicebox-mcp` binary inside the app:
+
+```json
+{
+  "mcpServers": {
+    "voicebox": {
+      "command": "/Applications/Voicebox.app/Contents/MacOS/voicebox-mcp",
+      "env": { "VOICEBOX_CLIENT_ID": "claude-desktop" }
+    }
+  }
+}
+```
+
+Four tools ship: `voicebox.speak`, `voicebox.transcribe`, `voicebox.list_captures`, `voicebox.list_profiles`. Per-client voice bindings are managed in **Voicebox → Settings → MCP**. See the [full MCP guide](docs/content/docs/overview/mcp-server.mdx) for tool signatures, resolution precedence, the speaking-pill contract, and security notes.
 
 ```ts
+// In any MCP-aware agent:
 await voicebox.speak({
   text: "Tests passing. Ready to merge.",
-  profile: "Morgan",
+  profile: "Morgan",      // optional — falls back to the per-client binding
+  intent: "respond",      // optional — runs text through the profile's personality LLM first
 });
 ```
 
 **Use cases:** agent dev loops (voice in, voice out), game dialogue, podcast production, accessibility tools, voice assistants, content automation.
 
-Full API documentation available at `http://localhost:17493/docs`.
+Full API documentation available at `http://127.0.0.1:17493/docs`.
 
 ---
 
@@ -356,9 +367,10 @@ Full API documentation available at `http://localhost:17493/docs`.
 | State         | Zustand, React Query                                                            |
 | Backend       | FastAPI (Python)                                                                |
 | TTS Engines   | Qwen3-TTS, Qwen CustomVoice, LuxTTS, Chatterbox, Chatterbox Turbo, TADA, Kokoro |
-| STT Engines   | Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR                                  |
-| LLM           | Qwen 3.5 (0.8B / 2B / 4B), shared runtime with TTS/STT                          |
-| Native Shim   | Rust crate for global hotkey, paste injection, focus introspection              |
+| STT           | Whisper / Whisper Turbo (PyTorch or MLX)                                        |
+| Local LLM     | Qwen3 (0.6B / 1.7B / 4B), shared runtime with TTS / STT                         |
+| MCP Server    | FastMCP mounted at `/mcp` (Streamable HTTP) + bundled stdio shim binary         |
+| Native Shim   | Rust (inside Tauri) for global hotkey, paste injection, focus introspection     |
 | Effects       | Pedalboard (Spotify)                                                            |
 | Inference     | MLX (Apple Silicon) / PyTorch (CUDA/ROCm/XPU/CPU)                               |
 | Database      | SQLite                                                                          |
@@ -368,14 +380,18 @@ Full API documentation available at `http://localhost:17493/docs`.
 
 ## Roadmap
 
-| Feature                            | Description                                                           |
-| ---------------------------------- | --------------------------------------------------------------------- |
-| **End-to-end speech LLMs**         | Moshi, GLM-4-Voice, Qwen2.5 Omni — real voice-to-voice, no text between |
-| **Voice Design**                   | Create new voices from text descriptions                              |
-| **Long-form capture**              | Dual-stream recorder (mic + system audio) with summary LLM transform  |
-| **Platform sinks**                 | Apple Notes, Obsidian, and other opt-in integrations                  |
-| **Plugin architecture**            | Extend with custom models, transforms, and sinks                      |
-| **Mobile companion**               | Control Voicebox from your phone                                      |
+| Feature                            | Description                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------ |
+| **Windows / Linux auto-paste**     | Dictation paste parity — `SendInput` on Windows, `uinput` / AT-SPI on Linux |
+| **STT engine expansion**           | Parakeet v3 and Qwen3-ASR joining Whisper — 50+ languages, better non-English quality |
+| **Pipeline routing**               | Configurable source → transform → sink chains with webhook + MCP sinks and a preset editor |
+| **Streaming transcription**        | WebSocket `/transcribe/stream` for partial transcripts as you speak      |
+| **End-to-end speech LLMs**         | Moshi, GLM-4-Voice, Qwen2.5 Omni — real voice-to-voice, no text between  |
+| **Voice Design**                   | Create new voices from text descriptions                                 |
+| **Long-form capture**              | Dual-stream recorder (mic + system audio) with summary LLM transform     |
+| **Platform sinks**                 | Apple Notes, Obsidian, and other opt-in integrations                     |
+| **Plugin architecture**            | Extend with custom models, transforms, and sinks                         |
+| **Mobile companion**               | Control Voicebox from your phone                                         |
 
 For the **full engineering status, open-issue triage, and prioritized work queue**, see [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — a living document that tracks what's shipped, what's in-flight, candidate TTS engines under evaluation, and why we've accepted or backlogged specific integrations.
 
@@ -398,6 +414,8 @@ just dev     # starts backend + desktop app
 Install [just](https://github.com/casey/just): `brew install just` or `cargo install just`. Run `just --list` to see all commands.
 
 **Prerequisites:** [Bun](https://bun.sh), [Rust](https://rustup.rs), [Python 3.11+](https://python.org), [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/), and [Xcode](https://developer.apple.com/xcode/) on macOS.
+
+The repo ships a pre-wired `.mcp.json` at the root — running Claude Code inside this checkout picks up the Voicebox MCP tools automatically once the dev app is running.
 
 ### Building Locally
 
