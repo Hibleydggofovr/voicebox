@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Toggle } from '@/components/ui/toggle';
+import { useToast } from '@/components/ui/use-toast';
+import { useDictationReadiness } from '@/lib/hooks/useDictationReadiness';
 import { useCaptureSettings } from '@/lib/hooks/useSettings';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { cn } from '@/lib/utils/cn';
@@ -132,6 +134,8 @@ function HotkeyPillPreview({ enabled }: { enabled: boolean }) {
 export function CapturesPage() {
   const { settings, update } = useCaptureSettings();
   const { data: profiles } = useProfiles();
+  const { toast } = useToast();
+  const readiness = useDictationReadiness();
   const sttModel = settings?.stt_model ?? 'turbo';
   const language = settings?.language ?? 'auto';
   const autoRefine = settings?.auto_refine ?? true;
@@ -172,7 +176,31 @@ export function CapturesPage() {
               <Toggle
                 id="hotkeyEnabled"
                 checked={hotkeyEnabled}
-                onCheckedChange={(v) => update({ hotkey_enabled: v })}
+                onCheckedChange={(v) => {
+                  update({ hotkey_enabled: v });
+                  // Surface model-readiness blocks at the toggle. The
+                  // InputMonitoringNotice below already covers TCC, but
+                  // missing models would otherwise be invisible from this
+                  // page — the user toggles on, presses the chord, and
+                  // nothing happens because useChordSync gates on readiness.
+                  if (!v) return;
+                  const missingModels = readiness.missing.filter(
+                    (g) => g === 'stt' || g === 'llm',
+                  );
+                  if (missingModels.length === 0) return;
+                  const names = [
+                    missingModels.includes('stt') ? readiness.stt?.display_name : null,
+                    missingModels.includes('llm') ? readiness.llm?.display_name : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' and ');
+                  toast({
+                    title: 'Shortcut on, but not yet armed',
+                    description: `${names} still need${
+                      missingModels.length === 1 ? 's' : ''
+                    } to download. Open the Captures tab to start.`,
+                  });
+                }}
               />
             }
           />

@@ -427,6 +427,34 @@ class PersonalitySpeakRequest(BaseModel):
     )
 
 
+class ModelReadiness(BaseModel):
+    """Per-model entry in the dictation readiness checklist.
+
+    ``model_name`` is the canonical id used by ``POST /models/download`` so the
+    frontend can wire a one-click "Download" button without a second lookup.
+    ``size`` is the user's chosen variant (e.g. "turbo", "0.6B"); ``display_name``
+    is what the checklist row should show ("Whisper Turbo").
+    """
+
+    ready: bool
+    model_name: str
+    display_name: str
+    size: str
+    size_mb: Optional[int] = None
+
+
+class CaptureReadinessResponse(BaseModel):
+    """Backend gates that must be green before the global hotkey will fire.
+
+    The frontend combines this with its own TCC permission checks (input
+    monitoring, accessibility) into the full dictation readiness checklist.
+    Hotkey-enabled is the user's intent toggle and lives outside this struct.
+    """
+
+    stt: ModelReadiness
+    llm: ModelReadiness
+
+
 class HealthResponse(BaseModel):
     """Response model for health check."""
 

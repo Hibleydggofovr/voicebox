@@ -38,6 +38,7 @@ import type {
   CaptureListResponse,
   CaptureResponse,
   CaptureCreateResponse,
+  CaptureReadinessResponse,
   CaptureRefineRequest,
   CaptureRetranscribeRequest,
   CaptureSettings,
@@ -484,6 +485,10 @@ class ApiClient {
   // Settings
   async getCaptureSettings(): Promise<CaptureSettings> {
     return this.request<CaptureSettings>('/settings/captures');
+  }
+
+  async getCaptureReadiness(): Promise<CaptureReadinessResponse> {
+    return this.request<CaptureReadinessResponse>('/capture/readiness');
   }
 
   async updateCaptureSettings(patch: CaptureSettingsUpdate): Promise<CaptureSettings> {

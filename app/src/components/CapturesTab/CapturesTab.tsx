@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CapturePill } from '@/components/CapturePill/CapturePill';
+import { DictationReadinessChecklist } from '@/components/CapturesTab/DictationReadinessChecklist';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +45,7 @@ import type {
 import type { LanguageCode } from '@/lib/constants/languages';
 import { BOTTOM_SAFE_AREA_PADDING } from '@/lib/constants/ui';
 import { useCaptureRecordingSession } from '@/lib/hooks/useCaptureRecordingSession';
+import { useDictationReadiness } from '@/lib/hooks/useDictationReadiness';
 import { useCaptureSettings } from '@/lib/hooks/useSettings';
 import { cn } from '@/lib/utils/cn';
 import { displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
@@ -188,6 +190,7 @@ export function CapturesTab() {
   const hotkeyEnabled = captureSettings?.hotkey_enabled ?? false;
   const pushToTalkKeys = captureSettings?.chord_push_to_talk_keys ?? [];
   const toggleToTalkKeys = captureSettings?.chord_toggle_to_talk_keys ?? [];
+  const readiness = useDictationReadiness();
 
   const session = useCaptureRecordingSession({
     onCaptureCreated: (capture) => setSelectedId(capture.id),
@@ -776,6 +779,8 @@ export function CapturesTab() {
                 <Captions className="h-10 w-10 mx-auto opacity-40" />
                 <p className="text-sm">Pick a capture to see the transcript.</p>
               </div>
+            ) : hotkeyEnabled && !readiness.allReady ? (
+              <DictationReadinessChecklist readiness={readiness} />
             ) : hotkeyEnabled && (pushToTalkKeys.length || toggleToTalkKeys.length) ? (
               <div className="max-w-sm mx-auto text-center space-y-5">
                 <div className="space-y-2">

@@ -480,6 +480,11 @@ def get_llm_model_configs() -> list[ModelConfig]:
     return _get_qwen_llm_configs()
 
 
+def get_stt_model_configs() -> list[ModelConfig]:
+    """Return only STT (Whisper) model configs."""
+    return _get_whisper_configs()
+
+
 # Lookup helpers — these replace the if/elif chains in main.py
 
 

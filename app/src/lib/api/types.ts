@@ -219,6 +219,26 @@ export interface CaptureSettings {
 
 export type CaptureSettingsUpdate = Partial<CaptureSettings>;
 
+/**
+ * One row in the dictation readiness checklist. ``model_name`` is the
+ * canonical id understood by ``POST /models/download`` so the UI can wire a
+ * one-click "Download" button without a second lookup.
+ */
+export interface ModelReadiness {
+  ready: boolean;
+  model_name: string;
+  display_name: string;
+  size: string;
+  size_mb?: number | null;
+}
+
+/** Backend half of the dictation readiness check. The frontend combines this
+ *  with TCC permission state into the full checklist used by useDictationReadiness. */
+export interface CaptureReadinessResponse {
+  stt: ModelReadiness;
+  llm: ModelReadiness;
+}
+
 export interface GenerationSettings {
   max_chunk_chars: number;
   crossfade_ms: number;
