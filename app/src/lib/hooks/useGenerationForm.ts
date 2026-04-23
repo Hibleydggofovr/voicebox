@@ -8,8 +8,8 @@ import type { EffectConfig } from '@/lib/api/types';
 import { LANGUAGE_CODES, type LanguageCode } from '@/lib/constants/languages';
 import { useGeneration } from '@/lib/hooks/useGeneration';
 import { useModelDownloadToast } from '@/lib/hooks/useModelDownloadToast';
+import { useGenerationSettings } from '@/lib/hooks/useSettings';
 import { useGenerationStore } from '@/stores/generationStore';
-import { useServerStore } from '@/stores/serverStore';
 import { useUIStore } from '@/stores/uiStore';
 
 const generationSchema = z.object({
@@ -43,9 +43,10 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
   const { toast } = useToast();
   const generation = useGeneration();
   const addPendingGeneration = useGenerationStore((state) => state.addPendingGeneration);
-  const maxChunkChars = useServerStore((state) => state.maxChunkChars);
-  const crossfadeMs = useServerStore((state) => state.crossfadeMs);
-  const normalizeAudio = useServerStore((state) => state.normalizeAudio);
+  const { settings: genSettings } = useGenerationSettings();
+  const maxChunkChars = genSettings?.max_chunk_chars ?? 800;
+  const crossfadeMs = genSettings?.crossfade_ms ?? 50;
+  const normalizeAudio = genSettings?.normalize_audio ?? true;
   const selectedEngine = useUIStore((state) => state.selectedEngine);
   const [downloadingModelName, setDownloadingModelName] = useState<string | null>(null);
   const [downloadingDisplayName, setDownloadingDisplayName] = useState<string | null>(null);

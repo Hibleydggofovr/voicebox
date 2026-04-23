@@ -1,0 +1,68 @@
+"""
+Server-side user settings — singleton rows persisted in SQLite so every
+client window, API consumer, and headless flow reads the same preferences.
+
+Two domains live here: capture/refine defaults and long-form generation
+defaults. Each has a ``get_*`` that lazily creates the row with defaults and
+an ``update_*`` that accepts a partial payload.
+"""
+
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from ..database import CaptureSettings as DBCaptureSettings
+from ..database import GenerationSettings as DBGenerationSettings
+
+
+SINGLETON_ID = 1
+
+
+def _get_or_create_capture_row(db: Session) -> DBCaptureSettings:
+    row = db.query(DBCaptureSettings).filter(DBCaptureSettings.id == SINGLETON_ID).first()
+    if row is None:
+        row = DBCaptureSettings(id=SINGLETON_ID)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return row
+
+
+def _get_or_create_generation_row(db: Session) -> DBGenerationSettings:
+    row = db.query(DBGenerationSettings).filter(DBGenerationSettings.id == SINGLETON_ID).first()
+    if row is None:
+        row = DBGenerationSettings(id=SINGLETON_ID)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return row
+
+
+def get_capture_settings(db: Session) -> DBCaptureSettings:
+    """Return the capture settings row, creating it with defaults if missing."""
+    return _get_or_create_capture_row(db)
+
+
+def update_capture_settings(db: Session, patch: dict[str, Any]) -> DBCaptureSettings:
+    row = _get_or_create_capture_row(db)
+    for key, value in patch.items():
+        if value is not None and hasattr(row, key):
+            setattr(row, key, value)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def get_generation_settings(db: Session) -> DBGenerationSettings:
+    """Return the generation settings row, creating it with defaults if missing."""
+    return _get_or_create_generation_row(db)
+
+
+def update_generation_settings(db: Session, patch: dict[str, Any]) -> DBGenerationSettings:
+    row = _get_or_create_generation_row(db)
+    for key, value in patch.items():
+        if value is not None and hasattr(row, key):
+            setattr(row, key, value)
+    db.commit()
+    db.refresh(row)
+    return row

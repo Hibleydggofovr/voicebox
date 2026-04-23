@@ -12,6 +12,8 @@ export interface VoiceProfileCreate {
   preset_voice_id?: string;
   design_prompt?: string;
   default_engine?: string;
+  /** Free-form character prompt used by compose / rewrite / respond / speak. */
+  personality?: string;
 }
 
 export interface VoiceProfileResponse {
@@ -26,10 +28,17 @@ export interface VoiceProfileResponse {
   preset_voice_id?: string;
   design_prompt?: string;
   default_engine?: string;
+  personality?: string | null;
   generation_count: number;
   sample_count: number;
   created_at: string;
   updated_at: string;
+}
+
+/** Response returned by /profiles/{id}/compose | /rewrite | /respond. */
+export interface PersonalityTextResponse {
+  text: string;
+  model_size: string;
 }
 
 export interface PresetVoice {
@@ -126,6 +135,95 @@ export interface HistoryListResponse {
 }
 
 export type WhisperModelSize = 'base' | 'small' | 'medium' | 'large' | 'turbo';
+
+export type Qwen3ModelSize = '0.6B' | '1.7B' | '4B';
+
+export type CaptureSource = 'dictation' | 'recording' | 'file';
+
+/**
+ * Snapshot of the accessibility-focused UI element at chord-start. Emitted
+ * from Rust as part of the ``dictate:start`` payload so the frontend can
+ * pass it back to ``paste_final_text`` once the final text is ready.
+ */
+export interface FocusSnapshot {
+  pid: number;
+  bundle_id: string | null;
+  role: string | null;
+}
+
+export interface RefinementFlags {
+  smart_cleanup: boolean;
+  self_correction: boolean;
+  preserve_technical: boolean;
+}
+
+export interface CaptureResponse {
+  id: string;
+  audio_path: string;
+  source: CaptureSource;
+  language?: string | null;
+  duration_ms?: number | null;
+  transcript_raw: string;
+  transcript_refined?: string | null;
+  stt_model?: string | null;
+  llm_model?: string | null;
+  refinement_flags?: RefinementFlags | null;
+  created_at: string;
+}
+
+export interface CaptureListResponse {
+  items: CaptureResponse[];
+  total: number;
+}
+
+/**
+ * Response of ``POST /captures``. Adds ``auto_refine`` and ``allow_auto_paste``
+ * — the server's current settings captured at request time — so the client
+ * can decide whether to chain a refine call and whether to fire the
+ * synthetic-paste pipeline without relying on its own (possibly stale) copy
+ * of capture_settings.
+ */
+export interface CaptureCreateResponse extends CaptureResponse {
+  auto_refine: boolean;
+  allow_auto_paste: boolean;
+}
+
+export interface CaptureRefineRequest {
+  flags?: RefinementFlags;
+  model_size?: Qwen3ModelSize;
+}
+
+export interface CaptureRetranscribeRequest {
+  model?: WhisperModelSize;
+  language?: LanguageCode;
+}
+
+export interface CaptureSettings {
+  stt_model: WhisperModelSize;
+  language: string;
+  auto_refine: boolean;
+  llm_model: Qwen3ModelSize;
+  smart_cleanup: boolean;
+  self_correction: boolean;
+  preserve_technical: boolean;
+  allow_auto_paste: boolean;
+  default_playback_voice_id: string | null;
+  /** rdev::Key variant names. Defaults: ["MetaRight","AltGr"]. */
+  chord_push_to_talk_keys: string[];
+  /** rdev::Key variant names. Defaults: ["MetaRight","AltGr","Space"]. */
+  chord_toggle_to_talk_keys: string[];
+}
+
+export type CaptureSettingsUpdate = Partial<CaptureSettings>;
+
+export interface GenerationSettings {
+  max_chunk_chars: number;
+  crossfade_ms: number;
+  normalize_audio: boolean;
+  autoplay_on_generate: boolean;
+}
+
+export type GenerationSettingsUpdate = Partial<GenerationSettings>;
 
 export interface TranscriptionRequest {
   language?: LanguageCode;

@@ -3,7 +3,7 @@
 from datetime import datetime
 import uuid
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -33,6 +33,10 @@ class VoiceProfile(Base):
     preset_voice_id = Column(String, nullable=True)  # e.g. "am_adam" — only for preset
     design_prompt = Column(Text, nullable=True)      # text description — only for designed
     default_engine = Column(String, nullable=True)   # auto-selected engine, locked for preset
+    # Free-form character prompt used by the compose / rewrite / respond / speak
+    # endpoints. Describes *what* this voice says and how, orthogonal to how
+    # it sounds (which is handled by the preset / cloning metadata above).
+    personality = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -67,6 +71,10 @@ class Generation(Base):
     status = Column(String, default="completed")
     error = Column(Text, nullable=True)
     is_favorited = Column(Boolean, default=False)
+    # Origin of this generation — "manual" for regular /generate calls,
+    # "personality_speak" for rows created by POST /profiles/{id}/speak.
+    # Future sources (bulk import, agent replies, etc.) can extend this.
+    source = Column(String, nullable=False, default="manual")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -167,3 +175,70 @@ class ProfileChannelMapping(Base):
 
     profile_id = Column(String, ForeignKey("profiles.id"), primary_key=True)
     channel_id = Column(String, ForeignKey("audio_channels.id"), primary_key=True)
+
+
+class CaptureSettings(Base):
+    """Singleton row holding user defaults for the capture/refine flow.
+
+    Kept server-side so every window, CLI client, and API consumer reads the
+    same preferences. The ``id`` column is always 1.
+    """
+
+    __tablename__ = "capture_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    stt_model = Column(String, nullable=False, default="turbo")
+    language = Column(String, nullable=False, default="auto")
+    auto_refine = Column(Boolean, nullable=False, default=True)
+    llm_model = Column(String, nullable=False, default="0.6B")
+    smart_cleanup = Column(Boolean, nullable=False, default=True)
+    self_correction = Column(Boolean, nullable=False, default=True)
+    preserve_technical = Column(Boolean, nullable=False, default=True)
+    allow_auto_paste = Column(Boolean, nullable=False, default=True)
+    default_playback_voice_id = Column(String, nullable=True)
+    # Lists of rdev::Key variant names (e.g. "MetaRight", "AltGr"). Right-hand
+    # modifiers by default so they don't collide with left-hand system
+    # shortcuts (Cmd+Opt+I devtools, Cmd+Opt+Esc force-quit).
+    chord_push_to_talk_keys = Column(
+        JSON, nullable=False, default=lambda: ["MetaRight", "AltGr"]
+    )
+    chord_toggle_to_talk_keys = Column(
+        JSON, nullable=False, default=lambda: ["MetaRight", "AltGr", "Space"]
+    )
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GenerationSettings(Base):
+    """Singleton row for long-form TTS generation preferences."""
+
+    __tablename__ = "generation_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    max_chunk_chars = Column(Integer, nullable=False, default=800)
+    crossfade_ms = Column(Integer, nullable=False, default=50)
+    normalize_audio = Column(Boolean, nullable=False, default=True)
+    autoplay_on_generate = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Capture(Base):
+    """A single voice input capture (dictation, recording, or uploaded file).
+
+    Stores the original audio alongside the raw transcript and, optionally, a
+    refined version produced by the LLM. Refinement flags are serialized as
+    JSON so we can reproduce the prompt that generated the refined text.
+    """
+
+    __tablename__ = "captures"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    audio_path = Column(String, nullable=False)
+    source = Column(String, nullable=False, default="file")  # dictation | recording | file
+    language = Column(String, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    transcript_raw = Column(Text, nullable=False, default="")
+    transcript_refined = Column(Text, nullable=True)
+    stt_model = Column(String, nullable=True)
+    llm_model = Column(String, nullable=True)
+    refinement_flags = Column(Text, nullable=True)  # JSON blob
+    created_at = Column(DateTime, default=datetime.utcnow)

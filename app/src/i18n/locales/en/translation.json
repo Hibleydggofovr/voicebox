@@ -752,7 +752,8 @@
     "unknownSize": "Unknown size",
     "sections": {
       "voiceGeneration": "Voice Generation",
-      "transcription": "Transcription"
+      "transcription": "Transcription",
+      "languageModels": "Language Models"
     },
     "status": {
       "loaded": "Loaded"

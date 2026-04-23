@@ -5,9 +5,9 @@
 <h1 align="center">Voicebox</h1>
 
 <p align="center">
-  <strong>The open-source voice synthesis studio.</strong><br/>
-  Clone voices. Generate speech. Apply effects. Build voice-powered apps.<br/>
-  All running locally on your machine.
+  <strong>The open-source AI voice studio.</strong><br/>
+  Clone any voice. Generate speech. Dictate into any app. Talk to agents in voices you own.<br/>
+  The full voice I/O stack, running locally on your machine.
 </p>
 
 <p align="center">
@@ -63,17 +63,23 @@
 
 ## What is Voicebox?
 
-Voicebox is a **local-first voice cloning studio** — a free and open-source alternative to ElevenLabs. Clone voices from a few seconds of audio or pick from 50+ preset voices, generate speech in 23 languages across 7 TTS engines, apply post-processing effects, and compose multi-voice projects with a timeline editor.
+Voicebox is a **local-first AI voice studio** — a free and open-source alternative to **ElevenLabs** and **WisprFlow** in one app. Clone voices from a few seconds of audio, generate speech in 23 languages across 7 TTS engines, dictate into any text field with a global hotkey, and route captured speech through a local LLM into a cloned voice for end-to-end voice conversations with AI agents.
 
-- **Complete privacy** — models and voice data stay on your machine
+The two cloud incumbents sit on opposite halves of the voice I/O loop — ElevenLabs on output, WisprFlow on input. Voicebox does both, bridges them with a persona LLM, and runs the whole thing on your machine.
+
+- **Complete privacy** — models, voice data, and captures never leave your machine
 - **7 TTS engines** — Qwen3-TTS, Qwen CustomVoice, LuxTTS, Chatterbox Multilingual, Chatterbox Turbo, HumeAI TADA, and Kokoro
-- **Cloning and preset voices** — zero-shot cloning from a reference sample, or curated preset voices via Kokoro (50 voices) and Qwen CustomVoice (9 voices)
+- **Voice cloning and preset voices** — zero-shot cloning from a reference sample, or 50+ curated preset voices via Kokoro and Qwen CustomVoice
 - **23 languages** — from English to Arabic, Japanese, Hindi, Swahili, and more
 - **Post-processing effects** — pitch shift, reverb, delay, chorus, compression, and filters
 - **Expressive speech** — paralinguistic tags like `[laugh]`, `[sigh]`, `[gasp]` via Chatterbox Turbo; natural-language delivery control via Qwen CustomVoice
 - **Unlimited length** — auto-chunking with crossfade for scripts, articles, and chapters
 - **Stories editor** — multi-track timeline for conversations, podcasts, and narratives
-- **API-first** — REST API for integrating voice synthesis into your own projects
+- **Voice input** — global hotkey dictation, in-app mic on every text field, 4 STT engines (Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR)
+- **Agent voice output** — one tool call (`voicebox.speak`) and any MCP-aware agent (Claude Code, Cursor, Cline) speaks to you in a voice you've cloned
+- **Persona loop** — speak to a local LLM, hear the reply in any voice you've cloned, entirely offline
+- **Pipeline routing** — configurable source → transform → sink chains, with a built-in MCP sink for Claude Code, Cursor, and Cline
+- **API-first** — REST + WebSocket API for integrating voice I/O into your own apps and agents
 - **Native performance** — built with Tauri (Rust), not Electron
 - **Runs everywhere** — macOS (MLX/Metal), Windows (CUDA), Linux, AMD ROCm, Intel Arc, Docker
 
@@ -185,12 +191,81 @@ Multi-voice timeline editor for conversations, podcasts, and narratives.
 - Auto-playback with synchronized playhead
 - Version pinning per track clip
 
-### Recording & Transcription
+### Global Dictation & Voice Input
 
-- In-app recording with waveform visualization
-- System audio capture (macOS and Windows)
-- Automatic transcription powered by Whisper (including Whisper Turbo)
-- Export recordings in multiple formats
+The other half of the voice I/O loop. Hold a hotkey anywhere on your system, speak, release — the transcript pastes into the focused text field. Or hit the mic on any Voicebox text input and dictate directly into the app.
+
+- **Global hotkey** — hold-to-speak or tap-to-toggle, configurable
+- **Target-aware paste** — accessibility-verified injection into text fields, atomic clipboard save/restore so your clipboard isn't clobbered
+- **In-app mic button** on every Voicebox text field — generation form, profile descriptions, story titles, anywhere you'd type
+- **Streaming transcription** via `/transcribe/stream` WebSocket — partial transcripts land as you speak
+- **LLM refinement** — optional cleanup of ums, stutters, and false starts before paste
+
+### Multi-Engine STT
+
+Four STT engines with different strengths, switchable per-capture:
+
+| Engine             | Languages | Strengths                                                           |
+| ------------------ | --------- | ------------------------------------------------------------------- |
+| **Whisper**        | 99        | The default. Broad language support, mature, battle-tested          |
+| **Whisper Turbo**  | 99        | ~8x faster than Whisper large, minimal quality loss                 |
+| **Parakeet v3**    | 25        | Current quality leader for non-English local STT, very fast         |
+| **Qwen3-ASR 0.6B** | 50+       | Highest multilingual quality, int8 quantized for cross-platform use |
+
+### Captures
+
+Every dictation, in-app recording, and uploaded audio file lands in the Captures tab — original audio paired with transcript, always preserved.
+
+- **Replay, re-transcribe** with a different model, or edit the transcript inline
+- **Play as voice profile** — turn any capture into speech with a cloned voice, one click
+- **Promote to voice sample** — use a capture's audio + transcript as a reference sample for voice cloning
+- **Send to** — clipboard, file, webhook, MCP sink, or back into the generation pipeline
+- **Configurable retention** — keep everything or auto-expire old captures
+
+### Agent Voice Output
+
+Every agent gets a voice. One tool call and any MCP-aware agent can speak to you in a voice you've cloned — task completions, questions, notifications. The same pill that surfaces during dictation surfaces during agent speech, so you always see what's coming out of your machine.
+
+```ts
+// In any MCP-aware agent:
+await voicebox.speak({
+  text: "Deploy complete.",
+  profile: "Morgan",
+});
+```
+
+Also exposed as `POST /speak` for anything that doesn't speak MCP — ACP, A2A, shell scripts, custom harnesses.
+
+- **Bidirectional pill** — `recording`, `transcribing`, `refining`, `rest`, and `speaking` are all states of the same OS-level overlay
+- **Per-agent voice binding** — Claude Code in Morgan, Cursor in Scarlett, so you can tell which agent is talking without looking
+- **Always visible** — no silent background TTS; every agent-initiated speech surfaces the pill
+- **Global mute + per-source rate limits** — a panic button for runaway agents
+
+### Persona Loop
+
+One flow on top of `speak()`: STT → persona LLM → `speak(reply)`. Voice profiles gain optional personality metadata and default LLM behavior. End-to-end voice-to-voice with a cloned identity transforming the content, not just reading it.
+
+- **Local LLM** — Qwen 3.5 0.8B / 2B / 4B, same runtime as TTS (MLX on Apple Silicon, PyTorch elsewhere)
+- **Voice profile personas** — optional personality description and default LLM behavior per profile
+- **Pipeline-native** — STT → persona LLM → TTS is a preset, configurable like any other route
+- **Voice-to-voice ready** — when end-to-end speech LLMs (Moshi, GLM-4-Voice, Qwen2.5 Omni) land, they slot in as a single transform and the pipeline shape stays the same
+
+Use cases: agent dev loops (talk to Claude Code, hear it back in a cloned voice), interactive characters for games and narrative tools, speech assistance for people who can't speak in their original voice.
+
+### Pipeline Routing
+
+Every voice event in Voicebox flows through the same shape: **Source → Transforms → Sinks**. Build presets, share them, invoke them from shell scripts and agent harnesses.
+
+| Sources              | Transforms          | Sinks                       |
+| -------------------- | ------------------- | --------------------------- |
+| Global hotkey        | STT model           | Paste into focused field    |
+| In-app mic           | Refinement LLM      | Clipboard                   |
+| Long-form recorder   | Persona LLM         | File on disk                |
+| File drop            | Translation (later) | HTTP webhook                |
+| API call (WS / HTTP) |                     | **MCP server** (agent sink) |
+|                      |                     | TTS loopback (cloned voice) |
+
+Presets are addressable by ID via `POST /pipelines/{id}/run`. The MCP sink means Claude Code, Cursor, and Cline get voice I/O one checkbox away — no custom integration.
 
 ### Model Management
 
@@ -214,7 +289,7 @@ Multi-voice timeline editor for conversations, podcasts, and narratives.
 
 ## API
 
-Voicebox exposes a full REST API for integrating voice synthesis into your own apps.
+Voicebox exposes a full REST + WebSocket API for integrating voice I/O into your own apps and agents.
 
 ```bash
 # Generate speech
@@ -222,16 +297,51 @@ curl -X POST http://localhost:17493/generate \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello world", "profile_id": "abc123", "language": "en"}'
 
+# Agent voice output — any app or script can speak in a cloned voice
+curl -X POST http://localhost:17493/speak \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Deploy complete.", "profile_id": "morgan"}'
+
+# Transcribe an audio file
+curl -X POST http://localhost:17493/transcribe \
+  -F "audio=@recording.wav" \
+  -F "model=whisper-turbo"
+
+# Run a user-configured pipeline (STT → LLM → TTS, for example)
+curl -X POST http://localhost:17493/pipelines/my-agent-reply/run \
+  -F "audio=@input.wav"
+
 # List voice profiles
 curl http://localhost:17493/profiles
-
-# Create a profile
-curl -X POST http://localhost:17493/profiles \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Voice", "language": "en"}'
 ```
 
-**Use cases:** game dialogue, podcast production, accessibility tools, voice assistants, content automation.
+Streaming dictation runs over WebSocket at `ws://localhost:17493/transcribe/stream` — audio frames in, partial transcripts out.
+
+### MCP server
+
+Voicebox ships an MCP server so any MCP-aware agent (Claude Code, Cursor, Cline, etc.) can speak in any voice you've cloned with a single tool call. Add one entry to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "voicebox": {
+      "command": "voicebox",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The `voicebox.speak` tool is then available in the agent:
+
+```ts
+await voicebox.speak({
+  text: "Tests passing. Ready to merge.",
+  profile: "Morgan",
+});
+```
+
+**Use cases:** agent dev loops (voice in, voice out), game dialogue, podcast production, accessibility tools, voice assistants, content automation.
 
 Full API documentation available at `http://localhost:17493/docs`.
 
@@ -239,30 +349,33 @@ Full API documentation available at `http://localhost:17493/docs`.
 
 ## Tech Stack
 
-| Layer         | Technology                                        |
-| ------------- | ------------------------------------------------- |
-| Desktop App   | Tauri (Rust)                                      |
-| Frontend      | React, TypeScript, Tailwind CSS                   |
-| State         | Zustand, React Query                              |
-| Backend       | FastAPI (Python)                                  |
+| Layer         | Technology                                                                      |
+| ------------- | ------------------------------------------------------------------------------- |
+| Desktop App   | Tauri (Rust)                                                                    |
+| Frontend      | React, TypeScript, Tailwind CSS                                                 |
+| State         | Zustand, React Query                                                            |
+| Backend       | FastAPI (Python)                                                                |
 | TTS Engines   | Qwen3-TTS, Qwen CustomVoice, LuxTTS, Chatterbox, Chatterbox Turbo, TADA, Kokoro |
-| Effects       | Pedalboard (Spotify)                              |
-| Transcription | Whisper / Whisper Turbo (PyTorch or MLX)          |
-| Inference     | MLX (Apple Silicon) / PyTorch (CUDA/ROCm/XPU/CPU) |
-| Database      | SQLite                                            |
-| Audio         | WaveSurfer.js, librosa                            |
+| STT Engines   | Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR                                  |
+| LLM           | Qwen 3.5 (0.8B / 2B / 4B), shared runtime with TTS/STT                          |
+| Native Shim   | Rust crate for global hotkey, paste injection, focus introspection              |
+| Effects       | Pedalboard (Spotify)                                                            |
+| Inference     | MLX (Apple Silicon) / PyTorch (CUDA/ROCm/XPU/CPU)                               |
+| Database      | SQLite                                                                          |
+| Audio         | WaveSurfer.js, librosa                                                          |
 
 ---
 
 ## Roadmap
 
-| Feature                 | Description                                    |
-| ----------------------- | ---------------------------------------------- |
-| **Real-time Streaming** | Stream audio as it generates, word by word     |
-| **Voice Design**        | Create new voices from text descriptions       |
-| **More Models**         | XTTS, Bark, and other open-source voice models  |
-| **Plugin Architecture** | Extend with custom models and effects          |
-| **Mobile Companion**    | Control Voicebox from your phone               |
+| Feature                            | Description                                                           |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| **End-to-end speech LLMs**         | Moshi, GLM-4-Voice, Qwen2.5 Omni — real voice-to-voice, no text between |
+| **Voice Design**                   | Create new voices from text descriptions                              |
+| **Long-form capture**              | Dual-stream recorder (mic + system audio) with summary LLM transform  |
+| **Platform sinks**                 | Apple Notes, Obsidian, and other opt-in integrations                  |
+| **Plugin architecture**            | Extend with custom models, transforms, and sinks                      |
+| **Mobile companion**               | Control Voicebox from your phone                                      |
 
 For the **full engineering status, open-issue triage, and prioritized work queue**, see [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — a living document that tracks what's shipped, what's in-flight, candidate TTS engines under evaluation, and why we've accepted or backlogged specific integrations.
 

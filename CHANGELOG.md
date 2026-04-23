@@ -7,6 +7,69 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-22
+
+**The Capture release.** Voicebox stops being a voice-cloning studio and becomes an AI voice studio. The loop closes in both directions: your voice goes into your computer through a global hotkey, and any agent's voice comes out of your computer through a voice you own.
+
+Hold a key anywhere on your machine, speak, release — the transcript lands in the focused text field in whatever app you were using. Flip the primitive around and any MCP-aware agent — Claude Code, Cursor, Cline, Spacebot — speaks back through the same on-screen pill in one of your cloned voices. A local LLM sits between the two, so transcripts come out clean and voice profiles can carry a personality that reshapes what the agent actually says before it gets spoken.
+
+Everything still runs on your hardware. No cloud, no accounts, no audio leaving the machine.
+
+### Dictation — speak anywhere, paste anywhere
+
+- **Global hotkey capture.** Hold a customizable chord anywhere on your machine (defaults: right-Cmd + right-Option on macOS, right-Ctrl + right-Shift on Windows), speak, release. A floating on-screen pill surfaces over your current app and walks through recording → transcribing → refining → done with a live elapsed timer during the clip. Your dictation lands as a clean transcript.
+- **Push-to-talk and toggle modes, each with its own chord.** The default toggle chord adds Space to the push-to-talk chord. Holding PTT and tapping Space mid-hold upgrades a hold into a hands-free session without a gap in the recording — the session rolls forward, you stop when you want.
+- **Auto-paste into the focused app.** Once transcription finishes, Voicebox synthesizes a platform-native paste into whatever text field had focus when you started the chord — not wherever focus drifted while you were talking. Your clipboard is saved before and restored after, so nothing you had copied goes missing.
+- **Chord picker UI.** Customize either chord from Settings → Captures by holding the keys you want. Left/right modifier badges show whether a key is the left or right variant, so you can pick the exact hardware signature you want to capture.
+- **Defaults picked to stay out of your way.** macOS defaults deliberately avoid left-hand Cmd+Option chords so Cmd+Option+I (devtools), Cmd+Option+Esc (force quit), and Cmd+Option+Space (Spotlight) all remain yours. Windows defaults route around AltGr collisions on German/French/Spanish layouts where Ctrl+Alt synthesizes AltGr.
+- **Accessibility permission is scoped.** The macOS permission prompt lives inline next to the auto-paste toggle in Settings → Captures, not as a global banner on every page. If permission isn't granted, dictation still runs and transcripts still land in the Captures tab — only synthetic paste is disabled.
+
+### Personality — voice profiles that speak for themselves
+
+Voice profiles now carry an optional **personality** — a free-form description of who this voice is, up to 2000 characters. When set, three new actions appear on the profile, each powered by a bundled Qwen3 LLM running entirely locally:
+
+- **Compose** — generate fresh utterances in the character's voice. Click again for variety.
+- **Rewrite** — restate your text in the character's voice while preserving every idea. High-fidelity mode for turning dictation into in-character speech.
+- **Respond** — treat your text as a prompt and produce the character's reply.
+
+Temperatures are tuned per mode (compose hot for variety, rewrite cold for fidelity, respond balanced) and the character framing enforces "speech only" output — no narration, no action tags, no meta-commentary. The same LLM doubles as the refinement model, so there's one local LLM in the app, not two.
+
+### Agents — any MCP-aware agent gets a voice
+
+> **Note:** the MCP server implementation is not yet in this tag. The pieces it depends on — the personality/compose/rewrite/respond runtime, voice-binding-per-profile, and the on-screen pill as a generic surface — are all in place. The MCP route lands in a follow-up commit before the final 0.5.0 tag.
+
+Once the MCP server ships, any MCP-aware agent — Claude Code, Cursor, Cline, Spacebot — can call `voicebox.speak({ profile, text, intent })` and Voicebox will produce in-character speech in the bound voice. The on-screen pill surfaces whenever an agent is talking so you always see what's coming out of your machine. Pin Claude Code to Morgan, Cursor to Scarlett, Spacebot to its own voice — you can tell which agent is speaking without looking.
+
+### Refinement hardening
+
+Refinement shipped earlier; 0.5.0 closes the stubborn edge cases:
+
+- **Deterministic loop-stripping before the LLM sees the transcript.** Whisper's "thanks for watching thanks for watching thanks for watching…" hallucination loops are collapsed at a six-identical-tokens threshold (case-insensitive) so a small refinement model can't echo them back. Legitimate repetition ("no, no, no, no, no") doesn't cross the threshold.
+- **Refinement flags snapshot per capture.** `smart_cleanup`, `self_correction`, and `preserve_technical` are stored on each capture, so refinement can be re-run later with different flags without losing the raw transcript.
+- **Ten-transcript evaluation harness** (`backend/tests/test_refinement_samples.py`) scoring prompt leaks, answer leaks, loop echoes, filler removal, length-ratio outliers, substring preservation ("npm install", "handleSubmit"), and question-mark survival against every bundled refinement model size.
+- **Refinement model picker** — Qwen3 0.6B (400 MB, very fast), 1.7B (1.1 GB, fast), 4B (2.5 GB, full quality). 0.6B is the default; 1.7B is the sweet spot for transcripts with code identifiers.
+
+### Captures tab + settings
+
+Settings → Captures is now the home for the whole dictation flow:
+
+- **Dictation**: global shortcut toggle, push-to-talk chord picker, toggle chord picker, live pill preview, copy-transcript-to-clipboard, auto-paste into focused field (with inline accessibility prompt).
+- **Transcription**: model picker (Whisper Base / Small / Medium / Large / Turbo), language lock, archive-audio toggle.
+- **Refinement**: auto-refine toggle, model picker, smart cleanup, remove self-corrections, preserve technical terms.
+- **Playback**: default voice for the Captures tab's "Play as" action.
+- **Storage**: retention (forever / 90d / 30d / 7d), clear-all-captures.
+
+### Windows parity
+
+- **Synthetic paste** via `SendInput` with correct scan codes, plus a `SetForegroundWindow` + `AttachThreadInput` handshake to defeat foreground-lock when pasting into a window that wasn't frontmost at chord-start.
+- **Right-hand default chord** (Ctrl+Shift) to avoid AltGr collisions on layouts where Ctrl+Alt is the compose key.
+- **Focus capture via UIAutomation** for control-class identity and `GetForegroundWindow` for window identity, snapshotted at chord-start so paste lands in the original field even if focus drifts during transcribe/refine.
+- **UAC/UIPI caveat**: synthetic paste into an elevated window from a non-elevated Voicebox is blocked by Windows itself. Run Voicebox elevated if you regularly dictate into elevated apps.
+
+### Landing page — /capture
+
+New `/capture` route tells the Capture story end-to-end. Hero line: *"Just talk to your computer."* Three pillars — multi-engine STT (Whisper, Whisper Turbo, Parakeet v3, Qwen3-ASR), refined transcripts, agents speaking in voices you own. Drop-in MCP config block for Claude Code / Cursor / Cline. Agent-integration section showing per-client voice binding.
+
 ## [0.4.5] - 2026-04-22
 
 Second hotfix for the "offline mode is enabled" crash on model load. 0.4.4 reverted the inference-path offline guards but kept the same trap on the load path, so users who updated to 0.4.4 kept hitting the exact error the release was supposed to fix ([#526](https://github.com/jamiepine/voicebox/issues/526)). This release removes the load-path guards and patches the transformers tokenizer load to be robust to HuggingFace metadata failures at the source, so the class of bug can't recur.
@@ -657,7 +720,8 @@ The first public release of Voicebox — an open-source voice synthesis studio p
 
 Tauri v2, React, TypeScript, Tailwind CSS, FastAPI, Qwen3-TTS, Whisper, SQLite
 
-[Unreleased]: https://github.com/jamiepine/voicebox/compare/v0.4.5...HEAD
+[Unreleased]: https://github.com/jamiepine/voicebox/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jamiepine/voicebox/compare/v0.4.5...v0.5.0
 [0.4.5]: https://github.com/jamiepine/voicebox/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/jamiepine/voicebox/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/jamiepine/voicebox/compare/v0.4.2...v0.4.3

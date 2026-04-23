@@ -2,9 +2,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
+import { useGenerationSettings } from '@/lib/hooks/useSettings';
 import { useGenerationStore } from '@/stores/generationStore';
 import { usePlayerStore } from '@/stores/playerStore';
-import { useServerStore } from '@/stores/serverStore';
 
 interface GenerationStatusEvent {
   id: string;
@@ -26,7 +26,8 @@ export function useGenerationProgress() {
   const removePendingStoryAdd = useGenerationStore((s) => s.removePendingStoryAdd);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const setAudioWithAutoPlay = usePlayerStore((s) => s.setAudioWithAutoPlay);
-  const autoplayOnGenerate = useServerStore((s) => s.autoplayOnGenerate);
+  const { settings: genSettings } = useGenerationSettings();
+  const autoplayOnGenerate = genSettings?.autoplay_on_generate ?? true;
 
   // Keep refs to avoid stale closures in EventSource handlers
   const isPlayingRef = useRef(isPlaying);

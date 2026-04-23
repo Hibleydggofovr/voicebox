@@ -752,7 +752,8 @@
     "unknownSize": "未知大小",
     "sections": {
       "voiceGeneration": "語音生成",
-      "transcription": "語音轉錄"
+      "transcription": "語音轉錄",
+      "languageModels": "語言模型"
     },
     "status": {
       "loaded": "已載入"

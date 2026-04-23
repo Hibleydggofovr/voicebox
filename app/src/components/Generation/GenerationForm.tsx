@@ -1,4 +1,5 @@
-import { Loader2, Mic } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
+import { Loader2, Mic, RefreshCw, Sparkles } from 'lucide-react';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
+import { apiClient } from '@/lib/api/client';
 import { getLanguageOptionsForEngine, type LanguageCode } from '@/lib/constants/languages';
 import { useGenerationForm } from '@/lib/hooks/useGenerationForm';
 import { useProfile } from '@/lib/hooks/useProfiles';
@@ -41,6 +44,7 @@ function getEngineSelectValue(engine: string): string {
 export function GenerationForm() {
   const selectedProfileId = useUIStore((state) => state.selectedProfileId);
   const { data: selectedProfile } = useProfile(selectedProfileId || '');
+  const { toast } = useToast();
 
   const { form, handleSubmit, isPending } = useGenerationForm();
 
@@ -62,6 +66,51 @@ export function GenerationForm() {
   async function onSubmit(data: Parameters<typeof handleSubmit>[0]) {
     await handleSubmit(data, selectedProfileId);
   }
+
+  // ── Personality-driven text generation ─────────────────────────────
+  // Compose fills the empty textarea with a fresh in-character line.
+  // Rewrite restates whatever's in the textarea in the profile's voice.
+  // Both buttons hide entirely when the selected profile has no
+  // personality set — nothing to drive the LLM with otherwise.
+
+  const personality = selectedProfile?.personality?.trim() || '';
+  const hasPersonality = personality.length > 0;
+  const currentText = form.watch('text');
+  const textHasContent = (currentText || '').trim().length > 0;
+
+  const composeMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedProfileId) throw new Error('No profile selected');
+      return apiClient.composeWithPersonality(selectedProfileId);
+    },
+    onSuccess: (result) => {
+      form.setValue('text', result.text, { shouldDirty: true, shouldValidate: true });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Compose failed',
+        description: err.message || 'Could not generate text from this personality.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const rewriteMutation = useMutation({
+    mutationFn: async (text: string) => {
+      if (!selectedProfileId) throw new Error('No profile selected');
+      return apiClient.rewriteWithPersonality(selectedProfileId, text);
+    },
+    onSuccess: (result) => {
+      form.setValue('text', result.text, { shouldDirty: true, shouldValidate: true });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Rewrite failed',
+        description: err.message || 'Could not rewrite the text in this voice.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   return (
     <Card>
@@ -117,6 +166,52 @@ export function GenerationForm() {
                 </FormItem>
               )}
             />
+
+            {hasPersonality && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    !selectedProfileId ||
+                    textHasContent ||
+                    composeMutation.isPending ||
+                    rewriteMutation.isPending
+                  }
+                  onClick={() => composeMutation.mutate()}
+                >
+                  {composeMutation.isPending ? (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-3.5 w-3.5" />
+                  )}
+                  Compose
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    !selectedProfileId ||
+                    !textHasContent ||
+                    rewriteMutation.isPending ||
+                    composeMutation.isPending
+                  }
+                  onClick={() => rewriteMutation.mutate(currentText || '')}
+                >
+                  {rewriteMutation.isPending ? (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  )}
+                  Rewrite in voice
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Uses the profile's personality.
+                </span>
+              </div>
+            )}
 
             {form.watch('engine') === 'qwen_custom_voice' && (
               <FormField

@@ -34,6 +34,7 @@ def run_migrations(engine) -> None:
     _migrate_generations(engine, inspector, tables)
     _migrate_effect_presets(engine, inspector, tables)
     _migrate_generation_versions(engine, inspector, tables)
+    _migrate_capture_settings(engine, inspector, tables)
     _normalize_storage_paths(engine, tables)
 
 
@@ -146,6 +147,8 @@ def _migrate_profiles(engine, inspector, tables: set[str]) -> None:
         _add_column(engine, "profiles", "design_prompt TEXT", "design_prompt")
     if "default_engine" not in columns:
         _add_column(engine, "profiles", "default_engine VARCHAR", "default_engine")
+    if "personality" not in columns:
+        _add_column(engine, "profiles", "personality TEXT", "personality")
 
 
 def _migrate_generations(engine, inspector, tables: set[str]) -> None:
@@ -164,6 +167,13 @@ def _migrate_generations(engine, inspector, tables: set[str]) -> None:
         _add_column(engine, "generations", "model_size VARCHAR", "model_size")
     if "is_favorited" not in columns:
         _add_column(engine, "generations", "is_favorited BOOLEAN DEFAULT 0", "is_favorited")
+    if "source" not in columns:
+        _add_column(
+            engine,
+            "generations",
+            "source VARCHAR NOT NULL DEFAULT 'manual'",
+            "source",
+        )
 
 
 def _migrate_effect_presets(engine, inspector, tables: set[str]) -> None:
@@ -180,6 +190,40 @@ def _migrate_generation_versions(engine, inspector, tables: set[str]) -> None:
     columns = _get_columns(inspector, "generation_versions")
     if "source_version_id" not in columns:
         _add_column(engine, "generation_versions", "source_version_id VARCHAR", "source_version_id")
+
+
+def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
+    if "capture_settings" not in tables:
+        return
+    columns = _get_columns(inspector, "capture_settings")
+    if "allow_auto_paste" not in columns:
+        _add_column(
+            engine,
+            "capture_settings",
+            "allow_auto_paste BOOLEAN NOT NULL DEFAULT 1",
+            "allow_auto_paste",
+        )
+    if "default_playback_voice_id" not in columns:
+        _add_column(
+            engine,
+            "capture_settings",
+            "default_playback_voice_id VARCHAR",
+            "default_playback_voice_id",
+        )
+    if "chord_push_to_talk_keys" not in columns:
+        _add_column(
+            engine,
+            "capture_settings",
+            "chord_push_to_talk_keys TEXT NOT NULL DEFAULT '[\"MetaRight\",\"AltGr\"]'",
+            "chord_push_to_talk_keys",
+        )
+    if "chord_toggle_to_talk_keys" not in columns:
+        _add_column(
+            engine,
+            "capture_settings",
+            "chord_toggle_to_talk_keys TEXT NOT NULL DEFAULT '[\"MetaRight\",\"AltGr\",\"Space\"]'",
+            "chord_toggle_to_talk_keys",
+        )
 
 
 def _normalize_storage_paths(engine, tables: set[str]) -> None:

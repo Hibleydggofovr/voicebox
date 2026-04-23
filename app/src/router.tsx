@@ -6,11 +6,12 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import { AppFrame } from '@/components/AppFrame/AppFrame';
-import { AudioTab } from '@/components/AudioTab/AudioTab';
+import { CapturesTab } from '@/components/CapturesTab/CapturesTab';
 import { EffectsTab } from '@/components/EffectsTab/EffectsTab';
 import { MainEditor } from '@/components/MainEditor/MainEditor';
 import { ModelsTab } from '@/components/ModelsTab/ModelsTab';
 import { AboutPage } from '@/components/ServerTab/AboutPage';
+import { CapturesPage } from '@/components/ServerTab/CapturesPage';
 import { ChangelogPage } from '@/components/ServerTab/ChangelogPage';
 import { GeneralPage } from '@/components/ServerTab/GeneralPage';
 import { GenerationPage } from '@/components/ServerTab/GenerationPage';
@@ -111,11 +112,11 @@ const voicesRoute = createRoute({
   component: VoicesTab,
 });
 
-// Audio route
-const audioRoute = createRoute({
+// Captures route (prototype — will replace AudioTab once the new flow is ready)
+const capturesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/audio',
-  component: AudioTab,
+  path: '/captures',
+  component: CapturesTab,
 });
 
 // Effects route
@@ -150,6 +151,12 @@ const settingsGenerationRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: '/generation',
   component: GenerationPage,
+});
+
+const settingsCapturesRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: '/captures',
+  component: CapturesPage,
 });
 
 const settingsGpuRoute = createRoute({
@@ -189,13 +196,14 @@ const serverRedirectRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storiesRoute,
+  capturesRoute,
   voicesRoute,
-  audioRoute,
   effectsRoute,
   modelsRoute,
   settingsRoute.addChildren([
     settingsGeneralRoute,
     settingsGenerationRoute,
+    settingsCapturesRoute,
     settingsGpuRoute,
     settingsLogsRoute,
     settingsChangelogRoute,

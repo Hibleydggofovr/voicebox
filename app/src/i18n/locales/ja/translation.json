@@ -752,7 +752,8 @@
     "unknownSize": "サイズ不明",
     "sections": {
       "voiceGeneration": "音声生成",
-      "transcription": "文字起こし"
+      "transcription": "文字起こし",
+      "languageModels": "言語モデル"
     },
     "status": {
       "loaded": "読み込み済み"

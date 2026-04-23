@@ -1,13 +1,61 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod accessibility;
 mod audio_capture;
 mod audio_output;
+mod clipboard;
+mod focus_capture;
+#[cfg(desktop)]
+mod hotkey_monitor;
+#[cfg(desktop)]
+mod key_codes;
+mod synthetic_keys;
 
 use std::sync::Mutex;
-use tauri::{command, State, Manager, WindowEvent, Emitter, Listener, RunEvent};
+use tauri::{command, State, Manager, WindowEvent, Emitter, Listener, RunEvent, WebviewUrl, WebviewWindowBuilder, PhysicalPosition};
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::mpsc;
+
+pub const DICTATE_WINDOW_LABEL: &str = "dictate";
+const DICTATE_WINDOW_WIDTH: f64 = 420.0;
+const DICTATE_WINDOW_HEIGHT: f64 = 64.0;
+
+/// Create the floating dictate webview up front, hidden. The HotkeyMonitor
+/// shows it on chord-start; the frontend hides it when the capture pipeline
+/// finishes. Starting it at setup avoids a race where the first chord fires
+/// before the webview has had a chance to subscribe to the `dictate:*` events.
+#[cfg(desktop)]
+fn build_dictate_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
+    let window = WebviewWindowBuilder::new(
+        app,
+        DICTATE_WINDOW_LABEL,
+        WebviewUrl::App("?view=dictate".into()),
+    )
+    .title("Voicebox Dictate")
+    .inner_size(DICTATE_WINDOW_WIDTH, DICTATE_WINDOW_HEIGHT)
+    .decorations(false)
+    .transparent(true)
+    .always_on_top(true)
+    // Follow the user across macOS Spaces / virtual desktops instead of
+    // being pinned to the Space where the window was first created.
+    .visible_on_all_workspaces(true)
+    .skip_taskbar(true)
+    .resizable(false)
+    .shadow(false)
+    .visible(false)
+    .build()?;
+
+    if let Some(monitor) = window.current_monitor()? {
+        let monitor_size = monitor.size();
+        let win_size = window.outer_size()?;
+        let x = (monitor_size.width as i32 - win_size.width as i32) / 2;
+        let y = (monitor_size.height as f64 * 0.04) as i32;
+        window.set_position(PhysicalPosition::new(x, y))?;
+    }
+
+    Ok(window)
+}
 
 const LEGACY_PORT: u16 = 8000;
 const SERVER_PORT: u16 = 17493;
@@ -709,6 +757,273 @@ fn stop_audio_playback(
     state.stop_all_playback()
 }
 
+/// Identifier of the Voicebox app itself — used to short-circuit auto-paste
+/// when the user fires a chord while focus was inside one of our own
+/// windows. Paste into Voicebox-internal targets is step 6 territory and
+/// goes through a different (JS-side) injection path.
+///
+/// Value matches what `focus_capture::capture_focus` writes into
+/// `FocusSnapshot::bundle_id` on the current platform — reverse-DNS bundle
+/// id on macOS, lowercased exe basename on Windows/Linux.
+#[cfg(target_os = "macos")]
+const VOICEBOX_BUNDLE_ID: &str = "sh.voicebox.app";
+#[cfg(target_os = "windows")]
+const VOICEBOX_BUNDLE_ID: &str = "voicebox.exe";
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+const VOICEBOX_BUNDLE_ID: &str = "voicebox";
+
+/// Milliseconds to wait between activating the target app and firing the
+/// synthetic ⌘V, giving AppKit time to finish re-ordering windows and
+/// restoring its last-focused field.
+const POST_ACTIVATE_SETTLE_MS: u64 = 120;
+
+/// Milliseconds the staged text lives on the clipboard after the paste
+/// keystroke, before we restore the user's original clipboard contents.
+/// Too short and slow apps haven't consumed the paste yet; too long and
+/// the user sees our text if they look at their clipboard manager.
+const PASTE_CONSUME_MS: u64 = 400;
+
+/// Reports whether the process currently has macOS Accessibility trust.
+/// Used by the settings UI and the paste debug harness to decide whether
+/// synthetic key events will actually land.
+#[command]
+fn check_accessibility_permission() -> bool {
+    accessibility::is_trusted()
+}
+
+/// Push a new chord configuration into the running `HotkeyMonitor`. The
+/// frontend calls this both at startup (replaying the saved chord from
+/// capture_settings) and any time the user edits the chord in the picker —
+/// no app restart needed because the engine swap is atomic under the
+/// monitor's mutex.
+///
+/// Returns an error when a key name doesn't map to an `rdev::Key`, so the
+/// picker UI can surface "this key isn't supported" instead of silently
+/// dropping it from the chord.
+#[cfg(desktop)]
+#[command]
+fn update_chord_bindings(
+    monitor: State<'_, hotkey_monitor::HotkeyMonitor>,
+    push_to_talk: Vec<String>,
+    toggle_to_talk: Vec<String>,
+) -> Result<(), String> {
+    use hotkey_monitor::{Bindings, ChordAction};
+    use rdev::Key;
+    use std::collections::HashSet;
+
+    fn build_chord(name: &str, names: &[String]) -> Result<HashSet<Key>, String> {
+        if names.is_empty() {
+            return Err(format!("{name} chord must have at least one key"));
+        }
+        let mut chord = HashSet::new();
+        for raw in names {
+            let key = key_codes::key_from_str(raw)
+                .ok_or_else(|| format!("Unsupported key in {name} chord: {raw}"))?;
+            chord.insert(key);
+        }
+        Ok(chord)
+    }
+
+    let push_chord = build_chord("push-to-talk", &push_to_talk)?;
+    let toggle_chord = build_chord("toggle-to-talk", &toggle_to_talk)?;
+
+    let mut bindings = Bindings::new();
+    bindings.insert(ChordAction::PushToTalk, push_chord);
+    bindings.insert(ChordAction::ToggleToTalk, toggle_chord);
+
+    monitor.update_bindings(bindings);
+    Ok(())
+}
+
+/// Open the Privacy & Security → Accessibility pane in System Settings so
+/// the user can grant the permission. The URL scheme is stable across
+/// macOS 10.14–15; no-op on other platforms.
+#[command]
+fn open_accessibility_settings(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let url = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
+        app.shell()
+            .open(url, None)
+            .map_err(|e| format!("Failed to open Accessibility settings: {e}"))?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Err("Accessibility settings pane is only implemented on macOS".into())
+    }
+}
+
+/// Deliver `text` into the UI that had focus when the chord fired.
+///
+/// Pipeline: activate the captured PID → settle → save the user's
+/// clipboard → write `text` → fire ⌘V → wait for the target to consume it
+/// → restore the original clipboard.
+///
+/// Skips (returns `false`) without touching anything when:
+/// - `focus.bundle_id` is Voicebox itself — step 6 will inject directly
+///   into our own webview; pasting would just double-insert or miss the
+///   real target.
+/// - Accessibility is not trusted — `CGEventPost` would silently drop the
+///   keystroke, leaving the user's clipboard clobbered with nothing to
+///   show for it.
+///
+/// Returns `true` when the paste sequence completed end-to-end.
+#[command]
+async fn paste_final_text(
+    text: String,
+    focus: focus_capture::FocusSnapshot,
+) -> Result<bool, String> {
+    if focus.bundle_id.as_deref() == Some(VOICEBOX_BUNDLE_ID) {
+        return Ok(false);
+    }
+    if !accessibility::is_trusted() {
+        return Err(
+            "Accessibility permission required for auto-paste. Open System Settings → Privacy & Security → Accessibility and enable Voicebox."
+                .into(),
+        );
+    }
+
+    focus_capture::activate_pid(focus.pid)?;
+    tokio::time::sleep(std::time::Duration::from_millis(POST_ACTIVATE_SETTLE_MS)).await;
+
+    let snapshot = clipboard::save_clipboard()?;
+    clipboard::write_text(&text)?;
+    synthetic_keys::send_paste()?;
+    tokio::time::sleep(std::time::Duration::from_millis(PASTE_CONSUME_MS)).await;
+    clipboard::restore_clipboard(&snapshot)?;
+
+    Ok(true)
+}
+
+/// Inspect the currently focused UI element. Returns the owning app's PID,
+/// bundle id, and AX role. Useful for sanity-checking the focus pipeline
+/// before committing to a paste.
+#[command]
+fn debug_capture_focus() -> Result<focus_capture::FocusSnapshot, String> {
+    focus_capture::capture_focus()
+}
+
+/// Full auto-paste rehearsal: snapshot the focus target now, sleep
+/// `drift_ms` so the user can deliberately switch to a different app
+/// (proving we don't paste into whichever window is frontmost when the
+/// transcribe finishes), then activate the captured PID, stage `text`,
+/// fire ⌘V, and restore the clipboard.
+#[command]
+async fn debug_focus_roundtrip(
+    text: String,
+    drift_ms: u64,
+    post_paste_delay_ms: u64,
+) -> Result<serde_json::Value, String> {
+    if !accessibility::is_trusted() {
+        return Err(
+            "Accessibility permission not granted. Open System Settings → Privacy & Security → Accessibility and enable Voicebox."
+                .into(),
+        );
+    }
+
+    let snapshot = focus_capture::capture_focus()?;
+
+    tokio::time::sleep(std::time::Duration::from_millis(drift_ms)).await;
+
+    focus_capture::activate_pid(snapshot.pid)?;
+    // Give AppKit a beat to process the activation before the synthetic
+    // Cmd+V arrives — without this the paste sometimes races ahead of the
+    // window-ordering animation and lands in the previous frontmost app.
+    tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+
+    let clip = clipboard::save_clipboard()?;
+    let after_write = clipboard::write_text(&text)?;
+    synthetic_keys::send_paste()?;
+    tokio::time::sleep(std::time::Duration::from_millis(post_paste_delay_ms)).await;
+    let before_restore = clipboard::current_change_count()?;
+    clipboard::restore_clipboard(&clip)?;
+
+    Ok(serde_json::json!({
+        "focus": snapshot,
+        "change_count_after_write": after_write,
+        "change_count_before_restore": before_restore,
+        "clobbered_during_paste": before_restore != after_write,
+    }))
+}
+
+/// End-to-end smoke test for the auto-paste pipeline: save the user's
+/// clipboard, stage `text`, optionally wait `pre_paste_delay_ms` so the
+/// caller has time to focus the target app, synthesise ⌘V, wait
+/// `post_paste_delay_ms` for the target app to consume the event, and put
+/// the original clipboard back.
+///
+/// Short-circuits when Accessibility permission is missing — without it
+/// `CGEventPost` silently drops events, so running the full sequence
+/// would just clobber the clipboard with nothing to show for it.
+#[command]
+async fn debug_paste_text(
+    text: String,
+    pre_paste_delay_ms: u64,
+    post_paste_delay_ms: u64,
+) -> Result<serde_json::Value, String> {
+    if !accessibility::is_trusted() {
+        return Err(
+            "Accessibility permission not granted. Open System Settings → Privacy & Security → Accessibility and enable Voicebox, then try again."
+                .into(),
+        );
+    }
+
+    let snapshot = clipboard::save_clipboard()?;
+    let before = snapshot.change_count();
+    let after_write = clipboard::write_text(&text)?;
+
+    tokio::time::sleep(std::time::Duration::from_millis(pre_paste_delay_ms)).await;
+
+    synthetic_keys::send_paste()?;
+
+    tokio::time::sleep(std::time::Duration::from_millis(post_paste_delay_ms)).await;
+
+    let before_restore = clipboard::current_change_count()?;
+    clipboard::restore_clipboard(&snapshot)?;
+    let after_restore = clipboard::current_change_count()?;
+
+    Ok(serde_json::json!({
+        "change_count_before": before,
+        "change_count_after_write": after_write,
+        "change_count_before_restore": before_restore,
+        "change_count_after_restore": after_restore,
+        "clobbered_during_paste": before_restore != after_write,
+    }))
+}
+
+/// Manual smoke test for the clipboard snapshot/restore primitives used by
+/// the auto-paste pipeline. Stages `text` on the pasteboard, waits
+/// `hold_ms` so the caller can ⌘V into another app, then puts the original
+/// clipboard contents back. The return value reports the change-count deltas
+/// so the harness can verify no third party mutated the clipboard mid-paste.
+#[command]
+async fn debug_clipboard_roundtrip(
+    text: String,
+    hold_ms: u64,
+) -> Result<serde_json::Value, String> {
+    let snapshot = clipboard::save_clipboard()?;
+    let before = snapshot.change_count();
+    let item_count = snapshot.item_count();
+    let after_write = clipboard::write_text(&text)?;
+
+    tokio::time::sleep(std::time::Duration::from_millis(hold_ms)).await;
+
+    let before_restore = clipboard::current_change_count()?;
+    clipboard::restore_clipboard(&snapshot)?;
+    let after_restore = clipboard::current_change_count()?;
+
+    Ok(serde_json::json!({
+        "saved_items": item_count,
+        "change_count_before": before,
+        "change_count_after_write": after_write,
+        "change_count_before_restore": before_restore,
+        "change_count_after_restore": after_restore,
+        "clobbered_during_hold": before_restore != after_write,
+    }))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -728,6 +1043,36 @@ pub fn run() {
             {
                 app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.handle().plugin(tauri_plugin_process::init())?;
+
+                if let Err(e) = build_dictate_window(app.handle()) {
+                    eprintln!("Failed to pre-create dictate window: {}", e);
+                }
+
+                let monitor = hotkey_monitor::HotkeyMonitor::spawn(
+                    app.handle().clone(),
+                    hotkey_monitor::default_bindings(),
+                );
+                // Stored as state so the chord-picker UI can call
+                // `update_chord_bindings` to live-swap the engine's chords
+                // without restarting the listener thread.
+                app.manage(monitor);
+
+                // The frontend emits `dictate:hide` whenever the pill cycle
+                // finishes (rest-fade → hidden). `hide()` alone has been
+                // unreliable for transparent always-on-top windows on macOS
+                // — the NSWindow lingers as an invisible click target that
+                // steals focus to the Voicebox app when the user clicks
+                // where it used to be. Park the window off-screen and mark
+                // it click-through as well, so even if `hide()` no-ops the
+                // user sees and interacts with nothing.
+                let handle_for_hide = app.handle().clone();
+                app.handle().listen("dictate:hide", move |_event| {
+                    if let Some(window) = handle_for_hide.get_webview_window(DICTATE_WINDOW_LABEL) {
+                        let _ = window.set_ignore_cursor_events(true);
+                        let _ = window.set_position(PhysicalPosition::new(-10_000, -10_000));
+                        let _ = window.hide();
+                    }
+                });
             }
 
             // Hide title bar icon on Windows
@@ -797,7 +1142,15 @@ pub fn run() {
             is_system_audio_supported,
             list_audio_output_devices,
             play_audio_to_devices,
-            stop_audio_playback
+            stop_audio_playback,
+            debug_clipboard_roundtrip,
+            debug_paste_text,
+            debug_capture_focus,
+            debug_focus_roundtrip,
+            check_accessibility_permission,
+            open_accessibility_settings,
+            paste_final_text,
+            update_chord_bindings
         ])
         .on_window_event({
             let closing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
