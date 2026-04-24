@@ -826,6 +826,23 @@
         "title": "生成資料夾",
         "description": "生成的音訊檔案在磁碟上的儲存位置。",
         "open": "開啟"
+      },
+      "sidebar": {
+        "aboutTitle": "關於語音生成",
+        "aboutBody": "從一段簡短的樣本複製聲音,然後以任何聲音、跨任何語言生成語音。將 TTS 送進 AI 代理、遊戲、Podcast 或長篇旁白。",
+        "differencesTitle": "有何不同",
+        "clone": {
+          "title": "幾秒內複製任何聲音。",
+          "body": "幾秒鐘的參考音訊就夠了。需要更高品質時也支援多樣本。"
+        },
+        "engines": {
+          "title": "七種引擎、23 種語言。",
+          "body": "選擇最符合需求的取捨——品質、速度,或多語言覆蓋。"
+        },
+        "agentReady": {
+          "title": "代理就緒。",
+          "body": "REST API 提供逐一聲音檔案的控制——讓任何 AI 擁有您複製過的聲音。"
+        }
       }
     },
     "captures": {

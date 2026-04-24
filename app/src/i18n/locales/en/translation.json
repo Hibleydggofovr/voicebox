@@ -826,6 +826,23 @@
         "title": "Generations folder",
         "description": "Where generated audio files are stored on disk.",
         "open": "Open"
+      },
+      "sidebar": {
+        "aboutTitle": "About voice generation",
+        "aboutBody": "Clone a voice from a short sample, then generate speech in any voice across any language. Ship TTS into AI agents, games, podcasts, or long-form narration.",
+        "differencesTitle": "What's different",
+        "clone": {
+          "title": "Clone any voice in seconds.",
+          "body": "A few seconds of reference audio is enough. Multi-sample support for higher quality when you want it."
+        },
+        "engines": {
+          "title": "Seven engines, 23 languages.",
+          "body": "Pick the tradeoff that fits — quality, speed, or multilingual coverage."
+        },
+        "agentReady": {
+          "title": "Agent-ready.",
+          "body": "REST API with per-profile control — give any AI a voice you've cloned."
+        }
       }
     },
     "captures": {
