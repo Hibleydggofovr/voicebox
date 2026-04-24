@@ -10,7 +10,6 @@ import {
   FileAudio,
   Loader2,
   Mic,
-  Play,
   Send,
   Settings2,
   Sparkles,
@@ -22,6 +21,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CapturePill } from '@/components/CapturePill/CapturePill';
+import { CaptureInlinePlayer } from '@/components/CapturesTab/CaptureInlinePlayer';
 import { DictationReadinessChecklist } from '@/components/CapturesTab/DictationReadinessChecklist';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -104,31 +104,6 @@ function SourceBadge({ source }: { source: CaptureSource }) {
       <Icon className="h-2.5 w-2.5" />
       {label}
     </Badge>
-  );
-}
-
-function FakeWaveform({ seed = 1, className }: { seed?: number; className?: string }) {
-  const bars = useMemo(() => {
-    return Array.from({ length: 72 }).map((_, i) => {
-      const h =
-        28 +
-        Math.sin(i * 0.35 + seed) * 22 +
-        Math.cos(i * 0.81 + seed * 2) * 14 +
-        Math.sin(i * 1.7 + seed * 3) * 8;
-      return Math.max(6, Math.min(96, h));
-    });
-  }, [seed]);
-
-  return (
-    <div className={cn('flex items-center gap-[2px] h-10', className)}>
-      {bars.map((h, i) => (
-        <div
-          key={i}
-          className="w-[3px] rounded-full bg-foreground/25"
-          style={{ height: `${h}%` }}
-        />
-      ))}
-    </div>
   );
 }
 
@@ -303,16 +278,6 @@ export function CapturesTab() {
     e.target.value = '';
     if (!file) return;
     session.uploadFile(file, source);
-  };
-
-  const handlePlayOriginal = () => {
-    if (!selected) return;
-    setAudioWithAutoPlay(
-      apiClient.getCaptureAudioUrl(selected.id),
-      `capture-${selected.id}`,
-      null,
-      t('captures.captureCardLabel', { when: formatAbsoluteDate(selected.created_at) }),
-    );
   };
 
   const handleCopy = async () => {
@@ -550,23 +515,10 @@ export function CapturesTab() {
 
             {/* Audio player card */}
             <div className="rounded-xl border border-border bg-muted/20 p-4 mb-6">
-              <div className="flex items-center gap-4">
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-10 w-10 rounded-full shrink-0"
-                  onClick={handlePlayOriginal}
-                >
-                  <Play className="h-4 w-4 ml-0.5" />
-                </Button>
-                <FakeWaveform
-                  seed={selected.id.charCodeAt(0)}
-                  className="flex-1"
-                />
-                <span className="text-xs tabular-nums text-muted-foreground font-medium">
-                  {formatDuration(selected.duration_ms)}
-                </span>
-              </div>
+              <CaptureInlinePlayer
+                audioUrl={apiClient.getCaptureAudioUrl(selected.id)}
+                fallbackDurationMs={selected.duration_ms}
+              />
             </div>
 
             {/* Transcript header */}
