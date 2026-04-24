@@ -26,15 +26,27 @@ current_client_id: ContextVar[str | None] = ContextVar(
     "current_client_id", default=None
 )
 
+# Endpoints that consume X-Voicebox-Client-Id for its MCP-semantic
+# meaning (per-client profile resolution + per-client default_personality).
+# These are the paths where a stamp into last_seen_at is accurate.
+# Unrelated REST traffic that happens to set the header is intentionally
+# ignored so the Settings UI's "last heard from" column only reflects
+# calls that actually acted on the client's bindings.
+#
+# - /mcp — FastMCP tool calls (voicebox.speak, voicebox.transcribe, …)
+#   and the /mcp/bindings admin surface. The admin surface is never
+#   called with the header in practice (the frontend manages bindings
+#   over plain REST), so the `startswith("/mcp")` match doesn't cause
+#   false stamps.
+# - /speak — REST mirror of voicebox.speak for non-MCP agents (shell
+#   scripts, ACP, A2A). Uses the same per-client binding lookup, so its
+#   callers belong in the last-seen list too.
+_STAMPED_PATH_PREFIXES: tuple[str, ...] = ("/mcp", "/speak")
+
 
 class ClientIdMiddleware(BaseHTTPMiddleware):
-    """Copy X-Voicebox-Client-Id into a ContextVar and stamp last_seen_at.
-
-    Only stamps on MCP-endpoint requests (anything under ``/mcp``) so
-    unrelated REST traffic with the header set won't advance the
-    last-seen timestamp — the Settings UI uses that to show when each
-    client was last heard from.
-    """
+    """Copy X-Voicebox-Client-Id into a ContextVar and stamp last_seen_at
+    for requests that act on the caller's MCP bindings."""
 
     def __init__(self, app: ASGIApp) -> None:
         super().__init__(app)
@@ -47,9 +59,15 @@ class ClientIdMiddleware(BaseHTTPMiddleware):
         finally:
             current_client_id.reset(token)
 
-        if client_id and request.url.path.startswith("/mcp"):
+        if client_id and _is_stamped_path(request.url.path):
             _stamp_last_seen(client_id)
         return response
+
+
+def _is_stamped_path(path: str) -> bool:
+    # Require a path boundary so a future ``/speakers`` or ``/mcpfoo``
+    # route doesn't silently inherit the stamp from ``/speak`` / ``/mcp``.
+    return any(path == p or path.startswith(p + "/") for p in _STAMPED_PATH_PREFIXES)
 
 
 def _stamp_last_seen(client_id: str) -> None:
