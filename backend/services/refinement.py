@@ -14,13 +14,23 @@ from dataclasses import dataclass
 from . import llm as llm_service
 
 
-# A run of identical tokens this long gets collapsed before the LLM sees
-# the transcript. Whisper occasionally loops a single word hundreds of
-# times when audio trails off (the "URL URL URL…" tail); smaller refine
-# models truncate legitimate output to "make room" for the loop, and
-# bigger ones echo the run verbatim because "never omit ideas" overrides
-# the no-garbage heuristic. Stripping deterministically sidesteps both.
+# A run that repeats this many times gets collapsed before the LLM sees
+# the transcript. Whisper occasionally loops content hundreds of times
+# when audio trails off — "URL URL URL…" (single word), "thanks for
+# watching thanks for watching…" (multi-word phrase), or
+# "谢谢观看谢谢观看…" (CJK with no spaces). Smaller refine models truncate
+# legitimate output to "make room" for the loop, and bigger ones echo
+# the run verbatim because "never omit ideas" overrides the no-garbage
+# heuristic. Stripping deterministically sidesteps both.
 _REPETITION_RUN_THRESHOLD = 6
+
+# Upper bound on the length of a repeating unit that the character-level
+# pass will detect. Covers every Whisper hallucination phrase we've
+# observed ("Please like and subscribe to my channel." ≈ 41 chars,
+# "Subtitles by the Amara.org community" ≈ 36 chars) while being short
+# enough that coincidental long-phrase repetition stays below the
+# threshold in legitimate speech.
+_MAX_REPETITION_UNIT_CHARS = 60
 
 
 def _token_key(word: str) -> str:
@@ -31,10 +41,29 @@ def _token_key(word: str) -> str:
 
 
 def collapse_repetitive_artifacts(text: str, min_run: int = _REPETITION_RUN_THRESHOLD) -> str:
-    """Strip STT-artifact runs: any token repeated ``min_run``+ times in
-    a row is treated as a Whisper hallucination and dropped entirely.
-    Legitimate rhetorical repetition ("no, no, no, no, no") doesn't hit
-    the threshold, and anything shorter passes through unchanged."""
+    """Strip STT-artifact loops. Two passes handle the full space:
+
+    1. Word-level: any token repeated ``min_run``+ times consecutively
+       (with surrounding punctuation stripped for comparison). Catches
+       single-word loops like "URL URL URL…" and normalizes punctuated
+       variants like "URL, URL, URL, URL, URL, URL".
+    2. Character-level: any substring 2–60 chars long that repeats
+       ``min_run``+ times immediately after itself. Catches multi-word
+       English loops ("thanks for watching" × 6) that the word-level
+       pass misses (no consecutive identical tokens) and CJK loops
+       ("谢谢观看" × 6) where ``text.split()`` yields a single unsplit
+       token.
+
+    Both passes preserve rhetorical repetition: "no, no, no, no, no"
+    (5 repeats) and "yeah yeah yeah" (3 repeats) stay in the transcript
+    because they don't cross the threshold.
+    """
+    collapsed = _collapse_word_runs(text, min_run)
+    collapsed = _collapse_character_runs(collapsed, min_run)
+    return collapsed
+
+
+def _collapse_word_runs(text: str, min_run: int) -> str:
     words = text.split()
     if len(words) < min_run:
         return text
@@ -61,6 +90,25 @@ def collapse_repetitive_artifacts(text: str, min_run: int = _REPETITION_RUN_THRE
         i = j
 
     return " ".join(out)
+
+
+def _collapse_character_runs(text: str, min_run: int) -> str:
+    # Non-greedy unit so the shortest repeating substring wins. Lower
+    # bound of 2 chars avoids stripping emphasized single-letter runs
+    # ("wooooooow", "hmmmmm") that aren't hallucinations. re.DOTALL so a
+    # newline inside a looped unit (rare) doesn't break the match.
+    pattern = re.compile(
+        r"(.{2," + str(_MAX_REPETITION_UNIT_CHARS) + r"}?)\1{" + str(min_run - 1) + r",}",
+        flags=re.DOTALL,
+    )
+    result = pattern.sub("", text)
+    if result == text:
+        return text
+    # Stripping a run leaves double whitespace where the loop used to
+    # bridge surrounding context; normalize so the LLM prompt stays
+    # clean. Only runs when we actually modified the text so transcripts
+    # that didn't hit any loop keep their original whitespace.
+    return re.sub(r"\s+", " ", result).strip()
 
 
 @dataclass
