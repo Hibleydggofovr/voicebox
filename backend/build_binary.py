@@ -373,10 +373,16 @@ def build_server(cuda=False):
                 "mlx_audio.tts",
                 "--hidden-import",
                 "mlx_audio.stt",
+                "--hidden-import",
+                "mlx_lm",
+                "--hidden-import",
+                "backend.backends.qwen_llm_backend",
                 "--collect-submodules",
                 "mlx",
                 "--collect-submodules",
                 "mlx_audio",
+                "--collect-submodules",
+                "mlx_lm",
                 # Use --collect-all so PyInstaller bundles both data files AND
                 # native shared libraries (.dylib, .metallib) for MLX.
                 # Previously only --collect-data was used, which caused MLX to
@@ -386,6 +392,11 @@ def build_server(cuda=False):
                 "mlx",
                 "--collect-all",
                 "mlx_audio",
+                # mlx_lm ships chat_templates/ JSON files and loads tool_parsers
+                # submodules dynamically via importlib at tokenizer load time,
+                # which --hidden-import alone can't resolve.
+                "--collect-all",
+                "mlx_lm",
             ]
         )
     elif not cuda:
@@ -505,6 +516,8 @@ def build_shim():
         "mlx",
         "--exclude-module",
         "mlx_audio",
+        "--exclude-module",
+        "mlx_lm",
         "--exclude-module",
         "qwen_tts",
         "--exclude-module",
