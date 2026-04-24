@@ -69,7 +69,7 @@ def safe_content_disposition(disposition_type: str, filename: str) -> str:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    from .mcp_server.server import build_mcp_server
+    from .mcp_server.server import build_mcp_server, compose_lifespan
     from .mcp_server.context import ClientIdMiddleware
 
     # Build the MCP app up-front so we can wire its lifespan into FastAPI's —
@@ -79,13 +79,23 @@ def create_app() -> FastAPI:
     mcp_app = mcp.http_app(path="/", transport="http")
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def voicebox_lifespan(app: FastAPI):
         await _run_startup(app)
-        async with mcp_app.router.lifespan_context(app):
-            try:
-                yield
-            finally:
-                await _run_shutdown()
+        try:
+            yield
+        finally:
+            # Paired with _run_startup via try/finally: runs whether or
+            # not the nested MCP lifespan entered cleanly, so a partial
+            # startup still unloads whatever models were loaded.
+            await _run_shutdown()
+
+    # compose_lifespan enters factories in order (voicebox startup →
+    # MCP startup) and exits in LIFO (MCP teardown first → models
+    # unload last). That ordering matters on shutdown: FastMCP's
+    # __aexit__ cancels in-flight session tasks, and we want that to
+    # happen *before* _run_shutdown yanks the TTS / Whisper / LLM
+    # models out from under any MCP request that was still generating.
+    lifespan = compose_lifespan(voicebox_lifespan, mcp_app.router.lifespan_context)
 
     application = FastAPI(
         title="voicebox API",
