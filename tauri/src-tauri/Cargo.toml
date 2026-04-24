@@ -52,11 +52,19 @@ webkit2gtk = "2.0"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2.0"
 tauri-plugin-process = "2.0"
-# Pinned to upstream main past PR #147 — the released 0.5.3 crate crashes on
-# macOS 14+ when listen() runs on a background thread because rdev's
-# convert() calls TSMGetInputSourceProperty off the main queue. The main
-# branch adds `set_is_main_thread(false)` to skip that path.
-rdev = { git = "https://github.com/Narsil/rdev", rev = "c14f2dc5c8100a96c5d7e3013de59d6aa0b9eae2" }
+# Pinned to our fork of upstream main past PR #147 — the released 0.5.3
+# crate crashes on macOS 14+ when listen() runs on a background thread
+# because rdev's convert() calls TSMGetInputSourceProperty off the main
+# queue. The main branch adds `set_is_main_thread(false)` to skip that
+# path (used at hotkey_monitor.rs:184).
+#
+# We pin to jamiepine/rdev instead of Narsil/rdev for supply-chain
+# durability: upstream has shipped no release since 2023-06 (crates.io
+# still lists 0.5.3), so an eventual 0.5.4 carrying this fix is unlikely,
+# and a git pin to a third-party repo breaks if the remote force-pushes,
+# renames, or disappears. The fork mirrors the pinned SHA and gives us a
+# place to cherry-pick future OS-compatibility fixes on our own timeline.
+rdev = { git = "https://github.com/jamiepine/rdev", rev = "c14f2dc5c8100a96c5d7e3013de59d6aa0b9eae2" }
 
 [features]
 # This feature is used for production builds or when `devPath` points to the filesystem
