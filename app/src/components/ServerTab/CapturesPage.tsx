@@ -585,15 +585,6 @@ export function CapturesPage() {
           </p>
         </div>
 
-        {/* Same six-gate checklist the CapturesTab empty state uses.
-            Surfaces missing models / permissions persistently while
-            users configure this page, so a red gate can't hide behind
-            a green toggle. */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">{t('captures.readiness.title')}</h3>
-          <DictationReadinessChecklist readiness={readiness} compact />
-        </div>
-
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t('settings.captures.sidebar.differencesTitle')}</h3>
           <ul className="space-y-3 text-sm text-muted-foreground">
@@ -624,6 +615,18 @@ export function CapturesPage() {
             </li>
           </ul>
         </div>
+
+        {/* Same six-gate checklist the CapturesTab empty state uses.
+            Surfaces missing models / permissions persistently while
+            users configure this page, so a red gate can't hide behind
+            a green toggle. Hidden once every gate is green — no value
+            in real estate full of checkmarks. */}
+        {!readiness.allReady && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">{t('captures.readiness.title')}</h3>
+            <DictationReadinessChecklist readiness={readiness} compact />
+          </div>
+        )}
       </aside>
     </div>
   );
