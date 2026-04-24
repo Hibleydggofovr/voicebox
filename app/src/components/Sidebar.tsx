@@ -47,15 +47,7 @@ export function Sidebar({ isMacOS }: SidebarProps) {
     >
       {/* Logo */}
       <div className="mb-2">
-        <img
-          src={voiceboxLogo}
-          alt="Voicebox"
-          className="w-12 h-12 object-contain"
-          style={{
-            filter:
-              'drop-shadow(0 0 6px hsl(var(--accent) / 0.5)) drop-shadow(0 0 14px hsl(var(--accent) / 0.35)) drop-shadow(0 0 28px hsl(var(--accent) / 0.2))',
-          }}
-        />
+        <img src={voiceboxLogo} alt="Voicebox" className="sidebar-logo w-12 h-12 object-contain" />
       </div>
 
       {/* Navigation Buttons */}

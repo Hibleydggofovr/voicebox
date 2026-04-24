@@ -551,9 +551,11 @@
     "title": "ストーリー",
     "newStory": "新しいストーリー",
     "loading": "ストーリーを読み込み中…",
+    "searchPlaceholder": "ストーリーを検索…",
     "empty": {
       "title": "ストーリーがまだありません",
-      "hint": "最初のストーリーを作成して始めましょう"
+      "hint": "最初のストーリーを作成して始めましょう",
+      "noMatches": "「{{query}}」に一致するストーリーはありません"
     },
     "row": {
       "itemCount_one": "{{count}} 項目",
@@ -729,6 +731,15 @@
     "language": {
       "label": "言語",
       "description": "Voicebox の表示言語を選択します。"
+    },
+    "theme": {
+      "label": "テーマ",
+      "description": "システム設定に合わせるか、ライト / ダークを固定します。",
+      "options": {
+        "system": "システム",
+        "light": "ライト",
+        "dark": "ダーク"
+      }
     },
     "general": {
       "docs": { "title": "ドキュメントを読む" },

@@ -5,6 +5,7 @@ import { DictateWindow } from '@/components/DictateWindow/DictateWindow';
 import ShinyText from '@/components/ShinyText';
 import { TitleBarDragRegion } from '@/components/TitleBarDragRegion';
 import { useAutoUpdater } from '@/hooks/useAutoUpdater';
+import { useThemeSync } from '@/hooks/useThemeSync';
 import { apiClient } from '@/lib/api/client';
 import type { HealthResponse } from '@/lib/api/types';
 import { useChordSync } from '@/lib/hooks/useChordSync';
@@ -71,6 +72,8 @@ const LOADING_MESSAGES = [
 ];
 
 function App() {
+  useThemeSync();
+
   // The dictate window runs in a separate Tauri webview that must skip
   // server bootstrap (the main window owns that lifecycle) and render only
   // the floating recording surface. Split into a sibling component so the

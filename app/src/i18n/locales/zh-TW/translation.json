@@ -551,9 +551,11 @@
     "title": "故事",
     "newStory": "新增故事",
     "loading": "載入故事中…",
+    "searchPlaceholder": "搜尋故事…",
     "empty": {
       "title": "尚無故事",
-      "hint": "建立您的第一個故事以開始"
+      "hint": "建立您的第一個故事以開始",
+      "noMatches": "沒有故事符合「{{query}}」"
     },
     "row": {
       "itemCount_one": "{{count}} 項",
@@ -729,6 +731,15 @@
     "language": {
       "label": "語言",
       "description": "選擇 Voicebox 的顯示語言。"
+    },
+    "theme": {
+      "label": "佈景主題",
+      "description": "跟隨系統外觀，或固定為淺色 / 深色模式。",
+      "options": {
+        "system": "跟隨系統",
+        "light": "淺色",
+        "dark": "深色"
+      }
     },
     "general": {
       "docs": { "title": "閱讀文件" },

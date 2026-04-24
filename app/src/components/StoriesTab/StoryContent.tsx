@@ -72,8 +72,12 @@ export function StoryContent() {
   // Track editor is shown when story has items
   const hasBottomBar = story && story.items.length > 0;
 
-  // Calculate dynamic bottom padding: track editor + gap
-  const bottomPadding = hasBottomBar ? trackEditorHeight + 24 : 0;
+  // Clear the floating generate box (always visible on this route) and the
+  // track editor bar when it's showing.
+  const FLOATING_BOX_CLEARANCE = 140;
+  const bottomPadding = hasBottomBar
+    ? trackEditorHeight + FLOATING_BOX_CLEARANCE
+    : FLOATING_BOX_CLEARANCE;
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -265,9 +269,12 @@ export function StoryContent() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 relative overflow-hidden">
+      {/* Scroll Mask */}
+      <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-1">
         <div>
           <h2 className="text-2xl font-bold">{story.name}</h2>
           {story.description && (
@@ -357,7 +364,7 @@ export function StoryContent() {
       {/* Content */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto space-y-3"
+        className="flex-1 min-h-0 overflow-y-auto space-y-3 pt-14 scroll-pt-14 relative z-0"
         style={{ paddingBottom: bottomPadding > 0 ? `${bottomPadding}px` : undefined }}
       >
         {sortedItems.length === 0 ? (

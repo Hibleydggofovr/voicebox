@@ -551,9 +551,11 @@
     "title": "Stories",
     "newStory": "New Story",
     "loading": "Loading stories…",
+    "searchPlaceholder": "Search stories…",
     "empty": {
       "title": "No stories yet",
-      "hint": "Create your first story to get started"
+      "hint": "Create your first story to get started",
+      "noMatches": "No stories match \"{{query}}\""
     },
     "row": {
       "itemCount_one": "{{count}} item",
@@ -729,6 +731,15 @@
     "language": {
       "label": "Language",
       "description": "Choose the display language for Voicebox."
+    },
+    "theme": {
+      "label": "Theme",
+      "description": "Match your system, or pick a fixed light or dark appearance.",
+      "options": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      }
     },
     "general": {
       "docs": { "title": "Read the Docs" },

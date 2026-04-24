@@ -37,12 +37,15 @@ export function CaptureInlinePlayer({
     const root = document.documentElement;
     const cssHsla = (varName: string, alpha: number) => {
       const value = getComputedStyle(root).getPropertyValue(varName).trim();
-      return value ? `hsl(${value} / ${alpha})` : '';
+      if (!value) return '';
+      const [h, s, l] = value.split(/\s+/);
+      if (!h || !s || !l) return '';
+      return `hsla(${h}, ${s}, ${l}, ${alpha})`;
     };
 
     const ws = WaveSurfer.create({
       container,
-      waveColor: cssHsla('--foreground', 0.25),
+      waveColor: cssHsla('--muted-foreground', 1),
       progressColor: cssHsla('--accent', 1),
       cursorColor: 'transparent',
       barWidth: 2,

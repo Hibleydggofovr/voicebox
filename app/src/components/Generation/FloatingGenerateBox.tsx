@@ -255,10 +255,10 @@ export function FloatingGenerateBox({
     <motion.div
       ref={containerRef}
       className={cn(
-        'fixed right-auto',
+        'fixed',
         isStoriesRoute
-          ? // Position aligned with story list: after sidebar + padding, width 360px
-            'left-[calc(5rem+2rem)] w-[360px]'
+          ? // Aligned with StoryContent: sidebar + list width + gap (tab bleeds with -mx-8)
+            'left-[calc(5rem+360px+1.5rem)] right-8'
           : 'left-[calc(5rem+2rem)] right-8 lg:right-auto lg:w-[calc((100%-5rem-4rem)/2-1rem)]',
       )}
       style={{

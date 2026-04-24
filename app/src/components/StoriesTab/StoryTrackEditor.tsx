@@ -125,6 +125,8 @@ interface StoryTrackEditorProps {
 
 const TRACK_HEIGHT = 48;
 const TIME_RULER_HEIGHT = 24; // h-6 = 1.5rem = 24px
+const SCRUB_BAR_HEIGHT = 16;
+const LABEL_COL_WIDTH = 64; // w-16 = 4rem = 64px
 const MIN_PIXELS_PER_SECOND = 10;
 const MAX_PIXELS_PER_SECOND = 200;
 const DEFAULT_PIXELS_PER_SECOND = 50;
@@ -282,6 +284,44 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Horizontal scrollbar state
+  const [timelineScrollLeft, setTimelineScrollLeft] = useState(0);
+  const [scrollbarTrackWidth, setScrollbarTrackWidth] = useState(0);
+  const scrollbarTrackRef = useRef<HTMLDivElement>(null);
+  const scrollbarDragRef = useRef<{
+    mode: 'pan' | 'left' | 'right';
+    startX: number;
+    startScrollLeft: number;
+    startPixelsPerSecond: number;
+  } | null>(null);
+  // Anchor the visible left/right edge time during a zoom drag so the edge
+  // the user isn't dragging stays pinned in place across pixelsPerSecond changes.
+  const zoomAnchorRef = useRef<{ type: 'left' | 'right'; timeMs: number } | null>(null);
+
+  // Mirror the timeline's scrollLeft into state so the scrollbar thumb tracks it
+  useEffect(() => {
+    const el = tracksRef.current;
+    if (!el) return;
+    const onScroll = () => setTimelineScrollLeft(el.scrollLeft);
+    el.addEventListener('scroll', onScroll);
+    setTimelineScrollLeft(el.scrollLeft);
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Track scrollbar track width for thumb sizing
+  useEffect(() => {
+    const el = scrollbarTrackRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setScrollbarTrackWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    setScrollbarTrackWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
   // Calculate effective duration (accounting for trims)
   const getEffectiveDuration = (item: StoryItemDetail) => {
     return item.duration * 1000 - (item.trim_start_ms || 0) - (item.trim_end_ms || 0);
@@ -374,7 +414,7 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
   const handleTimelineClick = (e: React.MouseEvent<HTMLElement>) => {
     if (!tracksRef.current || draggingItem || trimmingItem) return;
     const rect = tracksRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left + tracksRef.current.scrollLeft;
+    const x = e.clientX - rect.left + tracksRef.current.scrollLeft - LABEL_COL_WIDTH;
     const timeMs = Math.max(0, pixelsToMs(x));
     seek(timeMs);
     // Deselect clip when clicking on timeline
@@ -654,7 +694,13 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
       y: e.clientY - rect.top,
     });
     setDragPosition({
-      x: rect.left - tracksRef.current.getBoundingClientRect().left + tracksRef.current.scrollLeft,
+      // Subtract label column width because clips live in a sub-container offset
+      // by LABEL_COL_WIDTH, so dragPosition.x is stored in timeline-local coords.
+      x:
+        rect.left -
+        tracksRef.current.getBoundingClientRect().left +
+        tracksRef.current.scrollLeft -
+        LABEL_COL_WIDTH,
       // Subtract ruler height since clips are positioned relative to tracks area, not the scrollable container
       y: rect.top - tracksRef.current.getBoundingClientRect().top - TIME_RULER_HEIGHT,
     });
@@ -666,7 +712,12 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
       if (!draggingItem || !tracksRef.current) return;
 
       const rect = tracksRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left + tracksRef.current.scrollLeft - dragOffset.x;
+      const x =
+        e.clientX -
+        rect.left +
+        tracksRef.current.scrollLeft -
+        dragOffset.x -
+        LABEL_COL_WIDTH;
       // Subtract ruler height since clips are positioned relative to tracks area
       const y = e.clientY - rect.top - dragOffset.y - TIME_RULER_HEIGHT;
 
@@ -762,7 +813,109 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
 
   // Calculate tracks area height
   const tracksAreaHeight = tracks.length * TRACK_HEIGHT;
-  const timelineContainerHeight = editorHeight - 40; // Subtract toolbar height
+  const timelineContainerHeight = editorHeight - 40 - SCRUB_BAR_HEIGHT;
+
+  // Scrollbar thumb geometry
+  const maxTimelineScroll = Math.max(0, timelineWidth - containerWidth);
+  const visibleRatio = timelineWidth > 0 ? Math.min(1, containerWidth / timelineWidth) : 1;
+  const thumbWidth = Math.max(24, visibleRatio * scrollbarTrackWidth);
+  const thumbRange = Math.max(0, scrollbarTrackWidth - thumbWidth);
+  const thumbLeft =
+    maxTimelineScroll > 0 && thumbRange > 0
+      ? (timelineScrollLeft / maxTimelineScroll) * thumbRange
+      : 0;
+  const canScrollHorizontally = maxTimelineScroll > 0;
+
+  const handleScrollbarMouseDown = useCallback(
+    (mode: 'pan' | 'left' | 'right') => (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      scrollbarDragRef.current = {
+        mode,
+        startX: e.clientX,
+        startScrollLeft: timelineScrollLeft,
+        startPixelsPerSecond: pixelsPerSecond,
+      };
+    },
+    [timelineScrollLeft, pixelsPerSecond],
+  );
+
+  // After a zoom drag updates pixelsPerSecond, snap scrollLeft so the anchored
+  // edge (left or right of the visible window) stays at the same time.
+  useEffect(() => {
+    const anchor = zoomAnchorRef.current;
+    if (!anchor || !tracksRef.current) return;
+    const timePx = (anchor.timeMs / 1000) * pixelsPerSecond;
+    tracksRef.current.scrollLeft =
+      anchor.type === 'left' ? Math.max(0, timePx) : Math.max(0, timePx - containerWidth);
+  }, [pixelsPerSecond, containerWidth]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      const drag = scrollbarDragRef.current;
+      if (!drag || !tracksRef.current) return;
+      const deltaX = e.clientX - drag.startX;
+
+      if (drag.mode === 'pan') {
+        if (thumbRange <= 0) return;
+        const deltaScroll = (deltaX / thumbRange) * maxTimelineScroll;
+        tracksRef.current.scrollLeft = Math.max(
+          0,
+          Math.min(maxTimelineScroll, drag.startScrollLeft + deltaScroll),
+        );
+        return;
+      }
+
+      if (scrollbarTrackWidth <= 0 || containerWidth <= 0) return;
+
+      // Recompute the thumb width that corresponded to the drag start, then
+      // apply the mouse delta to the dragged edge.
+      const startTimelinePx =
+        (totalDurationMs / 1000) * drag.startPixelsPerSecond + 200;
+      const startThumbWidth = Math.max(
+        30,
+        Math.min(scrollbarTrackWidth, (containerWidth / startTimelinePx) * scrollbarTrackWidth),
+      );
+      const newThumbWidth = Math.max(
+        30,
+        Math.min(
+          scrollbarTrackWidth,
+          drag.mode === 'right' ? startThumbWidth + deltaX : startThumbWidth - deltaX,
+        ),
+      );
+
+      const newTimelinePx = (containerWidth / newThumbWidth) * scrollbarTrackWidth;
+      const rawPps = (newTimelinePx - 200) / (totalDurationMs / 1000);
+      const newPps = Math.max(
+        MIN_PIXELS_PER_SECOND,
+        Math.min(MAX_PIXELS_PER_SECOND, rawPps),
+      );
+
+      zoomAnchorRef.current =
+        drag.mode === 'right'
+          ? {
+              type: 'left',
+              timeMs: (drag.startScrollLeft / drag.startPixelsPerSecond) * 1000,
+            }
+          : {
+              type: 'right',
+              timeMs:
+                ((drag.startScrollLeft + containerWidth) / drag.startPixelsPerSecond) * 1000,
+            };
+
+      setPixelsPerSecond(newPps);
+    };
+    const onMouseUp = () => {
+      scrollbarDragRef.current = null;
+      zoomAnchorRef.current = null;
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [maxTimelineScroll, thumbRange, scrollbarTrackWidth, containerWidth, totalDurationMs]);
 
   if (items.length === 0) {
     return null;
@@ -916,44 +1069,25 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
           </div>
         </div>
 
-        {/* Timeline container with track labels sidebar */}
-        <div className="flex" style={{ height: `${timelineContainerHeight}px` }}>
-          {/* Track labels sidebar - fixed width */}
-          <div className="w-16 shrink-0 border-r bg-muted/20 overflow-hidden">
-            {/* Spacer for time ruler */}
-            <div className="h-6 border-b bg-muted/30" />
-            {/* Track labels */}
-            <div style={{ height: `${tracksAreaHeight}px` }}>
-              {tracks.map((trackNumber, index) => (
-                <div
-                  key={trackNumber}
-                  className={cn(
-                    'border-b flex items-center justify-center',
-                    index % 2 === 0 ? 'bg-background' : 'bg-muted/10',
-                  )}
-                  style={{ height: `${TRACK_HEIGHT}px` }}
-                >
-                  <span className="text-[10px] text-muted-foreground select-none">
-                    {trackNumber}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Scrollable timeline area */}
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: Container handles drag events for child clips */}
+        {/* Timeline scroll container */}
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: Container handles drag events for child clips */}
+        <div
+          ref={tracksRef}
+          className="overflow-auto relative"
+          style={{ height: `${timelineContainerHeight}px` }}
+          onMouseMove={draggingItem ? handleDragMove : undefined}
+          onMouseUp={draggingItem ? handleDragEnd : undefined}
+          onMouseLeave={draggingItem ? handleDragEnd : undefined}
+        >
+          {/* Ruler row: corner spacer + time ruler, sticky to top */}
           <div
-            ref={tracksRef}
-            className="overflow-auto relative flex-1"
-            onMouseMove={draggingItem ? handleDragMove : undefined}
-            onMouseUp={draggingItem ? handleDragEnd : undefined}
-            onMouseLeave={draggingItem ? handleDragEnd : undefined}
+            className="flex sticky top-0 z-30"
+            style={{ width: `${timelineWidth + LABEL_COL_WIDTH}px` }}
           >
-            {/* Time ruler - clickable to seek */}
+            <div className="w-16 h-6 shrink-0 border-b border-r bg-muted/30 sticky left-0 z-40" />
             <button
               type="button"
-              className="h-6 border-b bg-muted/20 sticky top-0 z-10 cursor-pointer text-left"
+              className="h-6 border-b bg-muted/20 cursor-pointer text-left relative"
               style={{ width: `${timelineWidth}px` }}
               onClick={handleTimelineClick}
               aria-label="Seek timeline"
@@ -971,27 +1105,46 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
                 </div>
               ))}
             </button>
+          </div>
 
-            {/* Tracks area */}
-            <div
-              className="relative"
-              style={{ width: `${timelineWidth}px`, height: `${tracksAreaHeight}px` }}
-            >
-              {/* Track backgrounds - pointer-events-none to allow clicks to pass through */}
-              {tracks.map((trackNumber, index) => (
+          {/* Tracks area (rows with sticky labels + clips sub-container) */}
+          <div
+            className="relative"
+            style={{
+              width: `${timelineWidth + LABEL_COL_WIDTH}px`,
+              height: `${tracksAreaHeight}px`,
+            }}
+          >
+            {/* Per-track rows: label and background as flex siblings guarantee alignment */}
+            {tracks.map((trackNumber, index) => (
+              <div
+                key={trackNumber}
+                className="absolute left-0 right-0 flex"
+                style={{
+                  top: `${index * TRACK_HEIGHT}px`,
+                  height: `${TRACK_HEIGHT}px`,
+                }}
+              >
+                <div className="w-16 shrink-0 border-b border-r flex items-center justify-center sticky left-0 z-20 h-full bg-background">
+                  <div className="absolute inset-0 bg-muted/20 pointer-events-none" />
+                  <span className="relative text-[10px] text-muted-foreground select-none">
+                    {trackNumber}
+                  </span>
+                </div>
                 <div
-                  key={trackNumber}
                   className={cn(
-                    'absolute left-0 right-0 border-b pointer-events-none',
+                    'border-b flex-1 pointer-events-none',
                     index % 2 === 0 ? 'bg-background' : 'bg-muted/10',
                   )}
-                  style={{
-                    top: `${index * TRACK_HEIGHT}px`,
-                    height: `${TRACK_HEIGHT}px`,
-                  }}
                 />
-              ))}
+              </div>
+            ))}
 
+            {/* Clip/playhead/seek layer offset past the label column */}
+            <div
+              className="absolute top-0 bottom-0"
+              style={{ left: `${LABEL_COL_WIDTH}px`, width: `${timelineWidth}px` }}
+            >
               {/* Click area for seeking - z-index lower than clips */}
               <button
                 type="button"
@@ -1098,6 +1251,55 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
               >
                 <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-accent rounded-full" />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Horizontal timeline scrollbar + zoom handles */}
+        <div
+          className="flex border-t bg-background/40"
+          style={{ height: `${SCRUB_BAR_HEIGHT}px` }}
+        >
+          <div className="w-16 shrink-0 border-r" />
+          <div
+            ref={scrollbarTrackRef}
+            className="relative flex-1 overflow-hidden select-none px-1"
+          >
+            <div
+              className="absolute top-1 bottom-1 bg-foreground/10 hover:bg-foreground/15 transition-colors group rounded-full"
+              style={{ width: `${thumbWidth}px`, left: `${thumbLeft}px` }}
+            >
+              {/* Left zoom handle */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: mouse-driven edge handle */}
+              <div
+                role="slider"
+                aria-label="Zoom from left edge"
+                aria-valuenow={Math.round(pixelsPerSecond)}
+                aria-valuemin={MIN_PIXELS_PER_SECOND}
+                aria-valuemax={MAX_PIXELS_PER_SECOND}
+                className="absolute top-0 bottom-0 left-0 w-1.5 cursor-ew-resize bg-foreground/25 hover:bg-foreground/40 transition-colors rounded-l-full"
+                onMouseDown={handleScrollbarMouseDown('left')}
+              />
+              {/* Pan area */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: mouse-driven drag area */}
+              <div
+                className={cn(
+                  'absolute top-0 bottom-0 left-1.5 right-1.5',
+                  canScrollHorizontally ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+                )}
+                onMouseDown={canScrollHorizontally ? handleScrollbarMouseDown('pan') : undefined}
+              />
+              {/* Right zoom handle */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: mouse-driven edge handle */}
+              <div
+                role="slider"
+                aria-label="Zoom from right edge"
+                aria-valuenow={Math.round(pixelsPerSecond)}
+                aria-valuemin={MIN_PIXELS_PER_SECOND}
+                aria-valuemax={MAX_PIXELS_PER_SECOND}
+                className="absolute top-0 bottom-0 right-0 w-1.5 cursor-ew-resize bg-foreground/25 hover:bg-foreground/40 transition-colors rounded-r-full"
+                onMouseDown={handleScrollbarMouseDown('right')}
+              />
             </div>
           </div>
         </div>

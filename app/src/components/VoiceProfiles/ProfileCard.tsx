@@ -91,7 +91,7 @@ export function ProfileCard({ profile, disabled }: ProfileCardProps) {
         className={cn(
           'cursor-pointer transition-all flex flex-col h-[162px]',
           disabled ? 'opacity-40 hover:opacity-60' : 'hover:shadow-md',
-          isSelected && !disabled && 'ring-2 ring-accent shadow-md',
+          isSelected && !disabled && 'ring-2 border-transparent ring-accent shadow-md',
         )}
         onClick={handleSelect}
         tabIndex={0}

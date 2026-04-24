@@ -1,36 +1,27 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, MessageSquareReply, PenLine, Sparkles } from 'lucide-react';
+import { ArrowRight, Dices, Wand2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ─── Modes ──────────────────────────────────────────────────────────────────
 
 type Mode = {
-  id: 'compose' | 'rewrite' | 'respond';
+  id: 'compose' | 'rewrite';
   label: string;
-  icon: typeof Sparkles;
-  inputLabel: string;
+  icon: typeof Dices;
   outputLabel: string;
-  input: string;
   output: string;
-};
+} & (
+  | { inputLabel: string; input: string }
+  | { inputLabel?: undefined; input?: undefined }
+);
 
 const MODES: Mode[] = [
   {
-    id: 'compose',
-    label: 'Compose',
-    icon: Sparkles,
-    inputLabel: 'Prompt',
-    outputLabel: "Marlowe, in character",
-    input: 'celebrate the deploy going green',
-    output:
-      "She came through clean. Not a single test casting a shadow. In this town, that's usually when you start worrying.",
-  },
-  {
     id: 'rewrite',
     label: 'Rewrite',
-    icon: PenLine,
+    icon: Wand2,
     inputLabel: 'Your text',
     outputLabel: "Marlowe, in character",
     input: 'the build is done and we shipped to production',
@@ -38,14 +29,12 @@ const MODES: Mode[] = [
       "Build's wrapped, ship's left the dock. Another stack of code makes its way into prod, another row of green checks lining the wall.",
   },
   {
-    id: 'respond',
-    label: 'Respond',
-    icon: MessageSquareReply,
-    inputLabel: 'Question',
+    id: 'compose',
+    label: 'Compose',
+    icon: Dices,
     outputLabel: "Marlowe, in character",
-    input: 'should I refactor this before merging or do it after?',
     output:
-      "Listen, kid. You can polish the brass on the door, or you can open it. Open the door — refactor in daylight.",
+      "She came through clean. Not a single test casting a shadow. In this town, that's usually when you start worrying.",
   },
 ];
 
@@ -116,14 +105,26 @@ function ModeDemo({ mode, cycleKey }: { mode: Mode; cycleKey: number }) {
             className="flex flex-col gap-4 flex-1"
           >
             {/* Input */}
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-ink-faint/70 mb-1.5">
-                {mode.inputLabel}
+            {mode.input ? (
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-ink-faint/70 mb-1.5">
+                  {mode.inputLabel}
+                </div>
+                <div className="text-[13px] leading-relaxed text-ink-dull/90 font-mono bg-black/20 rounded-md border border-app-line/60 px-3 py-2.5">
+                  {mode.input}
+                </div>
               </div>
-              <div className="text-[13px] leading-relaxed text-ink-dull/90 font-mono bg-black/20 rounded-md border border-app-line/60 px-3 py-2.5">
-                {mode.input}
+            ) : (
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-ink-faint/70 mb-1.5">
+                  No input
+                </div>
+                <div className="flex items-center gap-2.5 text-[13px] text-ink-dull/90 bg-black/20 rounded-md border border-app-line/60 px-3 py-2.5">
+                  <Dices className="h-4 w-4 text-accent shrink-0" />
+                  <span>Click Compose — the character improvises a fresh line.</span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Arrow */}
             <div className="flex items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-ink-faint/50">
@@ -151,22 +152,16 @@ function ModeDemo({ mode, cycleKey }: { mode: Mode; cycleKey: number }) {
 
 const BULLETS = [
   {
-    icon: Sparkles,
-    title: 'Compose',
-    description:
-      'Generate a fresh utterance in the character’s voice from a short prompt. Useful for game dialogue, narration cues, or character barks.',
-  },
-  {
-    icon: PenLine,
+    icon: Wand2,
     title: 'Rewrite',
     description:
       'Restate your text in their voice while preserving every idea. Same content, their delivery — for scripts, dubs, and consistent character voice across long-form work.',
   },
   {
-    icon: MessageSquareReply,
-    title: 'Respond',
+    icon: Dices,
+    title: 'Compose',
     description:
-      'Treat your text as a prompt and produce the character’s reply. The persona half of the dictation → speak loop.',
+      'No input needed — hit the button and the character improvises a fresh line of their own. Roll again for another take. Useful for game dialogue, narration cues, or character barks.',
   },
 ];
 
@@ -197,9 +192,8 @@ export function Personalities() {
           </h2>
           <p className="text-muted-foreground text-base md:text-lg leading-relaxed">
             Give any voice profile a free-form personality. Then{' '}
-            <b className="text-foreground/90">Compose</b>,{' '}
-            <b className="text-foreground/90">Rewrite</b>, or{' '}
-            <b className="text-foreground/90">Respond</b> — your cloned voice, in full character.
+            <b className="text-foreground/90">Rewrite</b> your text in their voice, or let them{' '}
+            <b className="text-foreground/90">Compose</b> a fresh line of their own — your cloned voice, in full character.
           </p>
         </div>
 
@@ -210,7 +204,7 @@ export function Personalities() {
         </div>
 
         {/* Bullets */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {BULLETS.map((bullet) => {
             const Icon = bullet.icon;
             return (

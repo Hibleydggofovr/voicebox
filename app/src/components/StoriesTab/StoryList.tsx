@@ -1,5 +1,5 @@
 import { BookOpen, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertDialog,
@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -62,6 +63,7 @@ export function StoryList() {
   const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null);
   const [newStoryName, setNewStoryName] = useState('');
   const [newStoryDescription, setNewStoryDescription] = useState('');
+  const [search, setSearch] = useState('');
   const { toast } = useToast();
 
   // Auto-select the first story when the list loads with no selection
@@ -178,6 +180,19 @@ export function StoryList() {
     });
   };
 
+  const storyList = stories || [];
+  const hasTrackEditor = selectedStoryId && selectedStory && selectedStory.items.length > 0;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return storyList;
+    return storyList.filter((s) => {
+      const name = (s.name || '').toLowerCase();
+      const description = (s.description || '').toLowerCase();
+      return name.includes(q) || description.includes(q);
+    });
+  }, [search, storyList]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -186,77 +201,91 @@ export function StoryList() {
     );
   }
 
-  const storyList = stories || [];
-  const hasTrackEditor = selectedStoryId && selectedStory && selectedStory.items.length > 0;
-
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
+    <div className="h-full flex flex-col relative overflow-hidden border-r border-border">
       {/* Scroll Mask */}
-      <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
 
       {/* Fixed Header */}
-      <div className="absolute top-0 left-0 right-0 z-20">
-        <div className="flex items-center justify-between mb-4 px-1">
-          <h2 className="text-2xl font-bold">{t('stories.title')}</h2>
+      <div className="absolute top-0 left-0 right-0 z-20 pl-4 pr-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl px-4 font-bold">{t('stories.title')}</h2>
           <Button onClick={() => setCreateDialogOpen(true)} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             {t('stories.newStory')}
           </Button>
         </div>
+        <div className="relative">
+          <Input
+            placeholder={t('stories.searchPlaceholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 text-sm rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        </div>
       </div>
 
       {/* Scrollable Story List */}
       <div
-        className="flex-1 overflow-y-auto pt-14 relative z-0"
+        className="flex-1 overflow-y-auto pt-24 relative z-0"
         style={{ paddingBottom: hasTrackEditor ? `${trackEditorHeight + 140}px` : '170px' }}
       >
         {storyList.length === 0 ? (
-          <div className="text-center py-12 px-5 border-2 border-dashed border-muted rounded-2xl text-muted-foreground">
+          <div className="mx-4 text-center py-12 px-5 border-2 border-dashed border-muted rounded-2xl text-muted-foreground">
             <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p className="text-sm">{t('stories.empty.title')}</p>
             <p className="text-xs mt-2">{t('stories.empty.hint')}</p>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+            <p>{t('stories.empty.noMatches', { query: search })}</p>
+          </div>
         ) : (
-          <div className="space-y-0.5">
-            {storyList.map((story) => (
-              <div
-                key={story.id}
-                role="button"
-                tabIndex={0}
-                className={cn(
-                  'px-5 py-3 rounded-lg transition-colors group flex items-center cursor-pointer',
-                  selectedStoryId === story.id ? 'bg-muted' : 'hover:bg-muted/50',
-                )}
-                aria-label={t('stories.row.ariaLabel', {
-                  name: story.name,
-                  count: story.item_count,
-                  updated: formatDate(story.updated_at),
-                })}
-                aria-pressed={selectedStoryId === story.id}
-                onClick={() => setSelectedStoryId(story.id)}
-                onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedStoryId(story.id);
-                  }
-                }}
-              >
-                <div className="flex items-start justify-between gap-2 w-full min-w-0">
-                  <div className="flex-1 min-w-0 text-left overflow-hidden">
-                    <h3 className="text-sm font-medium truncate">{story.name}</h3>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <span>{t('stories.row.itemCount', { count: story.item_count })}</span>
-                      <span>·</span>
-                      <span>{formatDate(story.updated_at)}</span>
+          <div className="px-4 pb-6 space-y-1">
+            {filtered.map((story) => {
+              const isActive = selectedStoryId === story.id;
+              return (
+                <div key={story.id} className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStoryId(story.id)}
+                    aria-label={t('stories.row.ariaLabel', {
+                      name: story.name,
+                      count: story.item_count,
+                      updated: formatDate(story.updated_at),
+                    })}
+                    aria-pressed={isActive}
+                    className={cn(
+                      'w-full text-left p-3 rounded-lg transition-colors block',
+                      isActive
+                        ? 'bg-muted/70 border border-border'
+                        : 'border border-transparent hover:bg-muted/30',
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        {formatDate(story.updated_at)}
+                      </span>
+                      <div className="flex-1" />
                     </div>
-                  </div>
+                    <div className="text-[13px] text-foreground/90 line-clamp-2 leading-snug mb-2">
+                      {story.name}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge
+                        variant="secondary"
+                        className="h-5 px-1.5 text-[10px] gap-1 font-medium bg-muted/60 text-muted-foreground"
+                      >
+                        {t('stories.row.itemCount', { count: story.item_count })}
+                      </Badge>
+                    </div>
+                  </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => e.stopPropagation()}
                         aria-label={t('stories.row.actionsLabel', { name: story.name })}
                       >
@@ -278,8 +307,8 @@ export function StoryList() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
