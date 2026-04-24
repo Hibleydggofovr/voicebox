@@ -61,8 +61,18 @@ export function useDictationReadiness(): DictationReadiness {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['capture-readiness'],
     queryFn: () => apiClient.getCaptureReadiness(),
-    refetchInterval: READINESS_POLL_INTERVAL_MS,
-    refetchOnWindowFocus: true,
+    // Poll only while a model is still missing/downloading. Once both are
+    // green the endpoint's answer can't change until the user swaps models
+    // in settings, and that path invalidates the query explicitly from
+    // useSettings. refetchOnWindowFocus stays gated to the same condition.
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      return d && d.stt.ready && d.llm.ready ? false : READINESS_POLL_INTERVAL_MS;
+    },
+    refetchOnWindowFocus: (query) => {
+      const d = query.state.data;
+      return !(d && d.stt.ready && d.llm.ready);
+    },
   });
 
   // On the web build there's no TCC layer — treat both as granted so the
