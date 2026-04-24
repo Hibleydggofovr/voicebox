@@ -272,8 +272,8 @@ pub fn activate_pid(pid: i32) -> Result<(), String> {
 mod win {
     use std::path::Path;
 
-    use windows::core::{IUnknown, BSTR, PWSTR};
-    use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM};
+    use windows::core::{IUnknown, BOOL, BSTR, PWSTR};
+    use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM};
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED,
     };
