@@ -131,22 +131,13 @@ class ApiClient {
   }
 
   // ── Personality-driven text generation ─────────────────────────────
-  // compose + rewrite power the generate-box buttons. Respond and speak
-  // are API-only for now — if a UI use appears, add methods here.
+  // Compose produces a fresh in-character utterance the UI drops into
+  // the generate textarea. Rewrite now happens server-side inside
+  // `/generate` when `personality: true` is passed in the request body.
 
   async composeWithPersonality(profileId: string): Promise<PersonalityTextResponse> {
     return this.request<PersonalityTextResponse>(`/profiles/${profileId}/compose`, {
       method: 'POST',
-    });
-  }
-
-  async rewriteWithPersonality(
-    profileId: string,
-    text: string,
-  ): Promise<PersonalityTextResponse> {
-    return this.request<PersonalityTextResponse>(`/profiles/${profileId}/rewrite`, {
-      method: 'POST',
-      body: JSON.stringify({ text }),
     });
   }
 
@@ -511,7 +502,7 @@ class ApiClient {
     });
   }
 
-  // MCP bindings — per-MCP-client voice/engine/intent mapping.
+  // MCP bindings — per-MCP-client voice/engine/personality mapping.
   async listMCPBindings(): Promise<MCPClientBindingListResponse> {
     return this.request<MCPClientBindingListResponse>('/mcp/bindings');
   }

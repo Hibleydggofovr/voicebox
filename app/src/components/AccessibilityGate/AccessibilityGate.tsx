@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { usePlatform } from '@/platform/PlatformContext';
 
@@ -81,6 +82,7 @@ export function useAccessibilityPermission() {
  * already granted.
  */
 export function AccessibilityNotice() {
+  const { t } = useTranslation();
   const { needsPermission, checking, recheck, openSettings } = useAccessibilityPermission();
   const [stillMissing, setStillMissing] = useState(false);
 
@@ -98,26 +100,23 @@ export function AccessibilityNotice() {
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
         <div className="flex-1 min-w-0 space-y-1">
           <p className="text-sm font-medium text-foreground">
-            Grant Accessibility permission to enable auto-paste
+            {t('captures.permissions.accessibility.title')}
           </p>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Voicebox needs System Settings → Privacy &amp; Security → Accessibility
-            to paste transcriptions into other apps. Your dictation still lands
-            in the Captures tab without it.
+            <Trans i18nKey="captures.permissions.accessibility.body" components={{ path: <span /> }} />
           </p>
           <div className="flex items-center gap-2 pt-1.5">
             <Button size="sm" onClick={openSettings} className="gap-1.5">
               <ExternalLink className="h-3.5 w-3.5" />
-              Open Settings
+              {t('captures.permissions.accessibility.openSettings')}
             </Button>
             <Button variant="outline" size="sm" onClick={handleRecheck} disabled={checking}>
-              {checking ? 'Checking…' : "I've enabled it"}
+              {checking ? t('captures.permissions.accessibility.rechecking') : t('captures.permissions.accessibility.recheck')}
             </Button>
           </div>
           {stillMissing && !checking && (
             <p className="text-xs text-amber-600 dark:text-amber-400 pt-1">
-              Still not detected. macOS usually requires quitting and reopening
-              Voicebox after toggling the permission.
+              {t('captures.permissions.accessibility.stillMissing')}
             </p>
           )}
         </div>

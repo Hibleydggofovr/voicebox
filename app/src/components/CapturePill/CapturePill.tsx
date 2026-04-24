@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -15,12 +16,12 @@ export type PillState =
   | 'rest'
   | 'error';
 
-const PILL_LABELS: Record<Exclude<PillState, 'rest' | 'error'>, string> = {
-  recording: 'Recording',
-  transcribing: 'Transcribing',
-  refining: 'Refining',
-  speaking: 'Speaking',
-  completed: 'Done',
+const PILL_LABEL_KEYS: Record<Exclude<PillState, 'rest' | 'error'>, string> = {
+  recording: 'captures.pill.recording',
+  transcribing: 'captures.pill.transcribing',
+  refining: 'captures.pill.refining',
+  speaking: 'captures.pill.speaking',
+  completed: 'captures.pill.completed',
 };
 
 function barModeFor(
@@ -87,10 +88,12 @@ export function CapturePill({
   onDismiss?: () => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
+
   if (state === 'error') {
     return (
       <ErrorPill
-        message={errorMessage ?? 'Something went wrong'}
+        message={errorMessage ?? t('captures.pill.errorFallback')}
         onDismiss={onDismiss}
         className={className}
       />
@@ -98,7 +101,7 @@ export function CapturePill({
   }
 
   const visible = state !== 'rest';
-  const labelText = state === 'rest' ? PILL_LABELS.recording : PILL_LABELS[state];
+  const labelText = t(state === 'rest' ? PILL_LABEL_KEYS.recording : PILL_LABEL_KEYS[state]);
   const barMode = barModeFor(state);
 
   const dot = (
@@ -114,7 +117,7 @@ export function CapturePill({
     <button
       type="button"
       onClick={onStop}
-      aria-label="Stop recording"
+      aria-label={t('captures.pill.stopAria')}
       className="relative flex h-2 w-2 shrink-0 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-accent/50"
     >
       {dot}
@@ -161,6 +164,7 @@ function ErrorPill({
   onDismiss?: () => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const handleClick = async () => {
     try {
       await navigator.clipboard.writeText(message);
@@ -175,7 +179,7 @@ function ErrorPill({
     <button
       type="button"
       onClick={handleClick}
-      title="Click to copy error"
+      title={t('captures.pill.errorCopyTooltip')}
       className={cn(
         'inline-flex items-center gap-2.5 px-4 h-10 rounded-full',
         'bg-black/65 backdrop-blur-md text-red-300',

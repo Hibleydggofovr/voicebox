@@ -1,10 +1,12 @@
 import { Check, Copy, Plug, Trash2, Waypoints } from 'lucide-react';
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useMCPBindings } from '@/lib/hooks/useMCPBindings';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useCaptureSettings } from '@/lib/hooks/useSettings';
 import { useServerStore } from '@/stores/serverStore';
+import { formatDate } from '@/lib/utils/format';
 import { SettingRow, SettingSection } from './SettingRow';
 
 /**
@@ -13,6 +15,7 @@ import { SettingRow, SettingSection } from './SettingRow';
  * existing Voicebox server; this page is the agent-onboarding surface.
  */
 export function MCPPage() {
+  const { t } = useTranslation();
   const serverUrl = useServerStore((s) => s.serverUrl);
   const { bindings, upsertAsync, remove } = useMCPBindings();
   const { data: profiles } = useProfiles();
@@ -47,12 +50,12 @@ export function MCPPage() {
     <div className="flex gap-8 items-start max-w-5xl">
       <div className="flex-1 min-w-0 max-w-2xl space-y-8">
         <SettingSection
-          title="Install into your agent"
-          description="Voicebox exposes a local MCP server whenever the app is open. Paste one of these snippets into your agent's MCP config."
+          title={t('settings.mcp.install.title')}
+          description={t('settings.mcp.install.description')}
         >
           <SnippetRow
-            title="HTTP (recommended)"
-            description="For clients that speak HTTP MCP — Claude Code, Cursor, Windsurf, VS Code."
+            title={t('settings.mcp.install.http.title')}
+            description={t('settings.mcp.install.http.description')}
             snippet={JSON.stringify(
               {
                 mcpServers: {
@@ -67,13 +70,13 @@ export function MCPPage() {
             )}
           />
           <SnippetRow
-            title="Claude Code one-liner"
-            description="Registers via the Claude Code CLI."
+            title={t('settings.mcp.install.claudeCode.title')}
+            description={t('settings.mcp.install.claudeCode.description')}
             snippet={`claude mcp add voicebox --transport http --url ${mcpUrl} --header "X-Voicebox-Client-Id: claude-code"`}
           />
           <SnippetRow
-            title="Stdio (fallback)"
-            description="For clients that only spawn stdio processes. The shim binary ships with the app."
+            title={t('settings.mcp.install.stdio.title')}
+            description={t('settings.mcp.install.stdio.description')}
             snippet={JSON.stringify(
               {
                 mcpServers: {
@@ -91,12 +94,12 @@ export function MCPPage() {
         </SettingSection>
 
         <SettingSection
-          title="Default voice"
-          description="Used when an agent calls voicebox.speak without a specific profile and has no per-client binding."
+          title={t('settings.mcp.defaultVoice.title')}
+          description={t('settings.mcp.defaultVoice.description')}
         >
           <SettingRow
-            title="Default playback voice"
-            description="Shared with the Captures-tab 'Play as voice' dropdown — one default voice for passive playback."
+            title={t('settings.mcp.defaultVoice.label')}
+            description={t('settings.mcp.defaultVoice.labelHint')}
             action={
               <select
                 value={defaultProfileId}
@@ -107,7 +110,7 @@ export function MCPPage() {
                 }
                 className="h-8 px-2 rounded-md border bg-background text-sm min-w-[180px]"
               >
-                <option value="">(none)</option>
+                <option value="">{t('settings.mcp.defaultVoice.none')}</option>
                 {(profiles ?? []).map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -119,13 +122,12 @@ export function MCPPage() {
         </SettingSection>
 
         <SettingSection
-          title="Per-agent voice"
-          description="Bind specific agents to specific voices so you can tell who's speaking without looking. The agent identifies itself by the X-Voicebox-Client-Id header (or VOICEBOX_CLIENT_ID env for stdio)."
+          title={t('settings.mcp.bindings.title')}
+          description={t('settings.mcp.bindings.description')}
         >
           {bindings.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 italic">
-              No bindings yet. Add one below, then configure your MCP client to
-              send the matching <code>X-Voicebox-Client-Id</code>.
+              <Trans i18nKey="settings.mcp.bindings.empty" components={{ code: <code /> }} />
             </p>
           ) : (
             <div className="divide-y divide-border/60">
@@ -142,12 +144,12 @@ export function MCPPage() {
                       <code className="text-[11px]">{b.client_id}</code>
                       {' · '}
                       {b.last_seen_at ? (
-                        <span title={`Last seen ${b.last_seen_at}`}>
+                        <span title={t('settings.mcp.bindings.lastSeenTitle', { when: b.last_seen_at })}>
                           <Plug className="inline h-3 w-3 text-emerald-500" />{' '}
-                          last seen {formatRelative(b.last_seen_at)}
+                          {t('settings.mcp.bindings.lastSeen', { when: formatDate(b.last_seen_at) })}
                         </span>
                       ) : (
-                        <span>never connected</span>
+                        <span>{t('settings.mcp.bindings.neverConnected')}</span>
                       )}
                     </div>
                   </div>
@@ -162,7 +164,7 @@ export function MCPPage() {
                     }
                     className="h-8 px-2 rounded-md border bg-background text-sm min-w-[160px]"
                   >
-                    <option value="">(default)</option>
+                    <option value="">{t('settings.mcp.bindings.defaultOption')}</option>
                     {(profiles ?? []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -173,7 +175,7 @@ export function MCPPage() {
                     size="icon"
                     variant="ghost"
                     onClick={() => remove(b.client_id)}
-                    aria-label={`Remove binding for ${b.client_id}`}
+                    aria-label={t('settings.mcp.bindings.removeAria', { client: b.client_id })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -183,18 +185,18 @@ export function MCPPage() {
           )}
 
           <div className="pt-4 space-y-2">
-            <div className="text-sm font-medium">Add a binding</div>
+            <div className="text-sm font-medium">{t('settings.mcp.bindings.add.title')}</div>
             <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
               <input
                 type="text"
-                placeholder="client id (e.g. claude-code)"
+                placeholder={t('settings.mcp.bindings.add.clientIdPlaceholder')}
                 value={newClientId}
                 onChange={(e) => setNewClientId(e.target.value)}
                 className="h-9 px-3 rounded-md border bg-background text-sm"
               />
               <input
                 type="text"
-                placeholder="label (optional)"
+                placeholder={t('settings.mcp.bindings.add.labelPlaceholder')}
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 className="h-9 px-3 rounded-md border bg-background text-sm"
@@ -204,7 +206,7 @@ export function MCPPage() {
                 onChange={(e) => setNewProfileId(e.target.value)}
                 className="h-9 px-2 rounded-md border bg-background text-sm min-w-[140px]"
               >
-                <option value="">(default)</option>
+                <option value="">{t('settings.mcp.bindings.defaultOption')}</option>
                 {(profiles ?? []).map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -217,7 +219,7 @@ export function MCPPage() {
               onClick={handleAdd}
               disabled={!newClientId.trim() || adding}
             >
-              Add binding
+              {t('settings.mcp.bindings.add.action')}
             </Button>
           </div>
         </SettingSection>
@@ -225,39 +227,36 @@ export function MCPPage() {
 
       <aside className="hidden lg:block w-[280px] shrink-0 space-y-6 sticky top-0">
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">About MCP</h3>
+          <h3 className="text-sm font-semibold">{t('settings.mcp.sidebar.aboutTitle')}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Model Context Protocol lets your AI coding agent — Claude Code,
-            Cursor, Windsurf — call Voicebox tools. Speak in a cloned voice,
-            transcribe audio, browse captures.
+            {t('settings.mcp.sidebar.aboutBody')}
           </p>
         </div>
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Available tools</h3>
+          <h3 className="text-sm font-semibold">{t('settings.mcp.sidebar.toolsTitle')}</h3>
           <ul className="text-sm text-muted-foreground space-y-1.5 leading-relaxed">
             <li>
               <code className="text-accent">voicebox.speak</code>
-              <div>Speak text in a voice profile.</div>
+              <div>{t('settings.mcp.sidebar.tools.speak')}</div>
             </li>
             <li>
               <code className="text-accent">voicebox.transcribe</code>
-              <div>Whisper STT on a clip.</div>
+              <div>{t('settings.mcp.sidebar.tools.transcribe')}</div>
             </li>
             <li>
               <code className="text-accent">voicebox.list_captures</code>
-              <div>Recent dictations / recordings.</div>
+              <div>{t('settings.mcp.sidebar.tools.listCaptures')}</div>
             </li>
             <li>
               <code className="text-accent">voicebox.list_profiles</code>
-              <div>Available voice profiles.</div>
+              <div>{t('settings.mcp.sidebar.tools.listProfiles')}</div>
             </li>
           </ul>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Waypoints className="h-3.5 w-3.5 text-accent" />
           <span>
-            Also exposed as <code>POST /speak</code> for shell scripts, ACP,
-            A2A.
+            <Trans i18nKey="settings.mcp.sidebar.postSpeak" components={{ code: <code /> }} />
           </span>
         </div>
       </aside>
@@ -274,6 +273,7 @@ function SnippetRow({
   description: string;
   snippet: string;
 }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -296,12 +296,12 @@ function SnippetRow({
           {copied ? (
             <>
               <Check className="h-3.5 w-3.5 mr-1.5" />
-              Copied
+              {t('settings.mcp.install.copied')}
             </>
           ) : (
             <>
               <Copy className="h-3.5 w-3.5 mr-1.5" />
-              Copy
+              {t('settings.mcp.install.copy')}
             </>
           )}
         </Button>
@@ -311,14 +311,4 @@ function SnippetRow({
       </pre>
     </div>
   );
-}
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diff = Math.max(0, now - then);
-  if (diff < 60_000) return 'just now';
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)} min ago`;
-  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)} h ago`;
-  return `${Math.floor(diff / 86400_000)} d ago`;
 }

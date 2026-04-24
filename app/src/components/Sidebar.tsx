@@ -22,7 +22,7 @@ const tabs: Array<{
 }> = [
   { id: 'main', path: '/', icon: Volume2, labelKey: 'nav.generate' },
   { id: 'stories', path: '/stories', icon: AudioLines, labelKey: 'nav.stories' },
-  { id: 'captures', path: '/captures', icon: Captions, label: 'Captures' },
+  { id: 'captures', path: '/captures', icon: Captions, labelKey: 'nav.captures' },
   { id: 'voices', path: '/voices', icon: Mic, labelKey: 'nav.voices' },
   { id: 'effects', path: '/effects', icon: Wand2, labelKey: 'nav.effects' },
   { id: 'models', path: '/models', icon: Box, labelKey: 'nav.models' },

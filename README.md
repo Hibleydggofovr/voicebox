@@ -243,13 +243,12 @@ Also exposed as `POST /speak` for anything that doesn't speak MCP — ACP, A2A, 
 
 ### Voice Personalities
 
-Attach a free-form personality to any voice profile — who this voice is, how they speak, what they care about. Three new actions appear on the profile, each powered by a bundled Qwen3 LLM running entirely locally.
+Attach a free-form personality to any voice profile — who this voice is, how they speak, what they care about. Two actions appear on the generate box when a personality is set, powered by a bundled Qwen3 LLM running entirely locally.
 
-- **Compose** — generate a fresh utterance in the character's voice
-- **Rewrite** — restate your text in their voice while preserving every idea
-- **Respond** — treat your text as a prompt and produce the character's reply
+- **Compose** — a shuffle button that drops a fresh in-character line into the textarea; edit and speak, or click again for a different take
+- **Speak in character** — a toggle that routes your input text through the personality LLM to be rewritten in their voice before TTS
 
-Agents can invoke the same modes over MCP by passing `intent: "compose" | "rewrite" | "respond"` to `voicebox.speak`, turning the tool into a text-in → personality-LLM → TTS pipeline. The same LLM backs dictation's refinement step — one LLM in the app, one model cache, one GPU-memory footprint.
+Agents can reach the same rewrite path over MCP by passing `personality: true` to `voicebox.speak`, turning the tool into a text-in → personality-LLM → TTS pipeline. The same LLM backs dictation's refinement step — one LLM in the app, one model cache, one GPU-memory footprint.
 
 **Local LLM options:** Qwen3 0.6B / 1.7B / 4B, sharing the TTS runtime (MLX on Apple Silicon, PyTorch elsewhere).
 
@@ -348,7 +347,7 @@ Four tools ship: `voicebox.speak`, `voicebox.transcribe`, `voicebox.list_capture
 await voicebox.speak({
   text: "Tests passing. Ready to merge.",
   profile: "Morgan",      // optional — falls back to the per-client binding
-  intent: "respond",      // optional — runs text through the profile's personality LLM first
+  personality: true,      // optional — rewrites text through the profile's personality LLM first
 });
 ```
 

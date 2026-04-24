@@ -1,18 +1,19 @@
 ---
 title: "Voice Personalities"
-description: "Attach a personality to a voice profile and use Compose, Rewrite, or Respond to generate in-character speech — all powered by a local LLM."
+description: "Attach a personality to a voice profile, compose fresh in-character lines, and rewrite input text in their voice — all powered by a local LLM."
 ---
 
 ## Overview
 
 A **personality** is an optional free-form description attached to a voice
 profile — who this voice is, how they speak, what they care about. Set one
-and three new actions appear on the profile, each powered by a bundled
-Qwen3 LLM running entirely locally:
+and two new controls appear next to the generate button, both powered by a
+bundled Qwen3 LLM running entirely locally:
 
-- **Compose** — generate a fresh utterance in this character's voice
-- **Rewrite** — restate your text in their voice while preserving every idea
-- **Respond** — treat your text as a prompt and produce the character's reply
+- **Compose** — drop a fresh in-character line into the textarea. Click
+  again for a different take.
+- **Speak in character** — a toggle that rewrites your input text in the
+  character's voice before TTS, preserving every idea.
 
 The LLM produces the text. The voice profile speaks it. No cloud round-trip,
 no external API — the whole loop runs on your hardware.
@@ -41,15 +42,16 @@ Good descriptions tend to include:
 You can set a personality on any voice profile type — cloned or preset. The
 three modes work identically regardless of engine.
 
-## The three modes
+## The two actions
 
-Each mode is tuned for a specific job and the LLM temperature is adjusted
+Each action is tuned for a specific job and the LLM temperature is adjusted
 to match.
 
 ### Compose
 
 Generate a fresh utterance in the character's voice, with no seed text.
-Click again to get a different take.
+Click the shuffle button to drop a line straight into the generate
+textarea; click again for a different take.
 
 - **When to use:** prototyping, sampling a character's voice, brainstorming
   a line without typing one first
@@ -57,30 +59,20 @@ Click again to get a different take.
 - **Typical output:** a short, punchy line that fits the character's
   register
 
-### Rewrite
+### Speak in character (rewrite)
 
-Take your input text and restate it in the character's voice while
-preserving every idea. High-fidelity mode — the content doesn't change, only
-the voice does.
+Flip the persona toggle and whatever you type (or dictate) gets rewritten in
+the character's voice before TTS — every idea preserved, only the phrasing
+changes. High-fidelity mode: the content doesn't change, only the voice does.
 
 - **When to use:** turning a dictated memo into in-character speech; lifting
   a plain-English script into a specific voice without editing by hand
 - **Temperature:** cold — faithfulness wins
 - **Typical output:** same ideas, same order, different phrasing and cadence
 
-### Respond
-
-Treat your input as a prompt and produce the character's reply — as if
-you'd said it *to* them.
-
-- **When to use:** spoken-input agents; Q&A with a specific voice;
-  interactive character experiences
-- **Temperature:** balanced — creative but grounded
-- **Typical output:** a reply to your prompt, written in-character
-
 ## Speech-only framing
 
-All three modes enforce **speech-only** output. The LLM is prompted to
+Both modes enforce **speech-only** output. The LLM is prompted to
 produce things a person would actually say out loud — no narration, no
 action tags (`*sighs*`, `[laughs]`), no meta-commentary, no markdown
 formatting, no stage directions.
@@ -109,57 +101,58 @@ Pick a size in **Settings → Captures → Refinement → Refinement model** —
 personality modes reuse it. If you switch models, both refinement and
 personality output pick up the change on the next call.
 
-## Using the modes
+## Using the controls
 
-The three actions appear as buttons on the profile when a personality is
-set. For each:
+Both controls appear on the floating generate box when the selected profile
+has a personality set.
 
 <Steps>
-  <Step title="Type or dictate your input">
-    Rewrite and Respond need input text. Compose doesn't.
+  <Step title="Compose — shuffle a line">
+    Click the shuffle button. The LLM runs and the result fills the generate
+    textarea. Edit if you want, then hit generate.
   </Step>
-  <Step title="Click the mode">
-    The LLM runs, then the result fills the generate box.
-  </Step>
-  <Step title="Hit generate">
-    The TTS engine speaks the LLM output in the profile's voice. The result
-    lands in generation history as a normal generation.
+  <Step title="Speak in character — toggle persona rewrite">
+    Type (or dictate) what you want said. Flip the wand toggle on. Hit
+    generate — Voicebox runs the text through the personality LLM first,
+    then TTS speaks the rewritten version. Leave the toggle off for plain
+    TTS.
   </Step>
 </Steps>
 
-Each button also has an inline regenerate affordance — click again to
-resample. Compose will give you something totally different; Rewrite and
-Respond will give you a variation on the same content.
+Compose always gives you something different on re-click. The persona
+toggle, on the other hand, is a mode — it applies to every generate call
+until you flip it back off.
 
 ## Use cases
 
-- **Agents that speak in a voice you own.** Combine Respond with the
-  built-in [MCP Server](/overview/mcp-server) so Claude Code, Cursor,
+- **Agents that speak in a voice you own.** Combine the persona toggle with
+  the built-in [MCP Server](/overview/mcp-server) so Claude Code, Cursor,
   Cline, or any MCP-aware agent can talk back through a profile with a
-  personality. The agent calls `voicebox.speak({ text, profile, intent:
-  "respond" })` and Voicebox produces in-character speech in your cloned
-  voice.
+  personality. The agent calls `voicebox.speak({ text, profile, personality:
+  true })` and Voicebox rewrites the text in character before speaking.
 - **Interactive characters.** Games, narrative tools, accessibility
   experiences. A character with a personality description plus a cloned
   voice becomes a reusable prop.
 - **Accessibility.** People who can't speak in their original voice can
-  keep a personality description of how they used to sound and use Rewrite
-  to turn typed input into in-character speech.
-- **Creative drafting.** Write a plain outline, Rewrite line-by-line into
-  the character's voice, drop the audio into a Story.
+  keep a personality description of how they used to sound and use the
+  rewrite toggle to turn typed input into in-character speech.
+- **Creative drafting.** Write a plain outline, flip the persona toggle,
+  generate line-by-line into the character's voice, drop the audio into a
+  Story.
 
 ## API surface
 
-Personalities and the three modes are accessible via REST:
+Personalities are accessible via REST:
 
 | Method | Endpoint | Body |
 |---|---|---|
 | `PUT` | `/profiles/{id}` | Include a `personality` field up to 2,000 chars to set it. |
-| `POST` | `/profiles/{id}/speak` | Runs the LLM + TTS in one shot. Body includes `text`, `intent` (`compose`, `rewrite`, or `respond`), optional `engine`, `language`. |
+| `POST` | `/profiles/{id}/compose` | No body. Returns a fresh in-character utterance as text. |
+| `POST` | `/generate` | Include `personality: true` to run input text through the personality LLM before TTS. Same for `POST /speak`. |
 
-The `/profiles/{id}/speak` endpoint is the same primitive MCP's
-`voicebox.speak` tool calls when that ships. Scripts and agents can use it
-directly today.
+`POST /generate` with `personality: true` is the same primitive MCP's
+`voicebox.speak` tool uses when you pass `personality: true`. Scripts and
+agents can use it directly.
 
 ## Limits and gotchas
 

@@ -29,6 +29,7 @@ const generationSchema = z.object({
       'kokoro',
     ])
     .optional(),
+  personality: z.boolean().optional(),
 });
 
 export type GenerationFormValues = z.infer<typeof generationSchema>;
@@ -66,6 +67,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
       modelSize: '1.7B',
       instruct: '',
       engine: (selectedEngine as GenerationFormValues['engine']) || 'qwen',
+      personality: false,
       ...options.defaultValues,
     },
   });
@@ -150,6 +152,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
         model_size: hasModelSizes ? data.modelSize : undefined,
         engine,
         instruct: supportsInstruct ? data.instruct || undefined : undefined,
+        personality: data.personality || undefined,
         max_chunk_chars: maxChunkChars,
         crossfade_ms: crossfadeMs,
         normalize: normalizeAudio,
@@ -167,6 +170,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
         modelSize: data.modelSize,
         instruct: '',
         engine: data.engine,
+        personality: data.personality,
       });
       options.onSuccess?.(result.id);
     } catch (error) {

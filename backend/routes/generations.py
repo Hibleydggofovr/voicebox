@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from .. import models
-from ..services import history, profiles, tts
+from ..services import history, personality, profiles, tts
 from ..database import Generation as DBGeneration, VoiceProfile as DBVoiceProfile, get_db
 from ..services.generation import run_generation
 from ..services.task_queue import cancel_generation as cancel_generation_job, enqueue_generation
@@ -47,9 +47,21 @@ async def generate_speech(
 
     model_size = (data.model_size or "1.7B") if engine_has_model_sizes(engine) else None
 
+    text = data.text
+    source = "manual"
+    if data.personality and getattr(profile, "personality", None):
+        try:
+            llm_result = await personality.rewrite_as_profile(profile.personality, data.text)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        text = llm_result.text.strip()
+        if not text:
+            raise HTTPException(status_code=500, detail="LLM produced empty output; nothing to speak.")
+        source = "personality_speak"
+
     generation = await history.create_generation(
         profile_id=data.profile_id,
-        text=data.text,
+        text=text,
         language=data.language,
         audio_path="",
         duration=0,
@@ -60,12 +72,13 @@ async def generate_speech(
         status="generating",
         engine=engine,
         model_size=model_size if engine_has_model_sizes(engine) else None,
+        source=source,
     )
 
     task_manager.start_generation(
         task_id=generation_id,
         profile_id=data.profile_id,
-        text=data.text,
+        text=text,
     )
 
     effects_chain_config = None
@@ -86,7 +99,7 @@ async def generate_speech(
         run_generation(
             generation_id=generation_id,
             profile_id=data.profile_id,
-            text=data.text,
+            text=text,
             language=data.language,
             engine=engine,
             model_size=model_size,

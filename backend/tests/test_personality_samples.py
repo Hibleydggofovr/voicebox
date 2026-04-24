@@ -1,14 +1,15 @@
 """
 Personality-service sanity sweep — spins up a throwaway profile with a
-fake personality, hits ``/profiles/{id}/compose``, ``/rewrite``, and
-``/respond``, and scores each output against a handful of deterministic
-heuristics so a person can eyeball quality.
+fake personality, exercises ``/profiles/{id}/compose`` and the rewrite
+path on ``/generate`` (``personality=true``), and scores each output
+against a handful of deterministic heuristics so a person can eyeball
+quality.
 
 Same philosophy as ``test_refinement_samples.py``: LLM output is
 non-deterministic, "correctness" is subjective, so this is interactive
 evaluation — not a CI pass/fail. Gross failures (prompt-echo, refusal,
-empty output, user-text echoing for respond) trip heuristic flags. A
-human still reads the final column.
+empty output) trip heuristic flags. A human still reads the final
+column.
 
 Usage:
     # Backend server must be running.
@@ -49,9 +50,9 @@ class Personality:
     description: str
     """Free-form character prompt saved to the profile."""
     sample_text: str
-    """Input used for rewrite / respond. Picked so each personality has
-    something distinctive to say about it — an ill fit between text and
-    personality makes the transformation more obvious."""
+    """Input used for rewrite. Picked so each personality has something
+    distinctive to say about it — an ill fit between text and personality
+    makes the transformation more obvious."""
 
 
 PERSONALITIES: tuple[Personality, ...] = (
@@ -121,14 +122,13 @@ class Scorecard:
     endpoint: str
     model: str
     input_text: str
-    """Empty for compose, the sample_text for rewrite/respond."""
+    """Empty for compose."""
     refined: str
     latency_ms: int
     length_chars: int = 0
     prompt_leak: Optional[str] = None
     refusal: Optional[str] = None
     stage_directions: list[str] = field(default_factory=list)
-    echoed_input: bool = False
     flags: list[str] = field(default_factory=list)
 
 
@@ -139,20 +139,6 @@ def first_match(patterns, text: str) -> Optional[str]:
         if m:
             return m.group(0)
     return None
-
-
-def check_echo(input_text: str, output_text: str) -> bool:
-    """Rough check — does the output start with (≥ 15 chars of) the input?
-
-    Respond is the target: the character should produce new content, not
-    regurgitate the user's words. Rewrite is SUPPOSED to preserve the
-    ideas, so this check is only meaningful for respond-mode output.
-    """
-    if not input_text or not output_text:
-        return False
-    norm_in = re.sub(r"\s+", " ", input_text.strip().lower())[:40]
-    norm_out = re.sub(r"\s+", " ", output_text.strip().lower())[: len(norm_in)]
-    return norm_in == norm_out and len(norm_in) >= 15
 
 
 def score(
@@ -175,8 +161,6 @@ def score(
         refusal=first_match(REFUSAL_PHRASES, refined),
         stage_directions=STAGE_DIRECTION_RE.findall(refined)[:3],
     )
-    if endpoint == "respond":
-        card.echoed_input = check_echo(input_text, refined)
 
     if not refined.strip():
         card.flags.append("empty-output")
@@ -186,8 +170,6 @@ def score(
         card.flags.append(f"refusal({card.refusal!r})")
     if card.stage_directions:
         card.flags.append(f"stage-directions={card.stage_directions}")
-    if card.echoed_input:
-        card.flags.append("echoed-input")
 
     return card
 
@@ -198,10 +180,10 @@ def score(
 DEFAULT_PORTS = (8000, 8765, 8899, 17493)
 THROWAWAY_PROFILE_PREFIX = "personality-harness-"
 KOKORO_PROBE_VOICE = "af_heart"
-"""Any valid kokoro voice id works — compose/rewrite/respond never
-actually call into TTS, they just need a profile row with a personality
-attached. We pick a known-shipping Kokoro voice so the throwaway
-profile satisfies the preset-engine validator on creation."""
+"""Any valid kokoro voice id works — compose never calls into TTS, it
+just needs a profile row with a personality attached. We pick a
+known-shipping Kokoro voice so the throwaway profile satisfies the
+preset-engine validator on creation."""
 
 
 def detect_backend_port(hint: Optional[int]) -> int:
@@ -258,19 +240,14 @@ def delete_profile(client: httpx.Client, port: int, profile_id: str) -> None:
         print(f"  (warning: failed to delete throwaway profile {profile_id}: {e})")
 
 
-def hit_endpoint(
+def hit_compose(
     client: httpx.Client,
     port: int,
     profile_id: str,
-    endpoint: str,
-    text: Optional[str],
 ) -> tuple[str, int]:
     start = time.monotonic()
-    url = f"http://127.0.0.1:{port}/profiles/{profile_id}/{endpoint}"
-    if endpoint == "compose":
-        resp = client.post(url, timeout=180.0)
-    else:
-        resp = client.post(url, json={"text": text}, timeout=180.0)
+    url = f"http://127.0.0.1:{port}/profiles/{profile_id}/compose"
+    resp = client.post(url, timeout=180.0)
     latency_ms = int((time.monotonic() - start) * 1000)
     resp.raise_for_status()
     return resp.json().get("text", "").strip(), latency_ms
@@ -334,29 +311,22 @@ def main() -> int:
                 print(f"  [{personality.name}] ", end="", flush=True)
                 profile_id = create_throwaway_profile(client, port, personality, model)
                 try:
-                    for endpoint, input_text in (
-                        ("compose", None),
-                        ("rewrite", personality.sample_text),
-                        ("respond", personality.sample_text),
-                    ):
-                        try:
-                            text, latency = hit_endpoint(
-                                client, port, profile_id, endpoint, input_text
-                            )
-                        except Exception as e:
-                            print(f"  {endpoint}:ERR ({e})", end="")
-                            continue
-                        card = score(
-                            personality=personality,
-                            endpoint=endpoint,
-                            model=model,
-                            input_text=input_text or "",
-                            refined=text,
-                            latency_ms=latency,
-                        )
-                        cards.append(card)
-                        status = "ok" if not card.flags else "⚠"
-                        print(f"  {endpoint}:{status} ({latency}ms)", end="")
+                    try:
+                        text, latency = hit_compose(client, port, profile_id)
+                    except Exception as e:
+                        print(f"  compose:ERR ({e})", end="")
+                        continue
+                    card = score(
+                        personality=personality,
+                        endpoint="compose",
+                        model=model,
+                        input_text="",
+                        refined=text,
+                        latency_ms=latency,
+                    )
+                    cards.append(card)
+                    status = "ok" if not card.flags else "⚠"
+                    print(f"  compose:{status} ({latency}ms)", end="")
                     print()
                 finally:
                     delete_profile(client, port, profile_id)

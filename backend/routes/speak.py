@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..database import get_db
+from ..database import MCPClientBinding, get_db
 from ..mcp_server import events as mcp_events
 from ..mcp_server.resolve import resolve_profile
 
@@ -52,34 +52,29 @@ async def speak(
             ),
         )
 
-    # Persona path if intent requested AND profile has a personality prompt.
-    if data.intent is not None and profile.personality:
-        from .profiles import speak_in_character
-
-        generation = await speak_in_character(
-            profile.id,
-            models.PersonalitySpeakRequest(
-                text=data.text,
-                persist=True,
-                language=data.language,
-                engine=data.engine,
-                intent=data.intent,
-            ),
-            db,
+    # Resolve per-client personality default when the caller didn't pin it.
+    personality_flag = data.personality
+    if personality_flag is None and client_id:
+        binding = (
+            db.query(MCPClientBinding)
+            .filter(MCPClientBinding.client_id == client_id)
+            .first()
         )
-    else:
-        # Plain TTS path — matches POST /generate.
-        from .generations import generate_speech
+        if binding is not None:
+            personality_flag = bool(binding.default_personality)
 
-        generation = await generate_speech(
-            models.GenerationRequest(
-                profile_id=profile.id,
-                text=data.text,
-                language=data.language or "en",
-                engine=data.engine or "qwen",
-            ),
-            db,
-        )
+    from .generations import generate_speech
+
+    generation = await generate_speech(
+        models.GenerationRequest(
+            profile_id=profile.id,
+            text=data.text,
+            language=data.language or "en",
+            engine=data.engine or "qwen",
+            personality=bool(personality_flag),
+        ),
+        db,
+    )
 
     mcp_events.publish(
         "speak-start",

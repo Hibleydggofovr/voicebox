@@ -14,7 +14,7 @@ accounts:
 - **Agents talk back** — any MCP-aware agent can call Voicebox to speak in
   one of your cloned voices
 - **Voices speak for themselves** — voice profiles can carry a personality
-  that compose, rewrite, or respond to text before it's spoken
+  that composes fresh lines or rewrites text before it's spoken
 
 It's the free, local alternative to both ElevenLabs (voice cloning and TTS)
 and WisprFlow (voice dictation for agents and power users) — covering both
@@ -32,7 +32,7 @@ shared between input and output.
 - **Preset voices** — 50+ curated voices via Kokoro and Qwen CustomVoice
   for when you don't want to clone (see [Preset Voices](/overview/preset-voices))
 - **Voice personalities** — optional free-form personality on any profile
-  plus compose / rewrite / respond modes powered by a local LLM (see
+  plus a compose button and persona-rewrite toggle powered by a local LLM (see
   [Voice Personalities](/overview/voice-personalities))
 - **Post-processing effects** — pitch shift, reverb, delay, chorus,
   compression, filters (Spotify's Pedalboard)
@@ -66,7 +66,7 @@ between dictation, the Captures tab, and per-profile personality modes:
 | Layer | Models |
 |---|---|
 | **STT** | Whisper Base / Small / Medium / Large / Turbo (PyTorch or MLX) |
-| **LLM** | Qwen3 0.6B / 1.7B / 4B (refinement + per-profile compose / rewrite / respond) |
+| **LLM** | Qwen3 0.6B / 1.7B / 4B (refinement + per-profile compose / persona-rewrite) |
 
 No cloud fallback, no bring-your-own-API-key. Local is the product.
 

@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### Personality — simpler API, better UX
+
+Voice personalities have been collapsed from a three-mode (`compose` / `rewrite` / `respond`) API down to what they actually needed to be: a compose button and a boolean rewrite toggle.
+
+- **Generate box UI.** When a profile has a personality set, two controls appear next to the generate button: a shuffle button that drops a fresh in-character line into the textarea, and a wand toggle that runs your input through the personality LLM before TTS. No more intent dropdown.
+- **API surface.** `POST /generate` and `POST /speak` accept `personality: bool` in place of the removed `intent` field. `voicebox.speak` (MCP) takes `personality: bool`. The standalone `/profiles/{id}/rewrite`, `/profiles/{id}/respond`, and `/profiles/{id}/speak` endpoints are gone; `/profiles/{id}/compose` remains for the shuffle button.
+- **MCP bindings.** `default_intent` has been replaced with `default_personality: bool`. Existing bindings with a non-null `default_intent` are migrated to `false`; re-enable the rewrite path from **Settings → MCP** if you were relying on it.
+- **Respond mode is gone.** Letting the personality LLM *reply* to input text was only useful for agent-as-LLM flows nobody was actually building. Agents that want conversational replies can produce the reply themselves and pipe it into `voicebox.speak`.
+
+
 ## [0.5.0] - 2026-04-22
 
 **The Capture release.** Voicebox stops being just a voice-cloning studio and becomes a full AI voice studio. The loop closes in both directions: your voice goes into your computer through a global hotkey, and any agent's voice comes out of your computer through a voice you own.
@@ -24,19 +34,18 @@ When enabled, hold a key anywhere on your machine, speak, release — the transc
 
 ### Personality — voice profiles that speak for themselves
 
-Voice profiles now carry an optional **personality** — a free-form description of who this voice is, up to 2000 characters. When set, three new actions appear on the profile, each powered by a bundled Qwen3 LLM running entirely locally:
+Voice profiles now carry an optional **personality** — a free-form description of who this voice is, up to 2000 characters. When set, two new actions appear next to the generate button, each powered by a bundled Qwen3 LLM running entirely locally:
 
-- **Compose** — generate fresh utterances in the character's voice. Click again for variety.
-- **Rewrite** — restate your text in the character's voice while preserving every idea. High-fidelity mode for turning dictation into in-character speech.
-- **Respond** — treat your text as a prompt and produce the character's reply.
+- **Compose** — drop a fresh in-character line into the textarea. Click again for variety, edit before speaking.
+- **Speak in character** — a toggle that rewrites your input text in the character's voice before TTS, preserving every idea.
 
-Temperatures are tuned per mode (compose hot for variety, rewrite cold for fidelity, respond balanced) and the character framing enforces "speech only" output — no narration, no action tags, no meta-commentary. The same LLM doubles as the refinement model, so there's one local LLM in the app, not two.
+Temperatures are tuned per mode (compose hot for variety, rewrite cold for fidelity) and the character framing enforces "speech only" output — no narration, no action tags, no meta-commentary. The same LLM doubles as the refinement model, so there's one local LLM in the app, not two.
 
 ### Agents — any MCP-aware agent gets a voice
 
 Voicebox ships a built-in **Model Context Protocol** server at `http://127.0.0.1:17493/mcp` so Claude Code, Cursor, Windsurf, Cline, VS Code MCP extensions — any MCP-aware agent — can call into your local Voicebox install. Four tools ship with dotted names:
 
-- **`voicebox.speak`** — speak text in any voice profile, with optional `intent: compose | rewrite | respond` to run through the profile's personality LLM first
+- **`voicebox.speak`** — speak text in any voice profile, with optional `personality: true` to run through the profile's personality LLM first
 - **`voicebox.transcribe`** — Whisper transcription of a base64 blob or an absolute local path
 - **`voicebox.list_captures`** — recent captures with their transcripts
 - **`voicebox.list_profiles`** — available voice profiles (cloned + preset)

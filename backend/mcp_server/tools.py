@@ -12,7 +12,7 @@ import base64 as b64
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -47,7 +47,7 @@ def register_tools(mcp: FastMCP) -> None:
         text: str,
         profile: str | None = None,
         engine: str | None = None,
-        intent: Literal["respond", "rewrite", "compose"] | None = None,
+        personality: bool | None = None,
         language: str | None = None,
     ) -> dict[str, Any]:
         """Speak ``text`` in a voice profile.
@@ -56,14 +56,18 @@ def register_tools(mcp: FastMCP) -> None:
         omitted, the server looks up the per-client binding for the calling
         MCP client, then falls back to the global default voice.
 
-        ``intent`` only matters for profiles that have a personality prompt —
-        when set, the text is first transformed by the LLM (respond to it,
-        rewrite it in character, or compose a fresh utterance). Leave unset
-        for plain TTS.
+        ``personality`` only matters for profiles that have a personality
+        prompt — when true, the text is first rewritten in character by the
+        LLM before TTS. When omitted, the per-client binding's
+        ``default_personality`` flag decides; when that is unset, the
+        default is plain TTS.
         """
+        from ..database.models import MCPClientBinding
+
         db = next(get_db())
         try:
-            vp = resolve_profile(profile, current_client_id.get(), db)
+            client_id = current_client_id.get()
+            vp = resolve_profile(profile, client_id, db)
             if vp is None:
                 raise ValueError(
                     "No voice profile resolved. Pass `profile=` with a "
@@ -71,24 +75,24 @@ def register_tools(mcp: FastMCP) -> None:
                     "Voicebox → Settings → MCP."
                 )
 
-            # Persona path if intent requested and personality present.
-            if intent is not None and vp.personality:
-                return await _speak_with_persona(
-                    profile_id=vp.id,
-                    profile_name=vp.name,
-                    text=text,
-                    engine=engine,
-                    intent=intent,
-                    language=language,
-                    db=db,
+            resolved_personality = personality
+            if resolved_personality is None and client_id:
+                binding = (
+                    db.query(MCPClientBinding)
+                    .filter(MCPClientBinding.client_id == client_id)
+                    .first()
                 )
+                if binding is not None:
+                    resolved_personality = bool(binding.default_personality)
 
-            return await _speak_plain(
+            use_persona = bool(resolved_personality) and bool(vp.personality)
+            return await _speak(
                 profile_id=vp.id,
                 profile_name=vp.name,
                 text=text,
                 engine=engine,
                 language=language,
+                personality=use_persona,
                 db=db,
             )
         finally:
@@ -200,19 +204,21 @@ def register_tools(mcp: FastMCP) -> None:
             db.close()
 
 
-# ─── Speak helpers ─────────────────────────────────────────────────────────
+# ─── Speak helper ──────────────────────────────────────────────────────────
 
 
-async def _speak_plain(
+async def _speak(
     *,
     profile_id: str,
     profile_name: str,
     text: str,
     engine: str | None,
     language: str | None,
+    personality: bool,
     db,
 ) -> dict[str, Any]:
-    """Plain TTS path — mirrors POST /generate. No LLM transform."""
+    """Delegate to POST /generate — the route handles personality-rewrite
+    internally when ``personality=true`` and the profile has a prompt."""
     from ..routes.generations import generate_speech
 
     req = models.GenerationRequest(
@@ -220,32 +226,9 @@ async def _speak_plain(
         text=text,
         language=language or "en",
         engine=engine or "qwen",
+        personality=personality,
     )
     generation = await generate_speech(req, db)
-    return _speak_response(generation, profile_name, source="mcp")
-
-
-async def _speak_with_persona(
-    *,
-    profile_id: str,
-    profile_name: str,
-    text: str,
-    engine: str | None,
-    intent: str,
-    language: str | None,
-    db,
-) -> dict[str, Any]:
-    """LLM-transformed path — reuses POST /profiles/{id}/speak."""
-    from ..routes.profiles import speak_in_character
-
-    req = models.PersonalitySpeakRequest(
-        text=text,
-        persist=True,
-        language=language,
-        engine=engine,
-        intent=intent,
-    )
-    generation = await speak_in_character(profile_id, req, db)
     return _speak_response(generation, profile_name, source="mcp")
 
 

@@ -33,9 +33,10 @@ class VoiceProfile(Base):
     preset_voice_id = Column(String, nullable=True)  # e.g. "am_adam" — only for preset
     design_prompt = Column(Text, nullable=True)      # text description — only for designed
     default_engine = Column(String, nullable=True)   # auto-selected engine, locked for preset
-    # Free-form character prompt used by the compose / rewrite / respond / speak
-    # endpoints. Describes *what* this voice says and how, orthogonal to how
-    # it sounds (which is handled by the preset / cloning metadata above).
+    # Free-form character prompt used by the compose button and the
+    # personality-rewrite path on /generate. Describes *what* this voice
+    # says and how, orthogonal to how it sounds (handled by the preset /
+    # cloning metadata above).
     personality = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -71,9 +72,10 @@ class Generation(Base):
     status = Column(String, default="completed")
     error = Column(Text, nullable=True)
     is_favorited = Column(Boolean, default=False)
-    # Origin of this generation — "manual" for regular /generate calls,
-    # "personality_speak" for rows created by POST /profiles/{id}/speak.
-    # Future sources (bulk import, agent replies, etc.) can extend this.
+    # Origin of this generation — "manual" for plain /generate calls,
+    # "personality_speak" for rows whose text was rewritten through the
+    # profile's personality LLM before TTS. Future sources (bulk import,
+    # agent replies, etc.) can extend this.
     source = Column(String, nullable=False, default="manual")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -228,7 +230,7 @@ class GenerationSettings(Base):
 
 
 class MCPClientBinding(Base):
-    """Per-MCP-client settings (voice profile, engine, intent).
+    """Per-MCP-client settings (voice profile, engine, personality default).
 
     Lets users bind distinct voices to distinct agents — e.g. Claude Code
     speaks in "Morgan," Cursor in "Scarlett." The MCP client identifies
@@ -243,8 +245,9 @@ class MCPClientBinding(Base):
     label = Column(String, nullable=True)  # display name
     profile_id = Column(String, ForeignKey("profiles.id"), nullable=True)
     default_engine = Column(String, nullable=True)
-    # "respond" | "rewrite" | "compose" — null means plain TTS (no LLM transform).
-    default_intent = Column(String, nullable=True)
+    # When true, voicebox.speak routes through the profile's personality LLM
+    # (rewrite) before TTS by default. Callers can still override per call.
+    default_personality = Column(Boolean, nullable=False, default=False)
     last_seen_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

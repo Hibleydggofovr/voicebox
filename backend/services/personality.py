@@ -1,26 +1,22 @@
 """
-Personality-driven text generation — lets a voice profile "speak" or "reply"
-using an LLM that takes on the character described by the profile's
-``personality`` prompt.
+Personality-driven text generation — lets a voice profile "speak" or
+restate text using an LLM that takes on the character described by the
+profile's ``personality`` prompt.
 
-Three entry points:
+Two entry points:
 
 - :func:`compose_as_profile` — zero-input, the character produces a fresh
-  utterance. Wired to the "Compose" UI button (fill an empty generate box)
-  and to the ``/profiles/{id}/compose`` endpoint.
+  utterance. Wired to the Compose button in the generate box and to the
+  ``/profiles/{id}/compose`` endpoint.
 - :func:`rewrite_as_profile` — takes user text, restates it in the
-  character's voice while keeping every idea. Wired to the "Rewrite"
-  button and the ``/profiles/{id}/rewrite`` endpoint.
-- :func:`respond_as_profile` — takes user text and produces the
-  character's reply to it (new content, not a rewrite). API-only via
-  ``/profiles/{id}/respond`` and the ``/profiles/{id}/speak`` endpoint
-  when ``intent="respond"``.
+  character's voice while keeping every idea. Invoked by ``POST /generate``
+  (and ``POST /speak``) when ``personality=true`` and the profile has a
+  personality prompt set.
 
-All three reuse the same local Qwen3 instance that refinement uses — no
-extra model downloads, no extra warm-up. Temperature is tuned per mode:
-compose runs hot (0.9) for variety, rewrite cool (0.3) for fidelity to
-the user's ideas, respond mid-range (0.7) so the character feels alive
-without drifting.
+Both reuse the same local Qwen3 instance that refinement uses — no extra
+model downloads, no extra warm-up. Temperature is tuned per mode: compose
+runs hot (0.9) for variety, rewrite cool (0.3) for fidelity to the user's
+ideas.
 """
 
 from dataclasses import dataclass
@@ -47,9 +43,6 @@ _COMPOSE_TASK = """Task: Produce one short utterance — one or two sentences at
 _REWRITE_TASK = """Task: The user's next message is a piece of text. Restate every idea in it using your character's voice — keep the meaning, change the wording. Do not add new ideas, do not drop any, do not reply to the text. Output only the restated version."""
 
 
-_RESPOND_TASK = """Task: The user's next message is spoken to your character. Reply in character. Produce new content — do not echo or paraphrase the user's words, do not narrate back what they said. One to three sentences of natural speech the character would say in reply."""
-
-
 @dataclass
 class PersonalityResult:
     """What the three service functions return."""
@@ -71,7 +64,7 @@ def _build_system_prompt(personality: str, task: str) -> str:
 def _require_personality(personality: str | None) -> str:
     if not personality or not personality.strip():
         raise ValueError(
-            "This profile has no personality set. Add one on the profile to use compose, rewrite, respond, or speak."
+            "This profile has no personality set. Add one on the profile to use compose or personality-rewrite."
         )
     return personality
 
@@ -122,31 +115,6 @@ async def rewrite_as_profile(
         system=system_prompt,
         max_tokens=1024,
         temperature=0.3,
-        model_size=resolved_size,
-    )
-    return PersonalityResult(text=output.strip(), model_size=resolved_size)
-
-
-async def respond_as_profile(
-    personality: str | None,
-    user_text: str,
-    model_size: str | None = None,
-) -> PersonalityResult:
-    """Produce the character's in-character reply to the user's text."""
-    character = _require_personality(personality)
-    cleaned = collapse_repetitive_artifacts(user_text)
-    if not cleaned.strip():
-        raise ValueError("Respond needs non-empty text to reply to.")
-
-    backend = llm_service.get_llm_model()
-    resolved_size = model_size or backend.model_size
-
-    system_prompt = _build_system_prompt(character, _RESPOND_TASK)
-    output = await backend.generate(
-        prompt=cleaned,
-        system=system_prompt,
-        max_tokens=512,
-        temperature=0.7,
         model_size=resolved_size,
     )
     return PersonalityResult(text=output.strip(), model_size=resolved_size)

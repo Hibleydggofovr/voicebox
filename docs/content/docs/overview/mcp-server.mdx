@@ -117,7 +117,7 @@ voicebox.speak({
   text: "Deploy complete.",
   profile?: "Morgan",            // name or id; falls back to per-client binding, then default
   engine?: "qwen",               // qwen | qwen_custom_voice | luxtts | chatterbox | chatterbox_turbo | tada | kokoro
-  intent?: "respond",            // respond | rewrite | compose — only if the profile has a personality
+  personality?: true,            // rewrite via the profile's personality LLM before TTS; default comes from the per-client binding
   language?: "en",
 })
 ```
@@ -134,10 +134,9 @@ Returns:
 }
 ```
 
-- **Plain TTS** — omit `intent`. Text is spoken as-is.
-- **Persona mode** — pass `intent` and the profile must have a personality set.
-  The LLM transforms the text (respond to it, rewrite it in character, or
-  compose a fresh utterance) before TTS. See [Voice Personalities](/overview/voice-personalities).
+- **Plain TTS** — `personality: false` (or omitted + binding default is false). Text is spoken as-is.
+- **Persona mode** — `personality: true` and the profile must have a personality prompt set.
+  The LLM rewrites the text in character before TTS. See [Voice Personalities](/overview/voice-personalities).
 
 ### `voicebox.transcribe`
 
@@ -196,7 +195,7 @@ carries:
 | `label` | Display name in the Settings UI (e.g. "Claude Code"). |
 | `profile_id` | The voice this client uses when `profile` isn't passed. |
 | `default_engine` | Override the TTS engine for this client. |
-| `default_intent` | Default persona mode (`respond` / `rewrite` / `compose`). |
+| `default_personality` | When true, `voicebox.speak` routes through the profile's personality LLM (rewrite) by default. |
 | `last_seen_at` | Last time the server saw a request from this client. |
 
 `last_seen_at` is stamped automatically by middleware on every `/mcp/*`
@@ -228,7 +227,7 @@ curl -X POST http://127.0.0.1:17493/speak \
 ```
 
 Body fields match the MCP tool: `text`, optional `profile`, `engine`,
-`intent`, `language`. Returns a `GenerationResponse` — the same shape as
+`personality`, `language`. Returns a `GenerationResponse` — the same shape as
 `POST /generate`.
 
 ## Debugging
@@ -286,7 +285,7 @@ For the full developer-facing tour of the code layout, see
 
 <Cards>
   <Card title="Voice Personalities" href="/overview/voice-personalities">
-    Persona mode (`intent=respond/rewrite/compose`) for agents that should
+    Persona mode (`personality: true`) for agents that should
     transform text in-character before speaking.
   </Card>
   <Card title="Dictation" href="/overview/dictation">

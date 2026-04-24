@@ -1,4 +1,4 @@
-import { Download, Edit, Sparkles, Trash2 } from 'lucide-react';
+import { Download, Edit, Sparkles, Trash2, Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -125,6 +125,9 @@ export function ProfileCard({ profile, disabled }: ProfileCardProps) {
             )}
             {profile.effects_chain && profile.effects_chain.length > 0 && (
               <Sparkles className="h-3.5 w-3.5 text-accent fill-accent" />
+            )}
+            {profile.personality?.trim() && (
+              <Wand2 className="h-3.5 w-3.5 text-accent" />
             )}
           </div>
           <div className="flex gap-0.5 justify-end items-end mt-auto">

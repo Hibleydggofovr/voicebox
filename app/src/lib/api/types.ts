@@ -12,7 +12,7 @@ export interface VoiceProfileCreate {
   preset_voice_id?: string;
   design_prompt?: string;
   default_engine?: string;
-  /** Free-form character prompt used by compose / rewrite / respond / speak. */
+  /** Free-form character prompt used by compose and the `/generate` personality-rewrite path. */
   personality?: string;
 }
 
@@ -35,7 +35,7 @@ export interface VoiceProfileResponse {
   updated_at: string;
 }
 
-/** Response returned by /profiles/{id}/compose | /rewrite | /respond. */
+/** Response returned by /profiles/{id}/compose. */
 export interface PersonalityTextResponse {
   text: string;
   model_size: string;
@@ -80,6 +80,8 @@ export interface GenerationRequest {
     | 'tada'
     | 'kokoro';
   instruct?: string;
+  /** When true and the profile has a personality prompt, input text is rewritten in-character before TTS. */
+  personality?: boolean;
   max_chunk_chars?: number;
   crossfade_ms?: number;
   normalize?: boolean;
@@ -496,7 +498,7 @@ export interface MCPClientBinding {
   label: string | null;
   profile_id: string | null;
   default_engine: string | null;
-  default_intent: 'respond' | 'rewrite' | 'compose' | null;
+  default_personality: boolean;
   last_seen_at: string | null;
   created_at: string;
   updated_at: string;
@@ -507,7 +509,7 @@ export interface MCPClientBindingUpsert {
   label?: string | null;
   profile_id?: string | null;
   default_engine?: string | null;
-  default_intent?: 'respond' | 'rewrite' | 'compose' | null;
+  default_personality?: boolean;
 }
 
 export interface MCPClientBindingListResponse {

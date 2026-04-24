@@ -35,6 +35,7 @@ def run_migrations(engine) -> None:
     _migrate_effect_presets(engine, inspector, tables)
     _migrate_generation_versions(engine, inspector, tables)
     _migrate_capture_settings(engine, inspector, tables)
+    _migrate_mcp_bindings(engine, inspector, tables)
     _normalize_storage_paths(engine, tables)
 
 
@@ -231,6 +232,30 @@ def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
             "hotkey_enabled BOOLEAN NOT NULL DEFAULT 0",
             "hotkey_enabled",
         )
+
+
+def _migrate_mcp_bindings(engine, inspector, tables: set[str]) -> None:
+    """Drop the legacy ``default_intent`` column and add ``default_personality``.
+
+    The intent tri-state (respond / rewrite / compose) has been collapsed
+    to a boolean: when true, ``voicebox.speak`` rewrites input through the
+    profile's personality LLM before TTS.
+    """
+    if "mcp_client_bindings" not in tables:
+        return
+    columns = _get_columns(inspector, "mcp_client_bindings")
+    if "default_personality" not in columns:
+        _add_column(
+            engine,
+            "mcp_client_bindings",
+            "default_personality BOOLEAN NOT NULL DEFAULT 0",
+            "default_personality",
+        )
+    if "default_intent" in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE mcp_client_bindings DROP COLUMN default_intent"))
+            conn.commit()
+        logger.info("Dropped legacy default_intent column from mcp_client_bindings")
 
 
 def _normalize_storage_paths(engine, tables: set[str]) -> None:

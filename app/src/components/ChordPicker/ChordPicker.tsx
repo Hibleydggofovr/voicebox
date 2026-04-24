@@ -1,5 +1,6 @@
 import { Keyboard } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -47,6 +48,7 @@ export function ChordPicker({
   onSave,
   onCancel,
 }: ChordPickerProps) {
+  const { t } = useTranslation();
   // Currently held set, peak set captured this session, and "is the user
   // mid-chord?". We freeze the peak when they release everything so the
   // Save button can read a stable value.
@@ -153,12 +155,12 @@ export function ChordPicker({
           <div className="flex flex-col items-center gap-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Keyboard className="h-3.5 w-3.5" />
-              {pressed.size > 0 ? 'Capturing…' : 'Press your shortcut'}
+              {pressed.size > 0 ? t('captures.chord.capturing') : t('captures.chord.pressShortcut')}
             </div>
             <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[2.5rem]">
               {displayKeys.length === 0 ? (
                 <span className="text-sm text-muted-foreground italic">
-                  No keys yet
+                  {t('captures.chord.noKeys')}
                 </span>
               ) : (
                 displayKeys.map((k) => <ChordKey key={k} name={k} />)
@@ -166,8 +168,7 @@ export function ChordPicker({
             </div>
             {unsupportedAttempt ? (
               <p className="text-xs text-destructive">
-                "{unsupportedAttempt}" isn't supported in chords. Try a modifier
-                or letter key.
+                {t('captures.chord.unsupported', { key: unsupportedAttempt })}
               </p>
             ) : null}
           </div>
@@ -175,10 +176,10 @@ export function ChordPicker({
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={() => onSave(captured)} disabled={!canSave}>
-            Save
+            {t('common.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

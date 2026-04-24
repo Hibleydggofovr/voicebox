@@ -81,6 +81,10 @@ class GenerationRequest(BaseModel):
     model_size: Optional[str] = Field(default="1.7B", pattern="^(1\\.7B|0\\.6B|1B|3B)$")
     instruct: Optional[str] = Field(None, max_length=500)
     engine: Optional[str] = Field(default="qwen", pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$")
+    personality: bool = Field(
+        default=False,
+        description="When true and the profile has a personality prompt, the input text is rewritten in-character before TTS.",
+    )
     max_chunk_chars: int = Field(
         default=800, ge=100, le=5000, description="Max characters per chunk for long text splitting"
     )
@@ -297,8 +301,9 @@ class GenerationSettingsUpdate(BaseModel):
 
 
 class MCPClientBindingResponse(BaseModel):
-    """Per-MCP-client voice binding — what voice / engine / intent the server
-    should use when a given client_id calls voicebox.speak without args."""
+    """Per-MCP-client voice binding — what voice / engine the server should
+    use when a given client_id calls voicebox.speak without args, plus an
+    opt-in personality-rewrite default."""
 
     client_id: str
     label: Optional[str] = None
@@ -307,9 +312,7 @@ class MCPClientBindingResponse(BaseModel):
         None,
         pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
     )
-    default_intent: Optional[str] = Field(
-        None, pattern="^(respond|rewrite|compose)$"
-    )
+    default_personality: bool = False
     last_seen_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -328,9 +331,7 @@ class MCPClientBindingUpsert(BaseModel):
         None,
         pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
     )
-    default_intent: Optional[str] = Field(
-        None, pattern="^(respond|rewrite|compose)$"
-    )
+    default_personality: bool = False
 
 
 class MCPClientBindingListResponse(BaseModel):
@@ -349,8 +350,9 @@ class SpeakRequest(BaseModel):
         None,
         pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
     )
-    intent: Optional[str] = Field(
-        None, pattern="^(respond|rewrite|compose)$"
+    personality: Optional[bool] = Field(
+        None,
+        description="When true and the profile has a personality prompt, the input text is rewritten in-character before TTS. When null, the per-client binding's default_personality flag decides.",
     )
     language: Optional[str] = Field(
         None,
@@ -380,51 +382,18 @@ class LLMGenerateResponse(BaseModel):
     model_size: str
 
 
-# ── Profile personality endpoints ─────────────────────────────────────
-# compose / rewrite / respond return raw text; /speak chains LLM → TTS
-# and either persists as a generation (persist=true) or streams audio
-# back transiently.
-
-
-class PersonalityTextRequest(BaseModel):
-    """Body for ``/profiles/{id}/rewrite`` and ``/profiles/{id}/respond``."""
-
-    text: str = Field(..., min_length=1, max_length=10000)
+# ── Profile personality endpoint ──────────────────────────────────────
+# The sole standalone personality endpoint is ``/profiles/{id}/compose``,
+# which produces a fresh in-character utterance the UI drops into the
+# generate textarea. Rewrite is now reached via ``/generate`` with
+# ``personality=true``.
 
 
 class PersonalityTextResponse(BaseModel):
-    """Response returned by compose / rewrite / respond endpoints."""
+    """Response returned by the ``/profiles/{id}/compose`` endpoint."""
 
     text: str
     model_size: str
-
-
-class PersonalitySpeakRequest(BaseModel):
-    """Body for ``/profiles/{id}/speak`` — LLM transform then TTS."""
-
-    text: str = Field(..., min_length=1, max_length=10000)
-    # When true, the generated audio is persisted as a regular row in the
-    # generations table (tagged with ``source="personality_speak"``) and
-    # the response returns a GenerationResponse the client polls like any
-    # other generation. When false, the LLM output is fed to a synchronous
-    # TTS call and the wav bytes stream back directly.
-    persist: bool = True
-    language: Optional[str] = Field(
-        None,
-        pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it|he|ar|da|el|fi|hi|ms|nl|no|pl|sv|sw|tr)$",
-    )
-    engine: Optional[str] = Field(
-        None,
-        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro)$",
-    )
-    # ``respond`` is the default because this endpoint is designed for
-    # conversational / agent-style callers. Override to ``rewrite`` to
-    # speak the user's text in character verbatim, or ``compose`` to
-    # speak an utterance the character would come up with on its own
-    # (in which case ``text`` is treated as a topical hint, not content).
-    intent: str = Field(
-        default="respond", pattern="^(respond|rewrite|compose)$"
-    )
 
 
 class ModelReadiness(BaseModel):

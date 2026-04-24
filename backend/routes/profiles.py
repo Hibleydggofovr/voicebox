@@ -4,7 +4,6 @@ import io
 import json as _json
 import logging
 import tempfile
-import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -15,7 +14,7 @@ from sqlalchemy.orm import Session
 from .. import config, models
 from ..app import safe_content_disposition
 from ..database import VoiceProfile as DBVoiceProfile, get_db
-from ..services import channels, export_import, history, personality, profiles
+from ..services import channels, export_import, personality, profiles
 from ..services.profiles import _profile_to_response
 
 logger = logging.getLogger(__name__)
@@ -364,31 +363,12 @@ async def update_profile_effects(
     return _profile_to_response(profile)
 
 
-# ── Personality endpoints ─────────────────────────────────────────────
-# compose / rewrite / respond / speak. All four require a non-empty
-# personality on the profile; the service layer raises ValueError which
-# we translate to HTTP 400. compose and rewrite power the generate-box
-# UI; respond is API-only for conversational / agent-style callers;
-# speak chains LLM → TTS in one call.
-
-
-def _load_profile_for_personality(profile_id: str, db: Session) -> DBVoiceProfile:
-    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return profile
-
-
-def _resolve_speak_engine(
-    data: models.PersonalitySpeakRequest,
-    profile: DBVoiceProfile,
-) -> str:
-    return (
-        data.engine
-        or getattr(profile, "default_engine", None)
-        or getattr(profile, "preset_engine", None)
-        or "qwen"
-    )
+# ── Personality endpoint ──────────────────────────────────────────────
+# Only ``/profiles/{id}/compose`` remains — the UI's compose button
+# produces a fresh in-character utterance the user can edit before
+# speaking. Rewrite now happens inside ``/generate`` (and ``/speak``)
+# when ``personality=true``; there is no standalone rewrite/respond/speak
+# endpoint.
 
 
 @router.post(
@@ -400,7 +380,9 @@ async def compose_in_character(
     db: Session = Depends(get_db),
 ):
     """Produce a fresh utterance in the profile's character voice."""
-    profile = _load_profile_for_personality(profile_id, db)
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
     try:
         result = await personality.compose_as_profile(profile.personality)
     except ValueError as e:
@@ -408,161 +390,3 @@ async def compose_in_character(
     return models.PersonalityTextResponse(
         text=result.text, model_size=result.model_size
     )
-
-
-@router.post(
-    "/profiles/{profile_id}/rewrite",
-    response_model=models.PersonalityTextResponse,
-)
-async def rewrite_in_character(
-    profile_id: str,
-    data: models.PersonalityTextRequest,
-    db: Session = Depends(get_db),
-):
-    """Restate the user's text in the profile's character voice."""
-    profile = _load_profile_for_personality(profile_id, db)
-    try:
-        result = await personality.rewrite_as_profile(profile.personality, data.text)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return models.PersonalityTextResponse(
-        text=result.text, model_size=result.model_size
-    )
-
-
-@router.post(
-    "/profiles/{profile_id}/respond",
-    response_model=models.PersonalityTextResponse,
-)
-async def respond_in_character(
-    profile_id: str,
-    data: models.PersonalityTextRequest,
-    db: Session = Depends(get_db),
-):
-    """Produce an in-character reply to the user's text. API-only surface."""
-    profile = _load_profile_for_personality(profile_id, db)
-    try:
-        result = await personality.respond_as_profile(profile.personality, data.text)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return models.PersonalityTextResponse(
-        text=result.text, model_size=result.model_size
-    )
-
-
-@router.post("/profiles/{profile_id}/speak")
-async def speak_in_character(
-    profile_id: str,
-    data: models.PersonalitySpeakRequest,
-    db: Session = Depends(get_db),
-):
-    """LLM (by intent) → TTS, returned either as a generation row the client
-    polls (``persist=true``) or a direct wav stream (``persist=false``).
-
-    Response shape depends on ``persist``:
-      - ``true``: 200 JSON ``GenerationResponse`` with ``status="generating"``.
-        Row is tagged ``source="personality_speak"``.
-      - ``false``: 200 ``audio/wav`` streaming response, nothing persisted.
-    """
-    from ..backends import engine_has_model_sizes, load_engine_model
-    from ..services.generation import generate_audio_sync, run_generation
-    from ..services.task_queue import enqueue_generation
-    from ..utils.tasks import get_task_manager
-
-    profile = _load_profile_for_personality(profile_id, db)
-
-    engine = _resolve_speak_engine(data, profile)
-    try:
-        profiles.validate_profile_engine(profile, engine)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # Run the LLM transform per requested intent. personality.* enforce
-    # the empty-personality guard — catch and translate here.
-    try:
-        if data.intent == "compose":
-            llm_result = await personality.compose_as_profile(profile.personality)
-        elif data.intent == "rewrite":
-            llm_result = await personality.rewrite_as_profile(
-                profile.personality, data.text
-            )
-        else:  # "respond"
-            llm_result = await personality.respond_as_profile(
-                profile.personality, data.text
-            )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    spoken_text = llm_result.text.strip()
-    if not spoken_text:
-        raise HTTPException(
-            status_code=500,
-            detail="LLM produced empty output; nothing to speak.",
-        )
-
-    resolved_language = data.language or getattr(profile, "language", None) or "en"
-    model_size = "1.7B" if engine_has_model_sizes(engine) else None
-
-    if not data.persist:
-        # Transient path — generate synchronously, stream wav back.
-        # ``load_engine_model`` is defensive against engines that don't
-        # take a size (kokoro, etc.); pass "default" to match the
-        # in-tree signature default.
-        await load_engine_model(engine, model_size or "default")
-        wav_bytes = await generate_audio_sync(
-            profile_id=profile_id,
-            text=spoken_text,
-            language=resolved_language,
-            engine=engine,
-            model_size=model_size or "default",
-        )
-        return StreamingResponse(
-            iter([wav_bytes]),
-            media_type="audio/wav",
-            headers={"Content-Disposition": 'inline; filename="speech.wav"'},
-        )
-
-    # Persistent path — mirrors /generate exactly, plus source marker.
-    generation_id = str(uuid.uuid4())
-    task_manager = get_task_manager()
-
-    generation = await history.create_generation(
-        profile_id=profile_id,
-        text=spoken_text,
-        language=resolved_language,
-        audio_path="",
-        duration=0,
-        seed=None,
-        db=db,
-        instruct=None,
-        generation_id=generation_id,
-        status="generating",
-        engine=engine,
-        model_size=model_size if engine_has_model_sizes(engine) else None,
-        source="personality_speak",
-    )
-
-    task_manager.start_generation(
-        task_id=generation_id,
-        profile_id=profile_id,
-        text=spoken_text,
-    )
-
-    enqueue_generation(
-        generation_id,
-        run_generation(
-            generation_id=generation_id,
-            profile_id=profile_id,
-            text=spoken_text,
-            language=resolved_language,
-            engine=engine,
-            model_size=model_size,
-            seed=None,
-            normalize=True,
-            effects_chain=None,
-            instruct=None,
-            mode="generate",
-        ),
-    )
-
-    return generation

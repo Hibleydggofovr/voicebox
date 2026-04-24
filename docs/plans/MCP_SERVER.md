@@ -10,7 +10,7 @@
 - **`backend/mcp_server/`** package with `server.py`, `tools.py`, `context.py`, `resolve.py`, `events.py`, `README.md`. Named `mcp_server` (not `mcp`) to sidestep a shadowing conflict with the installed `mcp` PyPI package that FastMCP imports internally.
 - **Streamable HTTP mount at `/mcp`** via FastMCP's `http_app(transport='http')`. Sub-app lifespan composed with Voicebox's own startup/shutdown through an `@asynccontextmanager lifespan=` in `backend/app.py` (migrated away from the deprecated `@app.on_event` handlers).
 - **Four MCP tools**, dot-named to match the landing and ecosystem convention:
-  - `voicebox.speak(text, profile?, engine?, intent?, language?)`
+  - `voicebox.speak(text, profile?, engine?, personality?, language?)`
   - `voicebox.transcribe(audio_base64?, audio_path?, language?, model?)`
   - `voicebox.list_captures(limit, offset)`
   - `voicebox.list_profiles()`
@@ -111,7 +111,7 @@ class MCPClientBinding(Base):
     label           = Column(String, nullable=True)
     profile_id      = Column(String, ForeignKey("profiles.id"), nullable=True)
     default_engine  = Column(String, nullable=True)
-    default_intent  = Column(String, nullable=True)           # "respond" | "rewrite" | "compose"
+    default_personality = Column(Boolean, nullable=False, default=False)  # rewrite-before-speak default
     created_at      = Column(DateTime, default=datetime.utcnow)
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 ```
@@ -133,7 +133,7 @@ Global default stays in `capture_settings.default_playback_voice_id` — no dupl
 | `backend/mcp/README.md` | MCP Inspector quickstart + `.mcp.json` snippets |
 | `backend/mcp_shim/__init__.py`, `__main__.py` | Stdio ↔ Streamable HTTP proxy (~150 lines) |
 | `backend/voicebox-mcp.spec` | PyInstaller spec for the shim (strips torch/transformers from `hiddenimports`) |
-| `backend/routes/speak.py` | `POST /speak {text, profile?, engine?, intent?, language?}` — REST wrapper around `resolve_profile()` + `speak_in_character()` for non-MCP agents |
+| `backend/routes/speak.py` | `POST /speak {text, profile?, engine?, personality?, language?}` — REST wrapper around `resolve_profile()` + `generate_speech()` for non-MCP agents |
 
 ### Backend — modified
 
@@ -191,11 +191,12 @@ Tools are registered with **dotted names** (`voicebox.speak`, etc.) to match the
 async def speak(text: str,
                 profile: str | None = None,     # name OR id
                 engine: str | None = None,
-                intent: str = "respond",        # "respond" | "rewrite" | "compose"
+                personality: bool | None = None,  # true → rewrite via profile's personality LLM before TTS
                 language: str | None = None) -> dict:
     """Speak text in a voice profile. Returns {generation_id, status, profile, poll}."""
-    # resolve profile via precedence, call speak_in_character (profiles.py:453)
-    # with persist=True so it lands in history.
+    # resolve profile via precedence, delegate to generate_speech — the
+    # route honors `personality=True` by running rewrite_as_profile on
+    # the input before running the normal TTS pipeline.
 
 @mcp.tool(name="voicebox.transcribe")
 async def transcribe(audio_base64: str | None = None,
@@ -224,12 +225,14 @@ async def speak(data: SpeakRequest, request: Request, db: Session = Depends(get_
     client_id = request.headers.get("X-Voicebox-Client-Id")
     profile = resolve_profile(data.profile, client_id, db)
     if profile is None: raise HTTPException(400, "No voice profile resolved.")
-    persist_req = PersonalitySpeakRequest(text=data.text, persist=True, language=data.language,
-                                           engine=data.engine, intent=data.intent or "respond")
-    return await speak_in_character(profile.id, persist_req, db)
+    req = GenerationRequest(profile_id=profile.id, text=data.text,
+                            language=data.language or "en",
+                            engine=data.engine or "qwen",
+                            personality=bool(data.personality))
+    return await generate_speech(req, db)
 ```
 
-`SpeakRequest`: `{ text: str, profile: str | None, engine: str | None, intent: str | None, language: str | None }`. Accepts name OR id for `profile` (via `resolve_profile`), and resolves via the same precedence as the MCP tool so the two surfaces behave identically.
+`SpeakRequest`: `{ text: str, profile: str | None, engine: str | None, personality: bool | None, language: str | None }`. Accepts name OR id for `profile` (via `resolve_profile`). `personality=None` means "use the per-client binding's `default_personality`"; explicit `true`/`false` always wins. Same precedence as the MCP tool so the two surfaces behave identically.
 
 ## Mount point (`backend/app.py`)
 
@@ -265,7 +268,7 @@ PyInstaller spec keeps only `mcp`, `httpx`, `anyio`, `click` — target binary <
 ## Settings UI (`MCPBindings.tsx`)
 
 - **Global default voice** picker bound to `capture_settings.default_playback_voice_id` (reuses `useCaptureSettings`).
-- **Per-client table** — add/edit/remove rows of `{client_id, label, profile_id, default_engine, default_intent}`. Uses `useMCPBindings`.
+- **Per-client table** — add/edit/remove rows of `{client_id, label, profile_id, default_engine, default_personality}`. Uses `useMCPBindings`.
 - **Connection cheatsheet** — two tabs, HTTP (default) and Stdio (fallback), with copy-to-clipboard snippets per known client:
 
   HTTP form (primary):

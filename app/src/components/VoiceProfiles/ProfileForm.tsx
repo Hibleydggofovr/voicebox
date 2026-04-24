@@ -1197,16 +1197,16 @@ export function ProfileForm() {
                     name="personality"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Personality</FormLabel>
+                        <FormLabel>{t('profileForm.fields.personalityLabel')}</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Optional. Who this voice is and how they talk. E.g. &quot;a grumpy pirate who only speaks in nautical metaphors&quot;. Used by Compose, Rewrite, and the Speak API."
+                            placeholder={t('profileForm.fields.personalityPlaceholder')}
                             className="min-h-[96px]"
                             {...field}
                           />
                         </FormControl>
                         <FormDescription>
-                          Leave blank to hide the Compose and Rewrite buttons on the generate page.
+                          {t('profileForm.fields.personalityHint')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

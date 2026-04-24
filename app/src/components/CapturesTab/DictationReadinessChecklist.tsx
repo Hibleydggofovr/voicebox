@@ -10,6 +10,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
@@ -74,6 +75,7 @@ function progressPercent(task: ActiveDownloadTask | undefined): number | null {
  * "stuck pill" failure mode of pressing the chord with a missing model.
  */
 export function DictationReadinessChecklist({ readiness }: { readiness: DictationReadiness }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -123,13 +125,13 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
       const displayName =
         vars.gate === 'stt' ? readiness.stt?.display_name : readiness.llm?.display_name;
       toast({
-        title: 'Download started',
-        description: `${displayName} is downloading. The shortcut will arm itself when it finishes.`,
+        title: t('captures.readiness.downloadStarted'),
+        description: t('captures.readiness.downloadStartedDescription', { name: displayName }),
       });
     },
     onError: (err: Error) => {
       toast({
-        title: 'Download failed',
+        title: t('captures.readiness.downloadFailed'),
         description: err.message,
         variant: 'destructive',
       });
@@ -159,12 +161,14 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
         {downloading ? (
           <>
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {pct != null ? `Downloading… ${pct}%` : 'Downloading…'}
+            {pct != null
+              ? t('captures.readiness.downloadingPercent', { pct })
+              : t('captures.readiness.downloading')}
           </>
         ) : (
           <>
             <Download className="h-3.5 w-3.5" />
-            Download
+            {t('captures.readiness.downloadButton')}
           </>
         )}
       </Button>
@@ -175,21 +179,23 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
     <div className="w-full max-w-md mx-auto space-y-2.5">
       <div className="text-center mb-5 space-y-1">
         <h2 className="text-base font-semibold text-foreground">
-          A few things before you can dictate
+          {t('captures.readiness.title')}
         </h2>
         <p className="text-xs text-muted-foreground">
-          The shortcut stays off until everything below is ready.
+          {t('captures.readiness.subheading')}
         </p>
       </div>
 
       {readiness.stt && (
         <ChecklistRow
           icon={<Cpu className="h-3.5 w-3.5" />}
-          title={`${readiness.stt.display_name} (speech-to-text)`}
+          title={t('captures.readiness.stt.label', { name: readiness.stt.display_name })}
           description={
             readiness.stt.ready
-              ? 'Model downloaded.'
-              : `Needed to transcribe your audio${sttSize ? ` · ${sttSize}` : ''}.`
+              ? t('captures.readiness.stt.ready')
+              : sttSize
+                ? t('captures.readiness.stt.missingWithSize', { size: sttSize })
+                : t('captures.readiness.stt.missing')
           }
           ready={readiness.stt.ready}
           action={modelDownloadButton('stt', readiness.stt.model_name, readiness.stt.ready)}
@@ -199,11 +205,13 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
       {readiness.llm && (
         <ChecklistRow
           icon={<Cpu className="h-3.5 w-3.5" />}
-          title={`${readiness.llm.display_name} (refinement)`}
+          title={t('captures.readiness.llm.label', { name: readiness.llm.display_name })}
           description={
             readiness.llm.ready
-              ? 'Model downloaded.'
-              : `Cleans up the raw transcript before paste${llmSize ? ` · ${llmSize}` : ''}.`
+              ? t('captures.readiness.llm.ready')
+              : llmSize
+                ? t('captures.readiness.llm.missingWithSize', { size: llmSize })
+                : t('captures.readiness.llm.missing')
           }
           ready={readiness.llm.ready}
           action={modelDownloadButton('llm', readiness.llm.model_name, readiness.llm.ready)}
@@ -212,34 +220,34 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
 
       <ChecklistRow
         icon={<Keyboard className="h-3.5 w-3.5" />}
-        title="Input Monitoring permission"
+        title={t('captures.readiness.inputMonitoring.label')}
         description={
           readiness.inputMonitoring
-            ? 'macOS allows Voicebox to detect your global shortcut.'
-            : 'macOS needs to allow Voicebox to detect the global shortcut.'
+            ? t('captures.readiness.inputMonitoring.ready')
+            : t('captures.readiness.inputMonitoring.missing')
         }
         ready={readiness.inputMonitoring}
         action={
           <Button size="sm" onClick={readiness.openInputMonitoringSettings} className="gap-1.5">
             <ExternalLink className="h-3.5 w-3.5" />
-            Open Settings
+            {t('captures.readiness.inputMonitoring.openSettings')}
           </Button>
         }
       />
 
       <ChecklistRow
         icon={<Accessibility className="h-3.5 w-3.5" />}
-        title="Accessibility permission"
+        title={t('captures.readiness.accessibility.label')}
         description={
           readiness.accessibility
-            ? 'Voicebox can paste transcriptions into other apps.'
-            : 'Required so transcriptions can paste into the focused app.'
+            ? t('captures.readiness.accessibility.ready')
+            : t('captures.readiness.accessibility.missing')
         }
         ready={readiness.accessibility}
         action={
           <Button size="sm" onClick={readiness.openAccessibilitySettings} className="gap-1.5">
             <ExternalLink className="h-3.5 w-3.5" />
-            Open Settings
+            {t('captures.readiness.accessibility.openSettings')}
           </Button>
         }
       />

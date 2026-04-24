@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Keyboard, Laptop, Lock, Trash2, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AccessibilityNotice } from '@/components/AccessibilityGate/AccessibilityGate';
 import { InputMonitoringNotice } from '@/components/InputMonitoringGate/InputMonitoringGate';
 import { CapturePill, type PillState } from '@/components/CapturePill/CapturePill';
@@ -50,8 +51,9 @@ function voiceGradient(voiceId: string): string {
 }
 
 function ChordPreview({ keys }: { keys: string[] }) {
+  const { t } = useTranslation();
   if (keys.length === 0) {
-    return <span className="text-xs text-muted-foreground italic">Not set</span>;
+    return <span className="text-xs text-muted-foreground italic">{t('captures.chord.notSet')}</span>;
   }
   return (
     <div className="flex items-center gap-1">
@@ -132,6 +134,7 @@ function HotkeyPillPreview({ enabled }: { enabled: boolean }) {
 }
 
 export function CapturesPage() {
+  const { t } = useTranslation();
   const { settings, update } = useCaptureSettings();
   const { data: profiles } = useProfiles();
   const { toast } = useToast();
@@ -164,13 +167,13 @@ export function CapturesPage() {
     <div className="flex gap-8 items-start max-w-5xl">
       <div className="flex-1 min-w-0 max-w-2xl space-y-10">
       <SettingSection
-        title="Dictation"
-        description="Capture from anywhere on your machine with a global shortcut."
+        title={t('settings.captures.dictation.title')}
+        description={t('settings.captures.dictation.description')}
       >
         <div>
           <SettingRow
-            title="Global shortcut"
-            description="Hold the shortcut to record from anywhere on your machine. Release to transcribe. macOS will ask for Input Monitoring permission the first time you turn this on."
+            title={t('settings.captures.dictation.globalShortcut.title')}
+            description={t('settings.captures.dictation.globalShortcut.description')}
             htmlFor="hotkeyEnabled"
             action={
               <Toggle
@@ -195,10 +198,11 @@ export function CapturesPage() {
                     .filter(Boolean)
                     .join(' and ');
                   toast({
-                    title: 'Shortcut on, but not yet armed',
-                    description: `${names} still need${
-                      missingModels.length === 1 ? 's' : ''
-                    } to download. Open the Captures tab to start.`,
+                    title: t('captures.toast.shortcutNotArmed'),
+                    description: t('captures.toast.shortcutNotArmedDescription', {
+                      names,
+                      count: missingModels.length,
+                    }),
                   });
                 }}
               />
@@ -208,8 +212,8 @@ export function CapturesPage() {
         </div>
 
         <SettingRow
-          title="Push-to-talk shortcut"
-          description="Hold these keys anywhere on your system to record. Release to stop and transcribe."
+          title={t('settings.captures.dictation.pushToTalk.title')}
+          description={t('settings.captures.dictation.pushToTalk.description')}
           action={
             <div className="flex items-center gap-2">
               <ChordPreview keys={pushToTalkKeys} />
@@ -220,15 +224,15 @@ export function CapturesPage() {
                 onClick={() => setChordEditor('push')}
               >
                 <Keyboard className="h-3.5 w-3.5 mr-1.5" />
-                Change
+                {t('settings.captures.dictation.pushToTalk.change')}
               </Button>
             </div>
           }
         />
 
         <SettingRow
-          title="Toggle shortcut"
-          description="Press once to start a hands-free recording. Press again to stop. Usually push-to-talk plus Space."
+          title={t('settings.captures.dictation.toggle.title')}
+          description={t('settings.captures.dictation.toggle.description')}
           action={
             <div className="flex items-center gap-2">
               <ChordPreview keys={toggleToTalkKeys} />
@@ -239,7 +243,7 @@ export function CapturesPage() {
                 onClick={() => setChordEditor('toggle')}
               >
                 <Keyboard className="h-3.5 w-3.5 mr-1.5" />
-                Change
+                {t('settings.captures.dictation.toggle.change')}
               </Button>
             </div>
           }
@@ -247,8 +251,8 @@ export function CapturesPage() {
 
         <ChordPicker
           open={chordEditor === 'push'}
-          title="Set push-to-talk shortcut"
-          description="Hold the keys you want to use, then release and click Save. The right-hand modifier badge shows whether a key is the left or right variant."
+          title={t('settings.captures.dictation.chordPicker.pttTitle')}
+          description={t('settings.captures.dictation.chordPicker.pttDescription')}
           initialKeys={pushToTalkKeys}
           onCancel={() => setChordEditor(null)}
           onSave={(keys) => {
@@ -259,8 +263,8 @@ export function CapturesPage() {
 
         <ChordPicker
           open={chordEditor === 'toggle'}
-          title="Set toggle shortcut"
-          description="Hold the keys you want to use, then release and click Save. Pick something distinct from your push-to-talk chord."
+          title={t('settings.captures.dictation.chordPicker.toggleTitle')}
+          description={t('settings.captures.dictation.chordPicker.toggleDescription')}
           initialKeys={toggleToTalkKeys}
           onCancel={() => setChordEditor(null)}
           onSave={(keys) => {
@@ -270,15 +274,15 @@ export function CapturesPage() {
         />
 
         <SettingRow
-          title="Preview"
-          description="What appears on screen while you're holding the shortcut."
+          title={t('settings.captures.dictation.preview.title')}
+          description={t('settings.captures.dictation.preview.description')}
         >
           <HotkeyPillPreview enabled={hotkeyEnabled} />
         </SettingRow>
 
         <SettingRow
-          title="Copy transcript to clipboard"
-          description="The cleaned transcript lands on your clipboard when the capture finishes."
+          title={t('settings.captures.dictation.copyToClipboard.title')}
+          description={t('settings.captures.dictation.copyToClipboard.description')}
           htmlFor="copyToClipboard"
           action={
             <Toggle
@@ -292,8 +296,8 @@ export function CapturesPage() {
 
         <div>
           <SettingRow
-            title="Auto-paste into focused text field"
-            description="If a text input is focused in another app, paste directly into it. Voicebox saves and restores whatever was on your clipboard."
+            title={t('settings.captures.dictation.autoPaste.title')}
+            description={t('settings.captures.dictation.autoPaste.description')}
             htmlFor="autoPaste"
             action={
               <Toggle
@@ -309,12 +313,12 @@ export function CapturesPage() {
       </SettingSection>
 
       <SettingSection
-        title="Transcription"
-        description="Pick which speech-to-text model runs on your captures."
+        title={t('settings.captures.transcription.title')}
+        description={t('settings.captures.transcription.description')}
       >
         <SettingRow
-          title="Transcription model"
-          description="Whisper ships with Voicebox and runs entirely on your machine."
+          title={t('settings.captures.transcription.model.title')}
+          description={t('settings.captures.transcription.model.description')}
           action={
             <Select
               value={sttModel}
@@ -324,16 +328,20 @@ export function CapturesPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="base">Whisper Base · 74M · Fast</SelectItem>
-                <SelectItem value="small">Whisper Small · 244M · Balanced</SelectItem>
+                <SelectItem value="base">
+                  {t('settings.captures.transcription.model.base', { tail: t('settings.captures.transcription.model.tail.fast') })}
+                </SelectItem>
+                <SelectItem value="small">
+                  {t('settings.captures.transcription.model.small', { tail: t('settings.captures.transcription.model.tail.balanced') })}
+                </SelectItem>
                 <SelectItem value="medium">
-                  Whisper Medium · 769M · Higher accuracy
+                  {t('settings.captures.transcription.model.medium', { tail: t('settings.captures.transcription.model.tail.higher') })}
                 </SelectItem>
                 <SelectItem value="large">
-                  Whisper Large · 1.5B · Best accuracy
+                  {t('settings.captures.transcription.model.large', { tail: t('settings.captures.transcription.model.tail.best') })}
                 </SelectItem>
                 <SelectItem value="turbo">
-                  Whisper Turbo · Pruned Large v3 · Near-best, fast
+                  {t('settings.captures.transcription.model.turbo', { tail: t('settings.captures.transcription.model.tail.nearBest') })}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -341,42 +349,42 @@ export function CapturesPage() {
         />
 
         <SettingRow
-          title="Language"
-          description="Auto-detect works for most captures. Lock it if you're always speaking the same language."
+          title={t('settings.captures.transcription.language.title')}
+          description={t('settings.captures.transcription.language.description')}
           action={
             <Select value={language} onValueChange={(v) => update({ language: v })}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto-detect</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Spanish</SelectItem>
-                <SelectItem value="fr">French</SelectItem>
-                <SelectItem value="de">German</SelectItem>
-                <SelectItem value="ja">Japanese</SelectItem>
-                <SelectItem value="zh">Chinese</SelectItem>
-                <SelectItem value="hi">Hindi</SelectItem>
+                <SelectItem value="auto">{t('settings.captures.transcription.language.auto')}</SelectItem>
+                <SelectItem value="en">{t('settings.captures.transcription.language.en')}</SelectItem>
+                <SelectItem value="es">{t('settings.captures.transcription.language.es')}</SelectItem>
+                <SelectItem value="fr">{t('settings.captures.transcription.language.fr')}</SelectItem>
+                <SelectItem value="de">{t('settings.captures.transcription.language.de')}</SelectItem>
+                <SelectItem value="ja">{t('settings.captures.transcription.language.ja')}</SelectItem>
+                <SelectItem value="zh">{t('settings.captures.transcription.language.zh')}</SelectItem>
+                <SelectItem value="hi">{t('settings.captures.transcription.language.hi')}</SelectItem>
               </SelectContent>
             </Select>
           }
         />
 
         <SettingRow
-          title="Archive audio"
-          description="Keep the original recording alongside every transcript."
+          title={t('settings.captures.transcription.archive.title')}
+          description={t('settings.captures.transcription.archive.description')}
           htmlFor="archiveAudio"
           action={<Toggle id="archiveAudio" checked={archiveAudio} onCheckedChange={setArchiveAudio} />}
         />
       </SettingSection>
 
       <SettingSection
-        title="Refinement"
-        description="Optionally run a local LLM over transcripts to clean filler words, punctuation, and self-corrections."
+        title={t('settings.captures.refinement.title')}
+        description={t('settings.captures.refinement.description')}
       >
         <SettingRow
-          title="Refine transcripts automatically"
-          description="Runs after every capture. You can still toggle between raw and refined in the Captures tab."
+          title={t('settings.captures.refinement.auto.title')}
+          description={t('settings.captures.refinement.auto.description')}
           htmlFor="autoRefine"
           action={
             <Toggle
@@ -388,8 +396,8 @@ export function CapturesPage() {
         />
 
         <SettingRow
-          title="Refinement model"
-          description="Larger models are slower but handle subtle self-corrections and technical vocabulary better."
+          title={t('settings.captures.refinement.model.title')}
+          description={t('settings.captures.refinement.model.description')}
           action={
             <Select
               value={llmModel}
@@ -400,17 +408,23 @@ export function CapturesPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0.6B">Qwen3 · 0.6B · 400 MB · Very fast</SelectItem>
-                <SelectItem value="1.7B">Qwen3 · 1.7B · 1.1 GB · Fast</SelectItem>
-                <SelectItem value="4B">Qwen3 · 4B · 2.5 GB · Full quality</SelectItem>
+                <SelectItem value="0.6B">
+                  {t('settings.captures.refinement.model.size06', { tail: t('settings.captures.refinement.model.tail.veryFast') })}
+                </SelectItem>
+                <SelectItem value="1.7B">
+                  {t('settings.captures.refinement.model.size17', { tail: t('settings.captures.refinement.model.tail.fast') })}
+                </SelectItem>
+                <SelectItem value="4B">
+                  {t('settings.captures.refinement.model.size4', { tail: t('settings.captures.refinement.model.tail.fullQuality') })}
+                </SelectItem>
               </SelectContent>
             </Select>
           }
         />
 
         <SettingRow
-          title="Smart cleanup"
-          description="Remove filler words (um, uh, like), restore punctuation, and fix capitalization without rephrasing."
+          title={t('settings.captures.refinement.smartCleanup.title')}
+          description={t('settings.captures.refinement.smartCleanup.description')}
           htmlFor="smartCleanup"
           action={
             <Toggle
@@ -423,8 +437,8 @@ export function CapturesPage() {
         />
 
         <SettingRow
-          title="Remove self-corrections"
-          description={'When you change your mind mid-sentence ("actually, no...", "wait, I meant..."), drop the retracted part and keep the final intent.'}
+          title={t('settings.captures.refinement.selfCorrection.title')}
+          description={t('settings.captures.refinement.selfCorrection.description')}
           htmlFor="selfCorrection"
           action={
             <Toggle
@@ -437,8 +451,8 @@ export function CapturesPage() {
         />
 
         <SettingRow
-          title="Preserve technical terms"
-          description="Keep code identifiers, command names, and acronyms exactly as spoken. Turn on when you dictate into a code prompt."
+          title={t('settings.captures.refinement.preserveTechnical.title')}
+          description={t('settings.captures.refinement.preserveTechnical.description')}
           htmlFor="preserveTechnical"
           action={
             <Toggle
@@ -452,12 +466,12 @@ export function CapturesPage() {
       </SettingSection>
 
       <SettingSection
-        title="Playback"
-        description='Default voice for the "Play as" action in the Captures tab.'
+        title={t('settings.captures.playback.title')}
+        description={t('settings.captures.playback.description')}
       >
         <SettingRow
-          title="Default voice"
-          description="Used when you click Play as without picking a voice first. You can change it per capture."
+          title={t('settings.captures.playback.defaultVoice.title')}
+          description={t('settings.captures.playback.defaultVoice.description')}
           action={
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -480,7 +494,9 @@ export function CapturesPage() {
                       </>
                     ) : (
                       <span className="truncate text-muted-foreground">
-                        {voices.length === 0 ? 'No cloned voices yet' : 'None selected'}
+                        {voices.length === 0
+                          ? t('settings.captures.playback.defaultVoice.noClonedVoices')
+                          : t('settings.captures.playback.defaultVoice.noneSelected')}
                       </span>
                     )}
                   </div>
@@ -489,7 +505,7 @@ export function CapturesPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                  Cloned voices
+                  {t('settings.captures.playback.defaultVoice.clonedVoices')}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {voices.map((v) => (
@@ -522,30 +538,30 @@ export function CapturesPage() {
       </SettingSection>
 
       <SettingSection
-        title="Storage"
-        description="Captures are saved as paired audio and transcript files in your Voicebox data directory."
+        title={t('settings.captures.storage.title')}
+        description={t('settings.captures.storage.description')}
       >
         <SettingRow
-          title="Retention"
-          description="How long to keep captures. Applies to both audio and transcripts."
+          title={t('settings.captures.storage.retention.title')}
+          description={t('settings.captures.storage.retention.description')}
           action={
             <Select value={retention} onValueChange={setRetention}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="forever">Keep forever</SelectItem>
-                <SelectItem value="90d">90 days</SelectItem>
-                <SelectItem value="30d">30 days</SelectItem>
-                <SelectItem value="7d">7 days</SelectItem>
+                <SelectItem value="forever">{t('settings.captures.storage.retention.forever')}</SelectItem>
+                <SelectItem value="90d">{t('settings.captures.storage.retention.d90')}</SelectItem>
+                <SelectItem value="30d">{t('settings.captures.storage.retention.d30')}</SelectItem>
+                <SelectItem value="7d">{t('settings.captures.storage.retention.d7')}</SelectItem>
               </SelectContent>
             </Select>
           }
         />
 
         <SettingRow
-          title="Clear all captures"
-          description="Permanently delete every capture and its audio. This cannot be undone."
+          title={t('settings.captures.storage.clearAll.title')}
+          description={t('settings.captures.storage.clearAll.description')}
           action={
             <Button
               variant="outline"
@@ -553,7 +569,7 @@ export function CapturesPage() {
               className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Clear captures
+              {t('settings.captures.storage.clearAll.action')}
             </Button>
           }
         />
@@ -562,41 +578,38 @@ export function CapturesPage() {
 
       <aside className="hidden lg:block w-[280px] shrink-0 space-y-6 sticky top-0">
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">About Captures</h3>
+          <h3 className="text-sm font-semibold">{t('settings.captures.sidebar.aboutTitle')}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Hold a shortcut anywhere on your machine, speak, and Voicebox turns
-            your voice into text. Replay it in any cloned voice, paste it into
-            any app, or pipe it into your coding agent.
+            {t('settings.captures.sidebar.aboutBody')}
           </p>
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">What's different</h3>
+          <h3 className="text-sm font-semibold">{t('settings.captures.sidebar.differencesTitle')}</h3>
           <ul className="space-y-3 text-sm text-muted-foreground">
             <li className="flex gap-2.5">
               <Lock className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
               <span className="leading-relaxed">
-                <span className="text-foreground font-medium">Fully local.</span>{' '}
-                Whisper and the refinement LLM run on your hardware. No cloud,
-                no accounts, your voice never leaves the machine.
+                <span className="text-foreground font-medium">{t('settings.captures.sidebar.local.title')}</span>{' '}
+                {t('settings.captures.sidebar.local.body')}
               </span>
             </li>
             <li className="flex gap-2.5">
               <Volume2 className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
               <span className="leading-relaxed">
                 <span className="text-foreground font-medium">
-                  Play as any voice.
+                  {t('settings.captures.sidebar.playAs.title')}
                 </span>{' '}
-                Transcripts can be read back in any profile you've cloned.
+                {t('settings.captures.sidebar.playAs.body')}
               </span>
             </li>
             <li className="flex gap-2.5">
               <Laptop className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
               <span className="leading-relaxed">
                 <span className="text-foreground font-medium">
-                  Cross-platform.
+                  {t('settings.captures.sidebar.crossPlatform.title')}
                 </span>{' '}
-                Same shortcut, same flow on macOS, Windows, and Linux.
+                {t('settings.captures.sidebar.crossPlatform.body')}
               </span>
             </li>
           </ul>
