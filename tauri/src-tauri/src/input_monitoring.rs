@@ -2,8 +2,8 @@
 //!
 //! On macOS 10.15+, creating a CGEventTap that observes keyboard events
 //! requires the host process to be listed under System Settings → Privacy &
-//! Security → Input Monitoring. Without that trust, `rdev::listen` returns
-//! immediately and no key events ever flow through the chord engine.
+//! Security → Input Monitoring. Without that trust, keytap's `Tap` returns
+//! a permission error and no key events ever flow through the chord engine.
 //!
 //! The relevant TCC pair lives in IOKit, mirroring `AXIsProcessTrusted` /
 //! `AXIsProcessTrustedWithOptions` on the Accessibility side:
@@ -20,7 +20,7 @@
 //!
 //! `enable_hotkey` calls `request` on first invocation so the prompt fires
 //! from a deterministic, user-initiated point (the Captures toggle) instead
-//! of as a side-effect of `rdev::listen` creating its CGEventTap.
+//! of as a side-effect of keytap's `Tap` creating its CGEventTap.
 //!
 //! Windows / Linux don't gate keyboard taps behind a TCC-style permission,
 //! so those branches return `true`.

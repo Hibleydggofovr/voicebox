@@ -863,10 +863,10 @@ fn check_input_monitoring_permission() -> bool {
 /// what triggers the macOS Input Monitoring TCC prompt, so a fresh-install
 /// user who never enables the hotkey never sees the prompt.
 ///
-/// Once spawned, the monitor stays alive for the rest of the process: rdev's
-/// `listen` blocks forever and offers no stop signal. "Disable" therefore
-/// swaps the chord engine to empty bindings (matches nothing, fires nothing)
-/// rather than tearing down the CGEventTap.
+/// Disabling the hotkey clears the monitor's internal `ChordMatcher` so
+/// keytap's event tap is released while Tauri still owns this `HotkeyState`
+/// for the rest of the process. A subsequent enable re-arms without
+/// re-prompting for the Input Monitoring permission.
 #[cfg(desktop)]
 #[derive(Default)]
 pub struct HotkeyState {
@@ -879,7 +879,7 @@ fn build_chord_bindings(
     toggle_to_talk: &[String],
 ) -> Result<hotkey_monitor::Bindings, String> {
     use hotkey_monitor::{Bindings, ChordAction};
-    use rdev::Key;
+    use keytap::Key;
     use std::collections::HashSet;
 
     fn build_chord(name: &str, names: &[String]) -> Result<HashSet<Key>, String> {
@@ -910,7 +910,7 @@ fn build_chord_bindings(
 /// is true) and from the settings toggle.
 ///
 /// On macOS this is the call that triggers the "Voicebox would like to receive
-/// keystrokes from any application" TCC prompt, since `rdev::listen` creates
+/// keystrokes from any application" TCC prompt, since keytap's `Tap` creates
 /// the CGEventTap inside `HotkeyMonitor::spawn`.
 #[cfg(desktop)]
 #[command]
@@ -923,15 +923,15 @@ fn enable_hotkey(
     let bindings = build_chord_bindings(&push_to_talk, &toggle_to_talk)?;
 
     // Fire the Input Monitoring TCC prompt explicitly from the user's
-    // toggle click, before rdev::listen would do it implicitly via
+    // toggle click, before keytap's Tap would do it implicitly via
     // CGEventTap creation. Two reasons: (1) the prompt timing becomes
     // deterministic — it appears in response to a click instead of as a
     // mysterious side-effect of "the app started"; (2) on subsequent
     // launches we can short-circuit the spawn entirely if the user
-    // revoked the grant, instead of leaning on rdev silently failing.
+    // revoked the grant, instead of relying on the tap silently failing.
     // The call returns the current grant state; we ignore it because
-    // rdev::listen will surface its own error via stderr, and the
-    // settings UI polls `check_input_monitoring_permission` separately.
+    // keytap surfaces its own error via stderr, and the settings UI
+    // polls `check_input_monitoring_permission` separately.
     let _ = input_monitoring::request();
 
     // The dictate pill webview must exist before the first chord fires so it
@@ -944,7 +944,7 @@ fn enable_hotkey(
     }
 
     let mut slot = state.monitor.lock().map_err(|e| e.to_string())?;
-    match slot.as_ref() {
+    match slot.as_mut() {
         Some(monitor) => monitor.update_bindings(bindings),
         None => {
             *slot = Some(hotkey_monitor::HotkeyMonitor::spawn(app, bindings));
@@ -953,16 +953,15 @@ fn enable_hotkey(
     Ok(())
 }
 
-/// Quiet the global hotkey by swapping the chord engine to empty bindings.
-/// The CGEventTap stays alive (rdev::listen has no stop) but the chord state
-/// machine matches nothing, so no `dictate:*` events fire and the dictate
-/// pill never shows. A subsequent `enable_hotkey` call re-arms it without
-/// re-prompting for permission.
+/// Quiet the global hotkey. Tears down the `ChordMatcher` (which stops
+/// keytap's chord worker and closes the OS event tap) but keeps the
+/// `HotkeyMonitor` handle around so a subsequent `enable_hotkey` re-arms
+/// without re-prompting for Input Monitoring permission.
 #[cfg(desktop)]
 #[command]
 fn disable_hotkey(state: State<'_, HotkeyState>) -> Result<(), String> {
-    let slot = state.monitor.lock().map_err(|e| e.to_string())?;
-    if let Some(monitor) = slot.as_ref() {
+    let mut slot = state.monitor.lock().map_err(|e| e.to_string())?;
+    if let Some(monitor) = slot.as_mut() {
         monitor.update_bindings(hotkey_monitor::Bindings::new());
     }
     Ok(())
@@ -974,7 +973,7 @@ fn disable_hotkey(state: State<'_, HotkeyState>) -> Result<(), String> {
 /// this can only happen if the frontend races; the next `enable_hotkey` will
 /// pick up the saved chords.
 ///
-/// Returns an error when a key name doesn't map to an `rdev::Key`, so the
+/// Returns an error when a key name doesn't map to a `keytap::Key`, so the
 /// picker UI can surface "this key isn't supported" instead of silently
 /// dropping it from the chord.
 #[cfg(desktop)]
@@ -985,8 +984,8 @@ fn update_chord_bindings(
     toggle_to_talk: Vec<String>,
 ) -> Result<(), String> {
     let bindings = build_chord_bindings(&push_to_talk, &toggle_to_talk)?;
-    let slot = state.monitor.lock().map_err(|e| e.to_string())?;
-    if let Some(monitor) = slot.as_ref() {
+    let mut slot = state.monitor.lock().map_err(|e| e.to_string())?;
+    if let Some(monitor) = slot.as_mut() {
         monitor.update_bindings(bindings);
     }
     Ok(())

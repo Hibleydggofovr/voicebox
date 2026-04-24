@@ -1,27 +1,44 @@
-//! Global keyboard tap + chord dispatcher.
+//! Global hotkey → dictation effect bridge.
 //!
-//! Spawns a dedicated thread running `rdev::listen` (which internally owns a
-//! CGEventTap on macOS / `SetWindowsHookEx` on Windows / `XRecord` on Linux).
-//! Feeds raw key events into a private `Chord` state machine and translates
-//! its effects into Tauri events + window show/hide calls.
+//! Thin adapter from `keytap::chord::ChordMatcher` to Tauri events. keytap
+//! owns the OS event tap + the chord state machine (Momentary vs Toggle,
+//! longest-match resolution, sticky-toggle semantics); this module's only
+//! job is:
 //!
-//! Left- and right-hand modifier variants are deliberately kept distinct.
-//! Defaults bind to right-hand Cmd + right-hand Option so that the usual
-//! left-hand shortcuts — Cmd+Option+I to open devtools, Cmd+Option+Esc for
-//! force-quit, etc. — continue to work untouched.
+//!   1. Build a `ChordMatcher` from the user's saved PTT + Toggle chords.
+//!   2. Translate `ChordEvent` → voicebox's [`Effect`] on a dispatcher
+//!      thread.
+//!   3. Fan [`Effect`]s out into Tauri events + dictate-window show/hide.
+//!
+//! The [`Effect::RestartRecording`] signal is emitted when keytap fires
+//! `End(PTT)` and `Start(Toggle)` with the *same* [`Instant`] — which
+//! happens when the held set upgrades from a shorter chord to a longer
+//! superset in a single event (the classic PTT→hands-free transition).
+//! We detect the pair with a 5 ms peek on the matcher's receiver and
+//! coalesce into one `Restart` so hosts can discard the transition-
+//! moment audio rather than treat it as an unrelated Stop+Start pair.
+//!
+//! Left- and right-hand modifier variants are kept distinct all the way
+//! down to the OS event tap (keytap's core promise). Defaults bind to
+//! right-hand Cmd + right-hand Option on macOS / right-hand Ctrl +
+//! right-hand Shift on Windows so the usual left-hand shortcuts stay
+//! with the OS / app.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
-use rdev::{listen, EventType, Key};
+use keytap::chord::{Chord, ChordEvent, ChordMatcher};
+use keytap::{Key, RecvTimeoutError};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::focus_capture;
 use crate::DICTATE_WINDOW_LABEL;
 
 // ========================================================================
-// Chord state machine
+// Public types
 // ========================================================================
 
 /// Semantic action a chord can be bound to. `PushToTalk` = hold chord to
@@ -33,190 +50,185 @@ pub enum ChordAction {
     ToggleToTalk,
 }
 
-/// Output of the chord state machine after consuming an input event. Hosts
+/// Effect produced after the chord matcher resolves an event. Hosts
 /// translate these into UI / recorder calls.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Effect {
     StartRecording(ChordAction),
     StopRecording(ChordAction),
-    /// Emitted when a push-to-talk chord is "upgraded" into the toggle chord
-    /// mid-hold — hosts may want to discard the captured audio and restart
-    /// so the transition moment isn't in the recording.
+    /// Emitted when a push-to-talk chord is "upgraded" into the toggle
+    /// chord mid-hold — hosts may want to discard the captured audio and
+    /// restart so the transition moment isn't in the recording.
     RestartRecording(ChordAction),
 }
 
-#[derive(Debug, Clone)]
-enum KeyEvent {
-    Down(Key),
-    Up(Key),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Match {
-    None,
-    Partial,
-    Hit(ChordAction),
-}
-
+/// Chord key sets from capture settings. Both actions use the same
+/// `HashSet<Key>` shape so callers don't need to know about keytap's
+/// `Chord` type.
 pub type Bindings = HashMap<ChordAction, HashSet<Key>>;
-
-/// Private state machine that turns key-down / key-up events into
-/// `Effect`s. Owns no I/O — just the "which keys are held" and
-/// "which action is currently driving a recording" bookkeeping.
-struct Chord {
-    bindings: Bindings,
-    pressed_keys: HashSet<Key>,
-    active_recording_action: Option<ChordAction>,
-}
-
-impl Chord {
-    fn new(bindings: Bindings) -> Self {
-        Self {
-            bindings,
-            pressed_keys: HashSet::new(),
-            active_recording_action: None,
-        }
-    }
-
-    fn update_bindings(&mut self, bindings: Bindings) {
-        self.bindings = bindings;
-    }
-
-    fn handle(&mut self, event: KeyEvent) -> Vec<Effect> {
-        let changed = match event {
-            KeyEvent::Down(k) => self.pressed_keys.insert(k),
-            KeyEvent::Up(k) => self.pressed_keys.remove(&k),
-        };
-        if !changed {
-            return Vec::new();
-        }
-        self.step()
-    }
-
-    #[allow(dead_code)] // Used by the chord picker UI in Pass 2 to suspend matching during capture.
-    fn reset(&mut self) {
-        self.pressed_keys.clear();
-        self.active_recording_action = None;
-    }
-
-    fn step(&mut self) -> Vec<Effect> {
-        match self.active_recording_action {
-            Some(ChordAction::PushToTalk) => {
-                if self.classify() == Match::Hit(ChordAction::ToggleToTalk) {
-                    self.active_recording_action = Some(ChordAction::ToggleToTalk);
-                    return vec![Effect::RestartRecording(ChordAction::ToggleToTalk)];
-                }
-
-                let still_held = self
-                    .bindings
-                    .get(&ChordAction::PushToTalk)
-                    .map(|chord| chord.is_subset(&self.pressed_keys))
-                    .unwrap_or(false);
-
-                if !still_held {
-                    self.active_recording_action = None;
-                    return vec![Effect::StopRecording(ChordAction::PushToTalk)];
-                }
-                Vec::new()
-            }
-            Some(ChordAction::ToggleToTalk) => {
-                if self.classify() == Match::Hit(ChordAction::ToggleToTalk) {
-                    self.active_recording_action = None;
-                    return vec![Effect::StopRecording(ChordAction::ToggleToTalk)];
-                }
-                Vec::new()
-            }
-            None => match self.classify() {
-                Match::Hit(action) => {
-                    self.active_recording_action = Some(action);
-                    vec![Effect::StartRecording(action)]
-                }
-                Match::None | Match::Partial => Vec::new(),
-            },
-        }
-    }
-
-    fn classify(&self) -> Match {
-        if self.pressed_keys.is_empty() {
-            return Match::None;
-        }
-
-        // Exact match wins even if the pressed set is also a prefix of another
-        // binding.
-        for (action, chord) in &self.bindings {
-            if self.pressed_keys == *chord {
-                return Match::Hit(*action);
-            }
-        }
-
-        let is_prefix = self
-            .bindings
-            .values()
-            .any(|c| self.pressed_keys.is_subset(c) && self.pressed_keys != *c);
-
-        if is_prefix {
-            Match::Partial
-        } else {
-            Match::None
-        }
-    }
-}
 
 // ========================================================================
 // Monitor
 // ========================================================================
 
 pub struct HotkeyMonitor {
-    chord: Arc<Mutex<Chord>>,
+    app: AppHandle,
+    active: Option<Active>,
+}
+
+struct Active {
+    dispatcher: JoinHandle<()>,
+    shutdown: Arc<AtomicBool>,
 }
 
 impl HotkeyMonitor {
+    /// Build the monitor with initial bindings. Equivalent to constructing
+    /// an empty monitor and calling [`Self::update_bindings`] once.
     pub fn spawn(app: AppHandle, bindings: Bindings) -> Self {
-        let chord = Arc::new(Mutex::new(Chord::new(bindings)));
-        let chord_for_thread = chord.clone();
-        let app_for_thread = app.clone();
-
-        thread::spawn(move || {
-            // Without this call, rdev's convert() calls TSMGetInputSourceProperty
-            // on this background thread, which trips a main-queue assertion on
-            // macOS 14+ and traps the whole process (see Narsil/rdev#165 / #147).
-            #[cfg(target_os = "macos")]
-            rdev::set_is_main_thread(false);
-
-            let result = listen(move |event| {
-                let input = match event.event_type {
-                    EventType::KeyPress(k) => KeyEvent::Down(k),
-                    EventType::KeyRelease(k) => KeyEvent::Up(k),
-                    _ => return,
-                };
-
-                let effects = match chord_for_thread.lock() {
-                    Ok(mut chord) => chord.handle(input),
-                    Err(_) => return,
-                };
-
-                for effect in effects {
-                    apply_effect(&app_for_thread, effect);
-                }
-            });
-
-            if let Err(err) = result {
-                eprintln!(
-                    "HotkeyMonitor: rdev::listen failed ({:?}). Global chord detection is disabled. On macOS, grant Input Monitoring in System Settings → Privacy & Security → Input Monitoring and relaunch.",
-                    err
-                );
-            }
-        });
-
-        Self { chord }
+        let mut m = Self { app, active: None };
+        m.apply(bindings);
+        m
     }
 
-    pub fn update_bindings(&self, bindings: Bindings) {
-        if let Ok(mut chord) = self.chord.lock() {
-            chord.update_bindings(bindings);
+    /// Swap in a fresh set of chord bindings. Tears down the existing
+    /// `ChordMatcher` (which stops keytap's chord worker thread and
+    /// closes the OS tap) and spawns a new one. No-op for the "all
+    /// empty" case so "disable hotkey" doesn't keep a tap running for
+    /// no reason.
+    pub fn update_bindings(&mut self, bindings: Bindings) {
+        self.apply(bindings);
+    }
+
+    fn apply(&mut self, bindings: Bindings) {
+        // Tear down any existing matcher + dispatcher first. The
+        // dispatcher sees the shutdown flag on its next recv_timeout
+        // (≤100ms) and returns; joining waits for that. Dropping the
+        // ChordMatcher stops keytap's chord-worker thread and the
+        // underlying Tap.
+        if let Some(active) = self.active.take() {
+            active.shutdown.store(true, Ordering::Relaxed);
+            let _ = active.dispatcher.join();
+        }
+
+        if bindings.values().all(|set| set.is_empty()) {
+            return;
+        }
+
+        let matcher = match build_matcher(&bindings) {
+            Ok(m) => m,
+            Err(err) => {
+                eprintln!(
+                    "HotkeyMonitor: ChordMatcher build failed ({err}). Global chord detection is disabled. On macOS, grant Input Monitoring in System Settings → Privacy & Security → Input Monitoring and relaunch."
+                );
+                return;
+            }
+        };
+
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdown_for_thread = shutdown.clone();
+        let app = self.app.clone();
+        let dispatcher = thread::Builder::new()
+            .name("voicebox-hotkey-dispatcher".into())
+            .spawn(move || dispatcher_loop(app, matcher, shutdown_for_thread))
+            .expect("spawn hotkey dispatcher thread");
+
+        self.active = Some(Active { dispatcher, shutdown });
+    }
+}
+
+impl Drop for HotkeyMonitor {
+    fn drop(&mut self) {
+        if let Some(active) = self.active.take() {
+            active.shutdown.store(true, Ordering::Relaxed);
+            let _ = active.dispatcher.join();
         }
     }
 }
+
+// ========================================================================
+// Matcher construction + dispatch
+// ========================================================================
+
+fn build_matcher(bindings: &Bindings) -> Result<ChordMatcher<ChordAction>, keytap::Error> {
+    let mut builder = ChordMatcher::builder();
+    if let Some(keys) = bindings.get(&ChordAction::PushToTalk) {
+        if !keys.is_empty() {
+            builder = builder.add(
+                ChordAction::PushToTalk,
+                Chord::of(keys.iter().copied()),
+            );
+        }
+    }
+    if let Some(keys) = bindings.get(&ChordAction::ToggleToTalk) {
+        if !keys.is_empty() {
+            builder = builder.add_toggle(
+                ChordAction::ToggleToTalk,
+                Chord::of(keys.iter().copied()),
+            );
+        }
+    }
+    builder.build()
+}
+
+fn dispatcher_loop(
+    app: AppHandle,
+    matcher: ChordMatcher<ChordAction>,
+    shutdown: Arc<AtomicBool>,
+) {
+    while !shutdown.load(Ordering::Relaxed) {
+        match matcher.recv_timeout(Duration::from_millis(100)) {
+            Ok(event) => process_event(&app, &matcher, event),
+            Err(RecvTimeoutError::Timeout) => continue,
+            Err(RecvTimeoutError::Disconnected) => break,
+        }
+    }
+}
+
+/// Turn a single [`ChordEvent`] into zero or one [`Effect`]s, peeking at
+/// the matcher once for a same-Instant follow-up so upgrade transitions
+/// coalesce into [`Effect::RestartRecording`] instead of a Stop+Start
+/// pair.
+fn process_event(
+    app: &AppHandle,
+    matcher: &ChordMatcher<ChordAction>,
+    event: ChordEvent<ChordAction>,
+) {
+    match event {
+        ChordEvent::Start { id, .. } => {
+            apply_effect(app, Effect::StartRecording(id));
+        }
+        ChordEvent::End { id: end_id, time: end_time } => {
+            // Peek for an immediately-following Start. keytap emits
+            // End+Start atomically (same Instant) when the held set
+            // transitions between registered chords — our 5 ms window
+            // is well under perceptible latency but far longer than the
+            // channel hop between keytap's chord worker and our
+            // dispatcher.
+            match matcher.recv_timeout(Duration::from_millis(5)) {
+                Ok(ChordEvent::Start { id: start_id, time: start_time })
+                    if start_time == end_time =>
+                {
+                    apply_effect(app, Effect::RestartRecording(start_id));
+                }
+                Ok(other) => {
+                    apply_effect(app, Effect::StopRecording(end_id));
+                    // The peeked event wasn't a transition partner;
+                    // process it in its own right. Recursion depth is
+                    // bounded by the number of back-to-back chord
+                    // events, in practice 1–2.
+                    process_event(app, matcher, other);
+                }
+                Err(_) => {
+                    apply_effect(app, Effect::StopRecording(end_id));
+                }
+            }
+        }
+    }
+}
+
+// ========================================================================
+// Effect → Tauri
+// ========================================================================
 
 fn apply_effect(app: &AppHandle, effect: Effect) {
     match effect {
@@ -271,77 +283,5 @@ fn apply_effect(app: &AppHandle, effect: Effect) {
                 let _ = window.emit("dictate:restart", ());
             }
         }
-    }
-}
-
-// ========================================================================
-// Tests
-// ========================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn keys(keys: &[Key]) -> HashSet<Key> {
-        keys.iter().copied().collect()
-    }
-
-    fn test_bindings() -> Bindings {
-        let mut b = Bindings::new();
-        b.insert(ChordAction::PushToTalk, keys(&[Key::MetaLeft, Key::Alt]));
-        b.insert(
-            ChordAction::ToggleToTalk,
-            keys(&[Key::MetaLeft, Key::Alt, Key::Space]),
-        );
-        b
-    }
-
-    #[test]
-    fn push_to_talk_starts_on_exact_hold_and_stops_on_release() {
-        let mut c = Chord::new(test_bindings());
-        assert_eq!(c.handle(KeyEvent::Down(Key::MetaLeft)), vec![]);
-        assert_eq!(
-            c.handle(KeyEvent::Down(Key::Alt)),
-            vec![Effect::StartRecording(ChordAction::PushToTalk)],
-        );
-        assert_eq!(
-            c.handle(KeyEvent::Up(Key::Alt)),
-            vec![Effect::StopRecording(ChordAction::PushToTalk)],
-        );
-    }
-
-    #[test]
-    fn toggle_starts_on_exact_and_stops_on_second_exact() {
-        let mut c = Chord::new(test_bindings());
-        c.handle(KeyEvent::Down(Key::MetaLeft));
-        c.handle(KeyEvent::Down(Key::Alt));
-        // At this point PTT is active.
-        assert_eq!(c.active_recording_action, Some(ChordAction::PushToTalk));
-        assert_eq!(
-            c.handle(KeyEvent::Down(Key::Space)),
-            vec![Effect::RestartRecording(ChordAction::ToggleToTalk)],
-        );
-        // Releasing cmd/opt must not stop toggle recording.
-        assert_eq!(c.handle(KeyEvent::Up(Key::MetaLeft)), vec![]);
-        assert_eq!(c.handle(KeyEvent::Up(Key::Alt)), vec![]);
-        assert_eq!(c.handle(KeyEvent::Up(Key::Space)), vec![]);
-
-        // Second press of toggle chord stops it.
-        c.handle(KeyEvent::Down(Key::MetaLeft));
-        c.handle(KeyEvent::Down(Key::Alt));
-        assert_eq!(
-            c.handle(KeyEvent::Down(Key::Space)),
-            vec![Effect::StopRecording(ChordAction::ToggleToTalk)],
-        );
-    }
-
-    #[test]
-    fn toggle_from_idle_starts_immediately_on_full_chord() {
-        let mut c = Chord::new(test_bindings());
-        c.handle(KeyEvent::Down(Key::MetaLeft));
-        c.handle(KeyEvent::Down(Key::Alt));
-        // Drop MetaLeft before Space — we're not in the exact toggle match
-        // yet, just prefix. No start for toggle.
-        assert_eq!(c.active_recording_action, Some(ChordAction::PushToTalk));
     }
 }
