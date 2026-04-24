@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityNotice } from '@/components/AccessibilityGate/AccessibilityGate';
 import { InputMonitoringNotice } from '@/components/InputMonitoringGate/InputMonitoringGate';
 import { CapturePill, type PillState } from '@/components/CapturePill/CapturePill';
+import { DictationReadinessChecklist } from '@/components/CapturesTab/DictationReadinessChecklist';
 import { ChordPicker } from '@/components/ChordPicker/ChordPicker';
 import { Button } from '@/components/ui/button';
 import {
@@ -582,6 +583,15 @@ export function CapturesPage() {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {t('settings.captures.sidebar.aboutBody')}
           </p>
+        </div>
+
+        {/* Same six-gate checklist the CapturesTab empty state uses.
+            Surfaces missing models / permissions persistently while
+            users configure this page, so a red gate can't hide behind
+            a green toggle. */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">{t('captures.readiness.title')}</h3>
+          <DictationReadinessChecklist readiness={readiness} compact />
         </div>
 
         <div className="space-y-3">

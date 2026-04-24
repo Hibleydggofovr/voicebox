@@ -73,8 +73,20 @@ function progressPercent(task: ActiveDownloadTask | undefined): number | null {
  *
  * The chord stays disarmed until every row is green; this is what stops the
  * "stuck pill" failure mode of pressing the chord with a missing model.
+ *
+ * ``compact`` drops the centered title/subheading block and the
+ * empty-state max-width so the checklist can be embedded in a narrow
+ * sidebar alongside other settings. Callers own their own heading in
+ * that mode (typically an ``<h3>`` that matches the surrounding sidebar
+ * section style).
  */
-export function DictationReadinessChecklist({ readiness }: { readiness: DictationReadiness }) {
+export function DictationReadinessChecklist({
+  readiness,
+  compact = false,
+}: {
+  readiness: DictationReadiness;
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -176,15 +188,17 @@ export function DictationReadinessChecklist({ readiness }: { readiness: Dictatio
   }
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-2.5">
-      <div className="text-center mb-5 space-y-1">
-        <h2 className="text-base font-semibold text-foreground">
-          {t('captures.readiness.title')}
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          {t('captures.readiness.subheading')}
-        </p>
-      </div>
+    <div className={cn('w-full space-y-2.5', !compact && 'max-w-md mx-auto')}>
+      {!compact && (
+        <div className="text-center mb-5 space-y-1">
+          <h2 className="text-base font-semibold text-foreground">
+            {t('captures.readiness.title')}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {t('captures.readiness.subheading')}
+          </p>
+        </div>
+      )}
 
       {readiness.stt && (
         <ChecklistRow
