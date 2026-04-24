@@ -13,15 +13,33 @@
 //! The pill webview handles the rest (audio playback, then emits
 //! `dictate:hide` back to Rust when the audio element's `ended` fires).
 //!
-//! The task reconnects on any error with a 2 s backoff. There's no fancy
-//! exponential backoff — the backend either dies with the app or comes back
-//! quickly, and constant 2 s polling is cheap.
+//! Reconnect policy: idle-timeout + escalating backoff. The stream is
+//! infinite by design, so a successful round means "we were receiving
+//! frames and then the backend closed the connection" (typically a
+//! server restart) — reset backoff and reconnect quickly. A failure or
+//! a round that produced no frames escalates backoff up to a 30 s cap so
+//! long-term outages stop filling stderr with reconnect log lines.
+//!
+//! The idle timeout guards against the worst silent-failure mode: a
+//! backend that accepts the TCP connection but stops producing frames
+//! (deadlocked SSE endpoint, zombie process). Without a timeout the
+//! `chunk().await` blocks forever and the task never notices. The
+//! backend emits a `:ping` comment every 15 s, so 45 s without any data
+//! is a reliable signal the stream is dead.
 
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter};
 
 use crate::{ensure_dictate_window, SERVER_PORT};
+
+const INITIAL_BACKOFF: Duration = Duration::from_millis(500);
+const MAX_BACKOFF: Duration = Duration::from_secs(30);
+/// Backend emits a `:ping` heartbeat every 15 s. Giving the stream 45 s
+/// of idle budget absorbs one missed heartbeat (slow GC pause, brief
+/// backend stall) without being so long that a truly dead stream blocks
+/// the pill from surfacing for minutes.
+const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub fn spawn_speak_monitor(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -38,19 +56,45 @@ async fn run(app: AppHandle) {
             return;
         }
     };
+
+    let mut backoff = INITIAL_BACKOFF;
+    let mut attempt: u32 = 0;
+
     loop {
-        if let Err(e) = stream_once(&client, &url, &app).await {
-            eprintln!("speak_monitor: stream err: {e}");
+        let stream_result = stream_once(&client, &url, &app).await;
+        let had_success = matches!(stream_result, Ok(true));
+
+        if had_success {
+            backoff = INITIAL_BACKOFF;
+            attempt = 0;
+        } else {
+            attempt += 1;
+            let reason = match stream_result {
+                Ok(_) => "stream closed without data".to_string(),
+                Err(e) => format!("stream err: {e}"),
+            };
+            eprintln!(
+                "speak_monitor: {reason} (attempt {attempt}, retry in {:?})",
+                backoff
+            );
         }
-        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        tokio::time::sleep(backoff).await;
+        if !had_success {
+            backoff = (backoff * 2).min(MAX_BACKOFF);
+        }
     }
 }
 
+/// Consume the SSE stream until it closes or errors. Returns `Ok(true)`
+/// if at least one frame was received (the connection was genuinely
+/// productive), `Ok(false)` on a clean but empty close, and `Err` for
+/// any connection or parse failure.
 async fn stream_once(
     client: &reqwest::Client,
     url: &str,
     app: &AppHandle,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     let mut resp = client
         .get(url)
         .header("Accept", "text/event-stream")
@@ -60,7 +104,21 @@ async fn stream_once(
         return Err(format!("speak_monitor: backend returned {}", resp.status()).into());
     }
     let mut buf = String::new();
-    while let Some(chunk) = resp.chunk().await? {
+    let mut saw_data = false;
+    loop {
+        let chunk = match tokio::time::timeout(STREAM_IDLE_TIMEOUT, resp.chunk()).await {
+            Ok(Ok(Some(chunk))) => chunk,
+            Ok(Ok(None)) => return Ok(saw_data),
+            Ok(Err(e)) => return Err(Box::new(e)),
+            Err(_) => {
+                return Err(format!(
+                    "no data for {:?} (heartbeat should arrive every 15 s)",
+                    STREAM_IDLE_TIMEOUT
+                )
+                .into())
+            }
+        };
+        saw_data = true;
         buf.push_str(std::str::from_utf8(&chunk)?);
         // sse-starlette emits CRLF framing; the spec also permits LF, so
         // handle either. Drain whichever separator appears first.
@@ -79,7 +137,6 @@ async fn stream_once(
             }
         }
     }
-    Ok(())
 }
 
 /// Parse a single SSE frame into (event_name, data_json).
