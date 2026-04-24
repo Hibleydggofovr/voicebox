@@ -252,10 +252,37 @@ def _migrate_mcp_bindings(engine, inspector, tables: set[str]) -> None:
             "default_personality",
         )
     if "default_intent" in columns:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE mcp_client_bindings DROP COLUMN default_intent"))
-            conn.commit()
-        logger.info("Dropped legacy default_intent column from mcp_client_bindings")
+        if _supports_drop_column(engine):
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE mcp_client_bindings DROP COLUMN default_intent"))
+                conn.commit()
+            logger.info("Dropped legacy default_intent column from mcp_client_bindings")
+        else:
+            # ALTER TABLE … DROP COLUMN on SQLite requires 3.35+ (Mar
+            # 2021). Production PyInstaller builds bundle Python 3.12
+            # which links to SQLite 3.40+; this branch only fires for
+            # dev environments running the backend directly against an
+            # old system SQLite (Ubuntu 20.04 = 3.31, Debian 11 = 3.34).
+            # Leaving the unused column in place is harmless — the ORM
+            # only maps declared columns, so a stray one does no work
+            # and gets no reads or writes.
+            import sqlite3
+
+            logger.warning(
+                "SQLite %s too old to DROP COLUMN (need 3.35+); leaving unused default_intent column on mcp_client_bindings in place.",
+                sqlite3.sqlite_version,
+            )
+
+
+def _supports_drop_column(engine) -> bool:
+    """Whether ``ALTER TABLE … DROP COLUMN`` is supported by the dialect +
+    runtime. Non-SQLite dialects (Postgres, MySQL) have supported it for
+    decades; SQLite only gained the feature in 3.35."""
+    if engine.dialect.name != "sqlite":
+        return True
+    import sqlite3
+
+    return tuple(int(p) for p in sqlite3.sqlite_version.split(".")[:3]) >= (3, 35, 0)
 
 
 def _normalize_storage_paths(engine, tables: set[str]) -> None:
