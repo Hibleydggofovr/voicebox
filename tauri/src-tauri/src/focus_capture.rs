@@ -10,7 +10,11 @@
 //! does and what users expect.
 //!
 //! - **macOS** — `AXUIElementCopyAttributeValue(kAXFocusedUIElement)` +
-//!   `AXUIElementGetPid` + `NSRunningApplication.activateWithOptions:`.
+//!   `AXUIElementGetPid` + NSRunningApplication activation. Activation
+//!   uses the cooperative-activation pattern on macOS 14+ (the caller
+//!   `yieldActivationToApplication:`s, then the target `activate`s) and
+//!   falls back to the pre-Sonoma `activateWithOptions:` on 11–13. See
+//!   `activate_pid` for the rationale.
 //! - **Windows** — `GetForegroundWindow` + `GetWindowThreadProcessId` for
 //!   the top-level HWND and PID; UIAutomation's `IUIAutomation::GetFocusedElement`
 //!   for best-effort control-class (skipped silently if COM isn't usable).
@@ -247,25 +251,76 @@ pub fn capture_focus() -> Result<FocusSnapshot, String> {
 /// last-focused window. Paired with [`capture_focus`] at chord-start so a
 /// post-transcription synthetic ⌘V lands where the user started, not
 /// wherever focus drifted to during the transcribe / refine window.
+///
+/// macOS 14 (Sonoma) deprecated `activateWithOptions:` in favour of a
+/// cooperative-activation pattern: the caller first invokes
+/// `yieldActivationToApplication:` on its own `NSRunningApplication` to
+/// grant the target activation rights, then the target's `activate`
+/// succeeds against the tightened Sonoma foreground rules. Without the
+/// yield, `activate` on 14+ sometimes silently fails or only bounces the
+/// dock icon — exactly the "paste lands in the wrong app" symptom we're
+/// trying to prevent. The yield is discovered at runtime via
+/// `respondsToSelector:` so we don't need an operatingSystemVersion probe
+/// and the pre-Sonoma path stays identical.
+///
+/// The BOOL return of both `activate` and `activateWithOptions:` is now
+/// propagated — if the system refuses activation (target quit mid-
+/// transcription, trust revoked, cooperative-activation refused) the
+/// caller aborts before clobbering the clipboard.
 #[cfg(target_os = "macos")]
 pub fn activate_pid(pid: i32) -> Result<(), String> {
     unsafe {
         let _pool = AutoreleasePool::new();
-        let app: Id = msg_send![
+        let target: Id = msg_send![
             class!(NSRunningApplication),
             runningApplicationWithProcessIdentifier: pid
         ];
-        if app.is_null() {
+        if target.is_null() {
             return Err(format!("No running application for PID {}", pid));
         }
-        // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2.
-        //
-        // macOS 14 deprecated this in favour of `activate()` but kept it
-        // functional when the caller has Accessibility permission — which
-        // we require for the paste event anyway.
-        let _: bool = msg_send![app, activateWithOptions: 2u64];
+
+        let activated: bool = if can_yield_activation() {
+            let current: Id =
+                msg_send![class!(NSRunningApplication), currentApplication];
+            if !current.is_null() {
+                let _: () = msg_send![current, yieldActivationToApplication: target];
+            }
+            msg_send![target, activate]
+        } else {
+            // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2.
+            msg_send![target, activateWithOptions: 2u64]
+        };
+
+        if !activated {
+            return Err(format!(
+                "NSRunningApplication activate returned false for PID {} — the target may have quit mid-transcription, Accessibility is no longer trusted, or the system refused cooperative activation.",
+                pid
+            ));
+        }
         Ok(())
     }
+}
+
+/// `true` when `NSRunningApplication` responds to
+/// `yieldActivationToApplication:` — the macOS 14+ discriminator for the
+/// cooperative-activation APIs. Cached since the answer doesn't change
+/// over a process's lifetime and the objc_msgSend probe is otherwise
+/// repeated on every paste.
+#[cfg(target_os = "macos")]
+fn can_yield_activation() -> bool {
+    use std::sync::OnceLock;
+    static CACHED: OnceLock<bool> = OnceLock::new();
+    *CACHED.get_or_init(|| unsafe {
+        let current: Id = msg_send![class!(NSRunningApplication), currentApplication];
+        if current.is_null() {
+            return false;
+        }
+        let responds: bool = msg_send![
+            current,
+            respondsToSelector: sel!(yieldActivationToApplication:)
+        ];
+        responds
+    })
 }
 
 #[cfg(target_os = "windows")]
