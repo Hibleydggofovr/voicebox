@@ -13,12 +13,17 @@
 //!   windows when we run non-elevated — nothing we can do short of also
 //!   running elevated.
 //!
-//! The virtual keycode used for V is `kVK_ANSI_V` (9) on macOS and `VK_V`
-//! (0x56) on Windows. Both are layout-dependent — they mean "the physical
-//! key in the QWERTY V position" — so on Dvorak / Colemak this would fire
-//! the wrong shortcut. A later pass will resolve the current layout's V
-//! keycode per-platform (`TISCopyCurrentKeyboardInputSource` +
-//! `UCKeyTranslate` on macOS; `VkKeyScanExW` on Windows).
+//! On macOS the V keycode is resolved per-layout by
+//! [`crate::keyboard_layout`] — Cmd+V is matched against the layout-
+//! translated character via NSMenu key equivalents, so hardcoding
+//! `kVK_ANSI_V` (the QWERTY V position) would fire Cmd+. on Dvorak. The
+//! resolved keycode is read once per paste from an atomic; the cache is
+//! primed at startup and refreshed on layout change.
+//!
+//! Windows hardcodes `VK_V`. `SendInput` with `wVk = VK_V` makes the
+//! target receive `WM_KEYDOWN` with `wParam = VK_V` regardless of the
+//! active layout, and most Windows apps treat that as Ctrl+V (the same
+//! reason `Send "^v"` works in AutoHotkey on Dvorak Windows).
 
 #[cfg(target_os = "macos")]
 use std::ffi::c_void;
@@ -56,8 +61,6 @@ mod ffi {
     /// `kCGEventFlagMaskCommand` — the Cmd modifier bit inside `CGEventFlags`.
     pub const K_CG_EVENT_FLAG_MASK_COMMAND: CGEventFlags = 0x00100000;
 
-    /// `kVK_ANSI_V`.
-    pub const KEYCODE_V: CGKeyCode = 9;
     /// `kVK_Command` (left Cmd).
     pub const KEYCODE_LEFT_CMD: CGKeyCode = 0x37;
 
@@ -88,6 +91,8 @@ mod ffi {
 pub fn send_paste() -> Result<(), String> {
     use ffi::*;
 
+    let v_keycode = crate::keyboard_layout::paste_keycode_v();
+
     unsafe {
         let source = CGEventSourceCreate(K_CG_EVENT_SOURCE_STATE_HID_SYSTEM_STATE);
         if source.is_null() {
@@ -97,8 +102,8 @@ pub fn send_paste() -> Result<(), String> {
 
         let events = [
             (KEYCODE_LEFT_CMD, true, 0),
-            (KEYCODE_V, true, K_CG_EVENT_FLAG_MASK_COMMAND),
-            (KEYCODE_V, false, K_CG_EVENT_FLAG_MASK_COMMAND),
+            (v_keycode, true, K_CG_EVENT_FLAG_MASK_COMMAND),
+            (v_keycode, false, K_CG_EVENT_FLAG_MASK_COMMAND),
             (KEYCODE_LEFT_CMD, false, 0),
         ];
 

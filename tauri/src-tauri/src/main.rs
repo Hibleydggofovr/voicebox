@@ -11,6 +11,7 @@ mod hotkey_monitor;
 mod input_monitoring;
 #[cfg(desktop)]
 mod key_codes;
+mod keyboard_layout;
 mod speak_monitor;
 mod synthetic_keys;
 
@@ -1219,6 +1220,14 @@ pub fn run() {
             {
                 app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.handle().plugin(tauri_plugin_process::init())?;
+
+                // Resolve the active keyboard layout's V keycode now, on
+                // the main thread, and register an observer for layout
+                // changes. The synthetic-paste hot path then only reads an
+                // atomic. See keyboard_layout.rs for why this matters
+                // (Cmd+V is matched by translated character, not keycode,
+                // so QWERTY keycode 9 produces Cmd+. on Dvorak).
+                keyboard_layout::init();
 
                 // HotkeyMonitor is spawned lazily via the `enable_hotkey`
                 // command — see HotkeyState. The dictate pill webview is
