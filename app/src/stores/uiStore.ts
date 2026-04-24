@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 // Draft state for the create voice profile form
 export interface ProfileFormDraft {
@@ -49,33 +50,41 @@ interface UIStore {
   setTheme: (theme: 'light' | 'dark') => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarOpen: true,
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+export const useUIStore = create<UIStore>()(
+  persist(
+    (set) => ({
+      sidebarOpen: true,
+      setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
-  profileDialogOpen: false,
-  setProfileDialogOpen: (open) => set({ profileDialogOpen: open }),
-  editingProfileId: null,
-  setEditingProfileId: (id) => set({ editingProfileId: id }),
+      profileDialogOpen: false,
+      setProfileDialogOpen: (open) => set({ profileDialogOpen: open }),
+      editingProfileId: null,
+      setEditingProfileId: (id) => set({ editingProfileId: id }),
 
-  generationDialogOpen: false,
-  setGenerationDialogOpen: (open) => set({ generationDialogOpen: open }),
+      generationDialogOpen: false,
+      setGenerationDialogOpen: (open) => set({ generationDialogOpen: open }),
 
-  selectedProfileId: null,
-  setSelectedProfileId: (id) => set({ selectedProfileId: id }),
+      selectedProfileId: null,
+      setSelectedProfileId: (id) => set({ selectedProfileId: id }),
 
-  selectedEngine: 'qwen',
-  setSelectedEngine: (engine) => set({ selectedEngine: engine }),
+      selectedEngine: 'qwen',
+      setSelectedEngine: (engine) => set({ selectedEngine: engine }),
 
-  selectedVoiceId: null,
-  setSelectedVoiceId: (id) => set({ selectedVoiceId: id }),
+      selectedVoiceId: null,
+      setSelectedVoiceId: (id) => set({ selectedVoiceId: id }),
 
-  profileFormDraft: null,
-  setProfileFormDraft: (draft) => set({ profileFormDraft: draft }),
+      profileFormDraft: null,
+      setProfileFormDraft: (draft) => set({ profileFormDraft: draft }),
 
-  theme: 'light',
-  setTheme: (theme) => {
-    set({ theme });
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  },
-}));
+      theme: 'light',
+      setTheme: (theme) => {
+        set({ theme });
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      },
+    }),
+    {
+      name: 'voicebox-ui',
+      partialize: (state) => ({ selectedProfileId: state.selectedProfileId }),
+    },
+  ),
+);
