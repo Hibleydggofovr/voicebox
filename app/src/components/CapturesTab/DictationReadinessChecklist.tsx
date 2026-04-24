@@ -232,39 +232,50 @@ export function DictationReadinessChecklist({
         />
       )}
 
-      <ChecklistRow
-        icon={<Keyboard className="h-3.5 w-3.5" />}
-        title={t('captures.readiness.inputMonitoring.label')}
-        description={
-          readiness.inputMonitoring
-            ? t('captures.readiness.inputMonitoring.ready')
-            : t('captures.readiness.inputMonitoring.missing')
-        }
-        ready={readiness.inputMonitoring}
-        action={
-          <Button size="sm" onClick={readiness.openInputMonitoringSettings} className="gap-1.5">
-            <ExternalLink className="h-3.5 w-3.5" />
-            {t('captures.readiness.inputMonitoring.openSettings')}
-          </Button>
-        }
-      />
+      {/* Input Monitoring + Accessibility are macOS-only TCC permissions.
+          The Rust stubs return true on Windows/Linux, so rendering these
+          rows there would show permanent green checkmarks with copy
+          that talks about macOS — noise. Hide on non-mac. */}
+      {isMacOS && (
+        <ChecklistRow
+          icon={<Keyboard className="h-3.5 w-3.5" />}
+          title={t('captures.readiness.inputMonitoring.label')}
+          description={
+            readiness.inputMonitoring
+              ? t('captures.readiness.inputMonitoring.ready')
+              : t('captures.readiness.inputMonitoring.missing')
+          }
+          ready={readiness.inputMonitoring}
+          action={
+            <Button size="sm" onClick={readiness.openInputMonitoringSettings} className="gap-1.5">
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t('captures.readiness.inputMonitoring.openSettings')}
+            </Button>
+          }
+        />
+      )}
 
-      <ChecklistRow
-        icon={<Accessibility className="h-3.5 w-3.5" />}
-        title={t('captures.readiness.accessibility.label')}
-        description={
-          readiness.accessibility
-            ? t('captures.readiness.accessibility.ready')
-            : t('captures.readiness.accessibility.missing')
-        }
-        ready={readiness.accessibility}
-        action={
-          <Button size="sm" onClick={readiness.openAccessibilitySettings} className="gap-1.5">
-            <ExternalLink className="h-3.5 w-3.5" />
-            {t('captures.readiness.accessibility.openSettings')}
-          </Button>
-        }
-      />
+      {isMacOS && (
+        <ChecklistRow
+          icon={<Accessibility className="h-3.5 w-3.5" />}
+          title={t('captures.readiness.accessibility.label')}
+          description={
+            readiness.accessibility
+              ? t('captures.readiness.accessibility.ready')
+              : t('captures.readiness.accessibility.missing')
+          }
+          ready={readiness.accessibility}
+          action={
+            <Button size="sm" onClick={readiness.openAccessibilitySettings} className="gap-1.5">
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t('captures.readiness.accessibility.openSettings')}
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }
+
+const isMacOS =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);

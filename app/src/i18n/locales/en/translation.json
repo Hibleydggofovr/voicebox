@@ -851,7 +851,7 @@
         "description": "Capture from anywhere on your machine with a global shortcut.",
         "globalShortcut": {
           "title": "Global shortcut",
-          "description": "Hold the shortcut to record from anywhere on your machine. Release to transcribe. macOS will ask for Input Monitoring permission the first time you turn this on."
+          "description": "Hold the shortcut to record from anywhere on your machine. Release to transcribe."
         },
         "pushToTalk": {
           "title": "Push-to-talk shortcut",

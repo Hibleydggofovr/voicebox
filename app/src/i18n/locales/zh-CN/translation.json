@@ -851,7 +851,7 @@
         "description": "使用全局快捷键在系统的任何位置进行捕获。",
         "globalShortcut": {
           "title": "全局快捷键",
-          "description": "按住快捷键即可在系统的任何位置录制。松开后进行转录。首次开启时,macOS 会请求「输入监控」权限。"
+          "description": "按住快捷键即可在系统的任何位置录制。松开后进行转录。"
         },
         "pushToTalk": {
           "title": "按住说话快捷键",
