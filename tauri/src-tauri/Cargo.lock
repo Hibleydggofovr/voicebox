@@ -1878,9 +1878,9 @@ dependencies = [
 
 [[package]]
 name = "keytap"
-version = "0.2.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c93022d3131914f823f2efa2a2991ce45383df1649255c9803e7cb98209918"
+checksum = "e84f1ed19a610883f09c7dfd6d70962f26812b09f801648e34bb1a4111d26ab6"
 dependencies = [
  "crossbeam-channel",
  "evdev",

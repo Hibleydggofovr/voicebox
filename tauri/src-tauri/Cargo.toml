@@ -60,7 +60,7 @@ tauri-plugin-process = "2.0"
 # surface, clean shutdown via Drop, no `set_is_main_thread(false)`
 # dance required (the Sonoma-crashing layout-translation path simply
 # isn't called).
-keytap = "0.2"
+keytap = "0.4"
 
 [features]
 # This feature is used for production builds or when `devPath` points to the filesystem
