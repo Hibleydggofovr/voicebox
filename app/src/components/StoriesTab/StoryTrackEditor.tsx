@@ -587,7 +587,10 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
     const item = items.find((i) => i.id === selectedClipId);
     if (!item) return;
 
-    const splitTimeMs = currentTimeMs - item.start_time_ms;
+    // currentTimeMs is driven by audio playback and arrives as a float;
+    // the backend's StoryItemSplit.split_time_ms is `int`, so round before
+    // sending or pydantic rejects the request.
+    const splitTimeMs = Math.round(currentTimeMs - item.start_time_ms);
     const effectiveDuration = getEffectiveDuration(item);
 
     if (splitTimeMs <= 0 || splitTimeMs >= effectiveDuration) {
