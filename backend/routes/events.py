@@ -34,7 +34,7 @@ async def speak_events(request: Request):
                     return
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=15.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Heartbeat so proxies don't reap idle streams.
                     yield {"event": "ping", "data": "{}"}
                     continue

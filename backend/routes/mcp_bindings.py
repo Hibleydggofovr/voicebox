@@ -6,7 +6,7 @@ column is the same value the MCP client sends in ``X-Voicebox-Client-Id``
 (or the stdio shim pulls from ``VOICEBOX_CLIENT_ID``).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -56,7 +56,7 @@ async def upsert_mcp_binding(
     row.profile_id = data.profile_id
     row.default_engine = data.default_engine
     row.default_personality = data.default_personality
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return models.MCPClientBindingResponse.model_validate(row)

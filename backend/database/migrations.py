@@ -18,6 +18,7 @@ Adding a new migration:
 """
 
 import logging
+import sqlite3
 
 from sqlalchemy import inspect, text
 
@@ -266,8 +267,6 @@ def _migrate_mcp_bindings(engine, inspector, tables: set[str]) -> None:
             # Leaving the unused column in place is harmless — the ORM
             # only maps declared columns, so a stray one does no work
             # and gets no reads or writes.
-            import sqlite3
-
             logger.warning(
                 "SQLite %s too old to DROP COLUMN (need 3.35+); leaving unused default_intent column on mcp_client_bindings in place.",
                 sqlite3.sqlite_version,
@@ -280,8 +279,6 @@ def _supports_drop_column(engine) -> bool:
     decades; SQLite only gained the feature in 3.35."""
     if engine.dialect.name != "sqlite":
         return True
-    import sqlite3
-
     return tuple(int(p) for p in sqlite3.sqlite_version.split(".")[:3]) >= (3, 35, 0)
 
 

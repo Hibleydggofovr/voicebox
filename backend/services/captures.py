@@ -7,6 +7,7 @@ uploaded file). Storage mirrors the generations flow: audio lives under
 ``data/captures/<id>.wav`` and rows live in the ``captures`` table.
 """
 
+import contextlib
 import json
 import logging
 import uuid
@@ -27,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 
 VALID_SOURCES = {"dictation", "recording", "file"}
+# Suffixes whisper's miniaudio loader can read directly. Anything outside
+# this set has to go through librosa for decode + a soundfile transcode
+# before whisper sees it.
+WHISPER_NATIVE_FORMATS = (".wav", ".mp3", ".flac", ".ogg")
 
 
 def _to_response(row: DBCapture) -> CaptureResponse:
@@ -91,13 +96,11 @@ async def create_capture(
             audio, sr = None, None
             duration_ms = None
 
-        _WHISPER_NATIVE_FORMATS = (".wav", ".mp3", ".flac", ".ogg")
-
         if audio is None or sr is None:
             # Decode failed. Only pass the file straight to whisper if the
             # source is a format its miniaudio loader can still read — webm,
             # m4a, etc. would just 500 later. Surface a clean error instead.
-            if suffix not in _WHISPER_NATIVE_FORMATS:
+            if suffix not in WHISPER_NATIVE_FORMATS:
                 raise ValueError(
                     f"Could not decode {suffix} audio — the recording may be empty or corrupt"
                 )
@@ -110,11 +113,8 @@ async def create_capture(
             audio_path = config.get_captures_dir() / f"{capture_id}.wav"
             sf.write(str(audio_path), audio, sr, format="WAV")
             written_files.append(audio_path)
-            try:
+            with contextlib.suppress(OSError):
                 raw_path.unlink()
-            except OSError:
-                pass
-            else:
                 written_files.remove(raw_path)
 
         whisper = get_whisper_model()

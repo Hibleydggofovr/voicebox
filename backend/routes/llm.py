@@ -1,5 +1,7 @@
 """LLM inference endpoints."""
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -8,6 +10,8 @@ from ..backends import get_llm_model_configs
 from ..services import llm
 from ..services.task_queue import create_background_task
 from ..utils.tasks import get_task_manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -70,4 +74,7 @@ async def llm_generate(request: models.LLMGenerateRequest):
         )
         return models.LLMGenerateResponse(text=text, model_size=model_size)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # The backend exception text can include filesystem paths and stack
+        # frames — log it server-side and hand the client a generic message.
+        logger.exception("LLM generate failed")
+        raise HTTPException(status_code=500, detail="LLM generation failed") from e

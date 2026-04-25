@@ -8,14 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
-
 from .. import models
 from ..services import history, personality, profiles, tts
 from ..database import Generation as DBGeneration, VoiceProfile as DBVoiceProfile, get_db
 from ..services.generation import run_generation
 from ..services.task_queue import cancel_generation as cancel_generation_job, enqueue_generation
 from ..utils.tasks import get_task_manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

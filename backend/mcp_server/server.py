@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import FastAPI
 from fastmcp import FastMCP

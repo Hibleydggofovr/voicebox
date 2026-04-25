@@ -108,7 +108,7 @@ class PyTorchQwenLLMBackend:
                 dtype = torch.float16 if self.device in ("cuda", "mps") else torch.float32
                 self.model = AutoModelForCausalLM.from_pretrained(
                     repo,
-                    torch_dtype=dtype,
+                    dtype=dtype,
                 )
                 self.model.to(self.device)
                 self.model.eval()
