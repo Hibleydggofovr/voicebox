@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
+import { apiClient } from '@/lib/api/client';
 import { useHistory } from '@/lib/hooks/useHistory';
 import {
   useAddStoryItem,
@@ -47,6 +48,7 @@ export function StoryContent() {
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
   const pendingCount = useGenerationStore((s) => s.pendingGenerationIds.size);
+  const addPendingGeneration = useGenerationStore((s) => s.addPendingGeneration);
 
   // Add generation popover state
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,6 +143,19 @@ export function StoryContent() {
       lastScrolledItemRef.current = null;
     }
   }, [isPlaying]);
+
+  const handleRegenerate = async (generationId: string) => {
+    try {
+      await apiClient.regenerateGeneration(generationId);
+      addPendingGeneration(generationId);
+    } catch (error) {
+      toast({
+        title: t('storyContent.toast.regenerateFailed'),
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleRemoveItem = (itemId: string) => {
     if (!story) return;
@@ -399,6 +414,7 @@ export function StoryContent() {
                       storyId={story.id}
                       index={index}
                       onRemove={() => handleRemoveItem(item.id)}
+                      onRegenerate={() => handleRegenerate(item.generation_id)}
                       currentTimeMs={currentTimeMs}
                       isPlaying={isPlaying && playbackStoryId === story.id}
                     />

@@ -629,13 +629,15 @@
     },
     "itemActions": {
       "playFromHere": "ここから再生",
+      "regenerate": "再生成",
       "removeFromStory": "ストーリーから削除"
     },
     "toast": {
       "removeFailed": "項目の削除に失敗しました",
       "reorderFailed": "項目の並び替えに失敗しました",
       "exportFailed": "オーディオのエクスポートに失敗しました",
-      "addFailed": "生成の追加に失敗しました"
+      "addFailed": "生成の追加に失敗しました",
+      "regenerateFailed": "再生成に失敗しました"
     }
   },
   "history": {

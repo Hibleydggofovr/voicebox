@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Mic, MoreHorizontal, Play, Trash2 } from 'lucide-react';
+import { GripVertical, Mic, MoreHorizontal, Play, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ interface StoryChatItemProps {
   storyId: string;
   index: number;
   onRemove: () => void;
+  onRegenerate?: () => void;
   currentTimeMs: number;
   isPlaying: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
@@ -30,6 +31,7 @@ interface StoryChatItemProps {
 export function StoryChatItem({
   item,
   onRemove,
+  onRegenerate,
   currentTimeMs,
   isPlaying,
   dragHandleProps,
@@ -134,6 +136,12 @@ export function StoryChatItem({
               <Play className="mr-2 h-4 w-4" />
               {t('storyContent.itemActions.playFromHere')}
             </DropdownMenuItem>
+            {onRegenerate && (
+              <DropdownMenuItem onClick={onRegenerate}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t('storyContent.itemActions.regenerate')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={onRemove}
               className="text-destructive focus:text-destructive"

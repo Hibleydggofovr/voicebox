@@ -629,13 +629,15 @@
     },
     "itemActions": {
       "playFromHere": "Play from here",
+      "regenerate": "Regenerate",
       "removeFromStory": "Remove from Story"
     },
     "toast": {
       "removeFailed": "Failed to remove item",
       "reorderFailed": "Failed to reorder items",
       "exportFailed": "Failed to export audio",
-      "addFailed": "Failed to add generation"
+      "addFailed": "Failed to add generation",
+      "regenerateFailed": "Failed to regenerate"
     }
   },
   "history": {

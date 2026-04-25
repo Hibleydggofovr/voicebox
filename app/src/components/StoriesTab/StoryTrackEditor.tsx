@@ -7,6 +7,7 @@ import {
   Pause,
   Play,
   Plus,
+  RotateCcw,
   Scissors,
   Square,
   Trash2,
@@ -32,6 +33,7 @@ import {
   useTrimStoryItem,
 } from '@/lib/hooks/useStories';
 import { cn } from '@/lib/utils/cn';
+import { useGenerationStore } from '@/stores/generationStore';
 import { useStoryStore } from '@/stores/storyStore';
 
 // Clip waveform component with trim support
@@ -152,6 +154,7 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
   const removeItem = useRemoveStoryItem();
   const setItemVersion = useSetStoryItemVersion();
   const { toast } = useToast();
+  const addPendingGeneration = useGenerationStore((s) => s.addPendingGeneration);
 
   // Selection state
   const selectedClipId = useStoryStore((state) => state.selectedClipId);
@@ -630,6 +633,20 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
     );
   }, [selectedClipId, storyId, removeItem, toast, setSelectedClipId]);
 
+  const handleRegenerate = useCallback(async () => {
+    if (!selectedItem) return;
+    try {
+      await apiClient.regenerateGeneration(selectedItem.generation_id);
+      addPendingGeneration(selectedItem.generation_id);
+    } catch (error) {
+      toast({
+        title: 'Failed to regenerate',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    }
+  }, [selectedItem, addPendingGeneration, toast]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -998,6 +1015,16 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
                 aria-label="Delete clip"
               >
                 <Trash2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleRegenerate}
+                title="Regenerate"
+                aria-label="Regenerate clip"
+              >
+                <RotateCcw className="h-4 w-4" />
               </Button>
               {hasMultipleVersions && (
                 <>

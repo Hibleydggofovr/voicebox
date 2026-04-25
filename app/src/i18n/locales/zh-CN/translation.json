@@ -629,13 +629,15 @@
     },
     "itemActions": {
       "playFromHere": "从此处播放",
+      "regenerate": "重新生成",
       "removeFromStory": "从故事中移除"
     },
     "toast": {
       "removeFailed": "移除项目失败",
       "reorderFailed": "重新排序项目失败",
       "exportFailed": "导出音频失败",
-      "addFailed": "添加生成失败"
+      "addFailed": "添加生成失败",
+      "regenerateFailed": "重新生成失败"
     }
   },
   "history": {
