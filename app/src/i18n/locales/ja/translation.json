@@ -632,12 +632,16 @@
       "regenerate": "再生成",
       "removeFromStory": "ストーリーから削除"
     },
+    "importAudio": "オーディオをインポート…",
+    "importing": "インポート中…",
+    "dropToImport": "ドロップしてオーディオをインポート",
     "toast": {
       "removeFailed": "項目の削除に失敗しました",
       "reorderFailed": "項目の並び替えに失敗しました",
       "exportFailed": "オーディオのエクスポートに失敗しました",
       "addFailed": "生成の追加に失敗しました",
-      "regenerateFailed": "再生成に失敗しました"
+      "regenerateFailed": "再生成に失敗しました",
+      "importFailed": "オーディオのインポートに失敗しました"
     }
   },
   "history": {

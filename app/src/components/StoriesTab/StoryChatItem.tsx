@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Mic, MoreHorizontal, Play, RotateCcw, Trash2 } from 'lucide-react';
+import { GripVertical, Mic, MoreHorizontal, Music, Play, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -85,7 +85,9 @@ export function StoryChatItem({
       {/* Voice Avatar */}
       <div className="shrink-0">
         <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-          {!avatarError ? (
+          {item.engine === 'import' ? (
+            <Music className="h-5 w-5 text-muted-foreground" />
+          ) : !avatarError ? (
             <img
               src={avatarUrl}
               alt={`${item.profile_name} avatar`}

@@ -391,6 +391,7 @@ export interface StoryItemDetail {
   duration: number;
   seed?: number;
   instruct?: string;
+  engine?: string;
   generation_created_at: string;
   versions?: GenerationVersionResponse[];
   active_version_id?: string;

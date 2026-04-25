@@ -69,6 +69,7 @@ def _build_item_detail(
         duration=generation.duration,
         seed=generation.seed,
         instruct=generation.instruct,
+        engine=generation.engine,
         generation_created_at=generation.created_at,
         versions=versions,
         active_version_id=active_version_id,

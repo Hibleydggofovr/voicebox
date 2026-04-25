@@ -1016,16 +1016,18 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={handleRegenerate}
-                title="Regenerate"
-                aria-label="Regenerate clip"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
+              {selectedItem?.engine !== 'import' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={handleRegenerate}
+                  title="Regenerate"
+                  aria-label="Regenerate clip"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
               {hasMultipleVersions && (
                 <>
                   <div className="w-px h-4 bg-border mx-1" />

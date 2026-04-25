@@ -632,12 +632,16 @@
       "regenerate": "Regenerate",
       "removeFromStory": "Remove from Story"
     },
+    "importAudio": "Import audio…",
+    "importing": "Importing…",
+    "dropToImport": "Drop audio to import",
     "toast": {
       "removeFailed": "Failed to remove item",
       "reorderFailed": "Failed to reorder items",
       "exportFailed": "Failed to export audio",
       "addFailed": "Failed to add generation",
-      "regenerateFailed": "Failed to regenerate"
+      "regenerateFailed": "Failed to regenerate",
+      "importFailed": "Failed to import audio"
     }
   },
   "history": {

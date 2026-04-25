@@ -272,6 +272,20 @@ class ApiClient {
     });
   }
 
+  async importAudio(file: File): Promise<GenerationResponse> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${this.getBaseUrl()}/generate/import`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => res.statusText);
+      throw new Error(detail || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
   async toggleFavorite(generationId: string): Promise<{ is_favorited: boolean }> {
     return this.request<{ is_favorited: boolean }>(`/history/${generationId}/favorite`, {
       method: 'POST',

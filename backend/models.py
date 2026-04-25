@@ -597,6 +597,7 @@ class StoryItemDetail(BaseModel):
     duration: float
     seed: Optional[int]
     instruct: Optional[str]
+    engine: Optional[str] = None
     generation_created_at: datetime
     # Versions available for this generation
     versions: Optional[List["GenerationVersionResponse"]] = None

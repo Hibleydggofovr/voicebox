@@ -632,12 +632,16 @@
       "regenerate": "重新生成",
       "removeFromStory": "從故事中移除"
     },
+    "importAudio": "匯入音訊…",
+    "importing": "匯入中…",
+    "dropToImport": "拖放以匯入音訊",
     "toast": {
       "removeFailed": "移除項目失敗",
       "reorderFailed": "重新排序項目失敗",
       "exportFailed": "匯出音訊失敗",
       "addFailed": "新增生成失敗",
-      "regenerateFailed": "重新生成失敗"
+      "regenerateFailed": "重新生成失敗",
+      "importFailed": "匯入音訊失敗"
     }
   },
   "history": {
