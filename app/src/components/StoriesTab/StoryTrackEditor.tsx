@@ -82,8 +82,19 @@ function ClipWaveform({
 
     const waveColor = getCSSVar('--accent-foreground');
 
+    // Hand WaveSurfer a muted <audio> element so the MediaElement backend
+    // can never bleed audio. Web Audio is doing the actual playback in
+    // useStoryPlayback; this clip waveform exists purely for the visual.
+    // Without this, long imported clips (MP3 / M4A) end up audible from
+    // wavesurfer's own element on top of the timeline, and that element
+    // doesn't get paused by stopAllSources().
+    const mediaElement = document.createElement('audio');
+    mediaElement.muted = true;
+    mediaElement.preload = 'metadata';
+
     const wavesurfer = WaveSurfer.create({
       container: waveformRef.current,
+      media: mediaElement,
       waveColor,
       progressColor: waveColor,
       cursorWidth: 0,
