@@ -598,6 +598,7 @@ class StoryItemDetail(BaseModel):
     seed: Optional[int]
     instruct: Optional[str]
     engine: Optional[str] = None
+    volume: float = 1.0
     generation_created_at: datetime
     # Versions available for this generation
     versions: Optional[List["GenerationVersionResponse"]] = None
@@ -672,6 +673,17 @@ class StoryItemVersionUpdate(BaseModel):
     """Request model for setting a story item's pinned version."""
 
     version_id: Optional[str] = None  # null = use generation default
+
+
+class StoryItemVolumeUpdate(BaseModel):
+    """Request model for adjusting a story item's playback volume.
+
+    Linear gain. ``1.0`` is the original level, ``0.0`` is silent. Capped
+    above 1.0 so a too-aggressive boost can't blow out the mix or clip
+    the export.
+    """
+
+    volume: float = Field(..., ge=0.0, le=2.0)
 
 
 class EffectConfig(BaseModel):

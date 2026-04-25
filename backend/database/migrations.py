@@ -128,6 +128,8 @@ def _migrate_story_items(engine, inspector, tables: set[str]) -> None:
         _add_column(engine, "story_items", "trim_end_ms INTEGER NOT NULL DEFAULT 0", "trim_end_ms")
     if "version_id" not in columns:
         _add_column(engine, "story_items", "version_id VARCHAR", "version_id")
+    if "volume" not in columns:
+        _add_column(engine, "story_items", "volume FLOAT NOT NULL DEFAULT 1.0", "volume")
 
 
 def _migrate_profiles(engine, inspector, tables: set[str]) -> None:

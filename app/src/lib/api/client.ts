@@ -30,6 +30,7 @@ import type {
   StoryItemSplit,
   StoryItemTrim,
   StoryItemVersionUpdate,
+  StoryItemVolumeUpdate,
   StoryResponse,
   TranscriptionResponse,
   VoiceProfileCreate,
@@ -765,6 +766,17 @@ class ApiClient {
     data: StoryItemTrim,
   ): Promise<StoryItemDetail> {
     return this.request<StoryItemDetail>(`/stories/${storyId}/items/${itemId}/trim`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateStoryItemVolume(
+    storyId: string,
+    itemId: string,
+    data: StoryItemVolumeUpdate,
+  ): Promise<StoryItemDetail> {
+    return this.request<StoryItemDetail>(`/stories/${storyId}/items/${itemId}/volume`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });

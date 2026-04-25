@@ -392,9 +392,14 @@ export interface StoryItemDetail {
   seed?: number;
   instruct?: string;
   engine?: string;
+  volume: number;
   generation_created_at: string;
   versions?: GenerationVersionResponse[];
   active_version_id?: string;
+}
+
+export interface StoryItemVolumeUpdate {
+  volume: number;
 }
 
 export interface StoryItemVersionUpdate {

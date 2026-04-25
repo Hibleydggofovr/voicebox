@@ -11,6 +11,8 @@ import {
   Scissors,
   Square,
   Trash2,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
@@ -21,6 +23,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
 import type { StoryItemDetail } from '@/lib/api/types';
@@ -31,6 +35,7 @@ import {
   useSetStoryItemVersion,
   useSplitStoryItem,
   useTrimStoryItem,
+  useUpdateStoryItemVolume,
 } from '@/lib/hooks/useStories';
 import { cn } from '@/lib/utils/cn';
 import { useGenerationStore } from '@/stores/generationStore';
@@ -120,6 +125,66 @@ function ClipWaveform({
   );
 }
 
+// Per-clip volume popover. Local state drives the slider during a drag so
+// each pointer-move pixel doesn't fire a PATCH; commits on release.
+function ClipVolumePopover({
+  storyId,
+  itemId,
+  volume,
+  onChange,
+}: {
+  storyId: string;
+  itemId: string;
+  volume: number;
+  onChange: (value: number) => void;
+}) {
+  const [localVolume, setLocalVolume] = useState(volume);
+  // Re-sync when the selected clip changes or the persisted value updates
+  // out-of-band (split/duplicate carry the value forward).
+  useEffect(() => {
+    setLocalVolume(volume);
+  }, [volume, itemId, storyId]);
+
+  const display = Math.round(localVolume * 100);
+  const Icon = localVolume === 0 ? VolumeX : Volume2;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title={`Volume — ${display}%`}
+          aria-label="Adjust clip volume"
+        >
+          <Icon className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="center" className="w-56 p-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-muted-foreground">Volume</span>
+          <span className="text-xs tabular-nums">{display}%</span>
+        </div>
+        <Slider
+          value={[localVolume * 100]}
+          onValueChange={([v]) => setLocalVolume(v / 100)}
+          onValueCommit={([v]) => onChange(v / 100)}
+          min={0}
+          max={200}
+          step={1}
+          aria-label="Clip volume"
+        />
+        <div className="flex justify-between mt-2 text-[10px] text-muted-foreground tabular-nums">
+          <span>0%</span>
+          <span>100%</span>
+          <span>200%</span>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 interface StoryTrackEditorProps {
   storyId: string;
   items: StoryItemDetail[];
@@ -157,6 +222,7 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
   const duplicateItem = useDuplicateStoryItem();
   const removeItem = useRemoveStoryItem();
   const setItemVersion = useSetStoryItemVersion();
+  const updateVolume = useUpdateStoryItemVolume();
   const { toast } = useToast();
   const addPendingGeneration = useGenerationStore((s) => s.addPendingGeneration);
 
@@ -1045,6 +1111,31 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
               >
                 <Copy className="h-4 w-4" />
               </Button>
+              {selectedItem && (
+                <ClipVolumePopover
+                  storyId={storyId}
+                  itemId={selectedItem.id}
+                  volume={selectedItem.volume}
+                  onChange={(value) =>
+                    updateVolume.mutate(
+                      {
+                        storyId,
+                        itemId: selectedItem.id,
+                        data: { volume: value },
+                      },
+                      {
+                        onError: (error) => {
+                          toast({
+                            title: 'Failed to update volume',
+                            description: error instanceof Error ? error.message : String(error),
+                            variant: 'destructive',
+                          });
+                        },
+                      },
+                    )
+                  }
+                />
+              )}
               <Button
                 variant="ghost"
                 size="icon"

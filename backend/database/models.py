@@ -105,6 +105,7 @@ class StoryItem(Base):
     track = Column(Integer, nullable=False, default=0)
     trim_start_ms = Column(Integer, nullable=False, default=0)
     trim_end_ms = Column(Integer, nullable=False, default=0)
+    volume = Column(Float, nullable=False, default=1.0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

@@ -264,7 +264,13 @@ export function useStoryPlayback(items: StoryItemDetail[] | undefined) {
 
           const source = audioContext.createBufferSource();
           source.buffer = buffer;
-          source.connect(masterGainRef.current || audioContext.destination);
+          // Per-clip gain so each item can override its level independently
+          // of the master volume. Falls through 1.0 for any item without a
+          // saved value (older rows pre-migration).
+          const clipGain = audioContext.createGain();
+          clipGain.gain.value = typeof item.volume === 'number' ? item.volume : 1;
+          source.connect(clipGain);
+          clipGain.connect(masterGainRef.current || audioContext.destination);
 
           const activeSource: ActiveSource = {
             source,
