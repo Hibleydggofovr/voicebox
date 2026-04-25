@@ -154,6 +154,8 @@ export function CapturesTab() {
   const playerIsPlaying = usePlayerStore((s) => s.isPlaying);
   const isPlayerVisible = !!audioUrl;
 
+  const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+
   const addPendingGeneration = useGenerationStore((s) => s.addPendingGeneration);
   const pendingGenerationIds = useGenerationStore((s) => s.pendingGenerationIds);
 
@@ -410,6 +412,12 @@ export function CapturesTab() {
 
   const handlePlayAs = (voice?: VoiceProfileResponse) => {
     if (!selected) return;
+    // Stop the current playback when the button is in its 'playing' state
+    // and the user clicked the main button without picking a new voice.
+    if (!voice && playbackState === 'playing') {
+      setIsPlaying(false);
+      return;
+    }
     const target = voice ?? playAsVoice;
     if (!target) {
       toast({

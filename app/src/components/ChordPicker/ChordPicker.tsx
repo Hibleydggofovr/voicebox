@@ -95,11 +95,12 @@ export function ChordPicker({
         if (prev.has(canonical)) return prev;
         const next = new Set(prev);
         next.add(canonical);
-        // Update peak whenever the live set grows. Comparing against
-        // the captured chord (which may be the previous saved value)
-        // would lose the user's first new keypress.
         setCaptured((prevCaptured) => {
           const candidate = sortChordKeys(Array.from(next));
+          // First key in a fresh sequence replaces the peak — otherwise a
+          // user trying to swap a longer saved chord for a shorter one is
+          // stuck because their candidate never beats the seed length.
+          if (prev.size === 0) return candidate;
           return candidate.length >= prevCaptured.length ? candidate : prevCaptured;
         });
         return next;
