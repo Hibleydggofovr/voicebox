@@ -11,6 +11,7 @@ export type ReadinessGate = 'stt' | 'llm' | 'input_monitoring' | 'accessibility'
 
 export interface DictationReadiness {
   isLoading: boolean;
+  canRecord: boolean;
   allReady: boolean;
   /** Subset of gates that are NOT yet satisfied — what the checklist renders. */
   missing: ReadinessGate[];
@@ -26,12 +27,11 @@ export interface DictationReadiness {
 }
 
 /**
- * Single source of truth for "can the user trigger dictation right now?"
+ * Single source of truth for dictation readiness.
  *
- * Combines four gates into one struct so the chord-sync hook can refuse to
- * arm the global hotkey unless every gate is green — the "stuck pill" we
- * used to get on missing models is solved by never letting the chord fire
- * in the first place.
+ * ``canRecord`` covers the gates that must be green before the chord can
+ * start recording. ``allReady`` also includes Accessibility, which only gates
+ * synthetic paste — dictation still records and lands in Captures without it.
  *
  * Gates:
  *  - stt / llm: backend ``/capture/readiness`` (polled, since downloads
@@ -87,9 +87,11 @@ export function useDictationReadiness(): DictationReadiness {
   if (!llmReady) missing.push('llm');
   if (!inputMonitoring) missing.push('input_monitoring');
   if (!accessibility) missing.push('accessibility');
+  const canRecord = sttReady && llmReady && inputMonitoring;
 
   return {
     isLoading,
+    canRecord,
     allReady: missing.length === 0,
     missing,
     stt: data?.stt,

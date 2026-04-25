@@ -567,7 +567,7 @@ export function CapturesTab() {
                     {t('captures.actions.configure')}
                   </Link>
                 </Button>
-                {readiness.allReady && (
+                {readiness.canRecord && (
                   <Button
                     variant="outline"
                     onClick={handleUploadClick}
@@ -583,11 +583,11 @@ export function CapturesTab() {
                 )}
               </>
             )}
-            {/* Hide Dictate when readiness fails so the user can't kick off
+            {/* Hide Dictate when recording readiness fails so the user can't kick off
                 a capture that has nowhere to land. Stop stays visible if a
                 recording is somehow already in flight (e.g. a model was
                 uninstalled mid-record) so the user can always cancel. */}
-            {(readiness.allReady || session.isRecording) && (
+            {(readiness.canRecord || session.isRecording) && (
               <Button
                 onClick={session.toggleRecording}
                 disabled={session.isUploading && !session.isRecording}
@@ -842,7 +842,7 @@ export function CapturesTab() {
                 <Captions className="h-10 w-10 mx-auto opacity-40" />
                 <p className="text-sm">{t('captures.empty.pickOne')}</p>
               </div>
-            ) : hotkeyEnabled && !readiness.allReady ? (
+            ) : hotkeyEnabled && !readiness.canRecord ? (
               <DictationReadinessChecklist readiness={readiness} />
             ) : hotkeyEnabled && (pushToTalkKeys.length || toggleToTalkKeys.length) ? (
               <div className="max-w-sm mx-auto text-center space-y-5">
