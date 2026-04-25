@@ -53,7 +53,11 @@
       "copy": "コピー",
       "refine": "整形",
       "reRefine": "再整形",
-      "sendTo": "送信先",
+      "export": "エクスポート",
+      "exportDropdownLabel": "形式を選択",
+      "exportAudio": "音声 (WAV)",
+      "exportTranscript": "文字起こし (TXT)",
+      "exportMarkdown": "Markdown (MD)",
       "delete": "削除",
       "playAs": "{{name}} で再生",
       "playAsFallback": "ボイスで再生…",
@@ -73,6 +77,11 @@
       "turnOnShortcut": "グローバルショートカットを有効にしてどこからでもディクテーション — または上の「ディクテーション」をクリックしてアプリ内でキャプチャします。",
       "openSettings": "キャプチャ設定を開く"
     },
+    "deleteDialog": {
+      "title": "キャプチャを削除",
+      "description": "このキャプチャと、その音声・文字起こしを完全に削除します。元に戻せません。",
+      "deleting": "削除中…"
+    },
     "toast": {
       "deleteFailed": "削除に失敗しました",
       "playAsFailed": "ボイスでの再生に失敗しました",
@@ -80,6 +89,9 @@
       "noVoiceDescription": "「ボイスで再生」を使う前にボイスプロファイルを作成してください。",
       "transcriptCopied": "文字起こしをコピーしました",
       "copyFailed": "コピーに失敗しました",
+      "exportSuccess": "{{path}} に書き出しました",
+      "exportFailed": "書き出しに失敗しました",
+      "exportEmpty": "書き出す内容がありません",
       "shortcutNotArmed": "ショートカットは有効ですが、まだ準備が完了していません",
       "shortcutNotArmedDescription_one": "{{names}} のダウンロードがまだ必要です。キャプチャタブを開いて開始してください。",
       "shortcutNotArmedDescription_other": "{{names}} のダウンロードがまだ必要です。キャプチャタブを開いて開始してください。"
@@ -628,6 +640,7 @@
     }
   },
   "history": {
+    "empty": "音声生成はまだありません…",
     "actions": {
       "menu": "操作",
       "play": "再生",
@@ -983,10 +996,10 @@
           "d30": "30 日",
           "d7": "7 日"
         },
-        "clearAll": {
-          "title": "すべてのキャプチャをクリア",
-          "description": "すべてのキャプチャと音声を完全に削除します。元に戻せません。",
-          "action": "キャプチャをクリア"
+        "folder": {
+          "title": "キャプチャフォルダ",
+          "description": "キャプチャの音声と文字起こしをディスクに保存する場所。",
+          "open": "開く"
         }
       },
       "sidebar": {

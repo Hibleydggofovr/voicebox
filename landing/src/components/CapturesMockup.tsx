@@ -9,8 +9,8 @@ import {
   Copy,
   FileAudio,
   Mic,
+  Download,
   Play,
-  Send,
   Settings,
   Sparkles,
   Subtitles,
@@ -394,8 +394,8 @@ function DetailView({ capture }: { capture: Capture }) {
           Re-refine
         </div>
         <div className="inline-flex items-center gap-2 h-9 px-3 rounded-full border border-input bg-background text-sm font-medium text-foreground whitespace-nowrap">
-          <Send className="h-3.5 w-3.5" />
-          Send to
+          <Download className="h-3.5 w-3.5" />
+          Export
         </div>
       </div>
     </div>

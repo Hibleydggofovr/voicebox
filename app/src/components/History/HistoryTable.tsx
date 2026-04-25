@@ -462,7 +462,7 @@ export function HistoryTable() {
     <div className="flex flex-col h-full min-h-0 relative">
       {history.length === 0 ? (
         <div className="text-center py-12 px-5 border-2 border-dashed mb-5 border-muted rounded-md text-muted-foreground flex-1 flex items-center justify-center">
-          No voice generations, yet...
+          {t('history.empty')}
         </div>
       ) : (
         <>
@@ -474,7 +474,7 @@ export function HistoryTable() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                className="h-7 text-xs text-muted-foreground"
                 onClick={() => setClearFailedDialogOpen(true)}
                 disabled={clearFailed.isPending}
               >

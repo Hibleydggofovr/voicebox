@@ -53,7 +53,11 @@
       "copy": "复制",
       "refine": "精修",
       "reRefine": "重新精修",
-      "sendTo": "发送到",
+      "export": "导出",
+      "exportDropdownLabel": "导出格式",
+      "exportAudio": "音频 (WAV)",
+      "exportTranscript": "文字稿 (TXT)",
+      "exportMarkdown": "Markdown (MD)",
       "delete": "删除",
       "playAs": "以 {{name}} 播放",
       "playAsFallback": "播放为……",
@@ -73,6 +77,11 @@
       "turnOnShortcut": "开启全局快捷键以在任何位置进行听写——或点击上方的「听写」在应用内进行捕获。",
       "openSettings": "打开「捕获」设置"
     },
+    "deleteDialog": {
+      "title": "删除捕获",
+      "description": "这将永久删除该捕获及其音频和转录。此操作不可撤销。",
+      "deleting": "删除中…"
+    },
     "toast": {
       "deleteFailed": "删除失败",
       "playAsFailed": "播放失败",
@@ -80,6 +89,9 @@
       "noVoiceDescription": "使用「播放为」之前请先创建声音档案。",
       "transcriptCopied": "转录已复制",
       "copyFailed": "复制失败",
+      "exportSuccess": "已导出到 {{path}}",
+      "exportFailed": "导出失败",
+      "exportEmpty": "无可导出的内容",
       "shortcutNotArmed": "快捷键已开启,但尚未就绪",
       "shortcutNotArmedDescription_one": "{{names}} 仍需下载。打开「捕获」标签页开始下载。",
       "shortcutNotArmedDescription_other": "{{names}} 仍需下载。打开「捕获」标签页开始下载。"
@@ -628,6 +640,7 @@
     }
   },
   "history": {
+    "empty": "暂无语音生成…",
     "actions": {
       "menu": "操作",
       "play": "播放",
@@ -983,10 +996,10 @@
           "d30": "30 天",
           "d7": "7 天"
         },
-        "clearAll": {
-          "title": "清除所有捕获",
-          "description": "永久删除所有捕获及其音频。此操作不可撤销。",
-          "action": "清除捕获"
+        "folder": {
+          "title": "捕获文件夹",
+          "description": "捕获的音频和转录在磁盘上的存储位置。",
+          "open": "打开"
         }
       },
       "sidebar": {

@@ -5,18 +5,6 @@
 
 # Changelog
 
-## [Unreleased]
-
-### Personality — simpler API, better UX
-
-Voice personalities have been collapsed from a three-mode (`compose` / `rewrite` / `respond`) API down to what they actually needed to be: a compose button and a boolean rewrite toggle.
-
-- **Generate box UI.** When a profile has a personality set, two controls appear next to the generate button: a shuffle button that drops a fresh in-character line into the textarea, and a wand toggle that runs your input through the personality LLM before TTS. No more intent dropdown.
-- **API surface.** `POST /generate` and `POST /speak` accept `personality: bool` in place of the removed `intent` field. `voicebox.speak` (MCP) takes `personality: bool`. The standalone `/profiles/{id}/rewrite`, `/profiles/{id}/respond`, and `/profiles/{id}/speak` endpoints are gone; `/profiles/{id}/compose` remains for the shuffle button.
-- **MCP bindings.** `default_intent` has been replaced with `default_personality: bool`. Existing bindings with a non-null `default_intent` are migrated to `false`; re-enable the rewrite path from **Settings → MCP** if you were relying on it.
-- **Respond mode is gone.** Letting the personality LLM *reply* to input text was only useful for agent-as-LLM flows nobody was actually building. Agents that want conversational replies can produce the reply themselves and pipe it into `voicebox.speak`.
-
-
 ## [0.5.0] - 2026-04-22
 
 **The Capture release.** Voicebox stops being just a voice-cloning studio and becomes a full AI voice studio. The loop closes in both directions: your voice goes into your computer through a global hotkey, and any agent's voice comes out of your computer through a voice you own.
@@ -26,20 +14,24 @@ When enabled, hold a key anywhere on your machine, speak, release — the transc
 ### Dictation — speak anywhere, paste anywhere
 
 - **Global hotkey capture.** Hold a customizable chord anywhere on your machine (defaults: right-Cmd + right-Option on macOS, right-Ctrl + right-Shift on Windows), speak, release. A floating on-screen pill surfaces over your current app and walks through recording → transcribing → refining → done with a live elapsed timer during the clip. Your dictation lands as a clean transcript.
+- **Hotkey engine.** Chord detection runs on `keytap`, a small cross-platform library with first-class handling of left/right modifier variants on macOS. Resolves long-standing issues where left-Cmd / right-Option sometimes registered interchangeably on macOS 14+ and let the chord fire on the wrong hardware key.
 - **Push-to-talk and toggle modes, each with its own chord.** The default toggle chord adds Space to the push-to-talk chord. Holding PTT and tapping Space mid-hold upgrades a hold into a hands-free session without a gap in the recording — the session rolls forward, you stop when you want.
 - **Auto-paste into the focused app.** Once transcription finishes, Voicebox synthesizes a platform-native paste into whatever text field had focus when you started the chord — not wherever focus drifted while you were talking. Your clipboard is saved before and restored after, so nothing you had copied goes missing.
+- **macOS paste hardening.** Synthetic paste uses the keyboard-layout-aware V keycode so the physical V key fires regardless of Dvorak / AZERTY / non-QWERTY layouts. On macOS 14+, a cooperative `NSRunningApplication.activate` handshake ensures the target app is frontmost before keystrokes inject, so paste lands in the focused field instead of Voicebox. Clipboard restore only runs when Voicebox actually overwrote the clipboard, and a paste-failure fallback retries the injection after a brief delay.
 - **Chord picker UI.** Customize either chord from Settings → Captures by holding the keys you want. Left/right modifier badges show whether a key is the left or right variant, so you can pick the exact hardware signature you want to capture.
 - **Defaults picked to stay out of your way.** macOS defaults deliberately avoid left-hand Cmd+Option chords so Cmd+Option+I (devtools), Cmd+Option+Esc (force quit), and Cmd+Option+Space (Spotlight) all remain yours. Windows defaults route around AltGr collisions on German/French/Spanish layouts where Ctrl+Alt synthesizes AltGr.
 - **Accessibility permission is scoped.** The macOS permission prompt lives inline next to the auto-paste toggle in Settings → Captures, not as a global banner on every page. If permission isn't granted, dictation still runs and transcripts still land in the Captures tab — only synthetic paste is disabled.
 
 ### Personality — voice profiles that speak for themselves
 
-Voice profiles now carry an optional **personality** — a free-form description of who this voice is, up to 2000 characters. When set, two new actions appear next to the generate button, each powered by a bundled Qwen3 LLM running entirely locally:
+Voice profiles now carry an optional **personality** — a free-form description of who this voice is, up to 2000 characters. When set, two new controls appear next to the generate button, each powered by a bundled Qwen3 LLM running entirely locally:
 
-- **Compose** — drop a fresh in-character line into the textarea. Click again for variety, edit before speaking.
-- **Speak in character** — a toggle that rewrites your input text in the character's voice before TTS, preserving every idea.
+- **Compose** — the shuffle button drops a fresh in-character line into the textarea. Click again for variety, edit before speaking.
+- **Speak in character** — the wand toggle runs your input through the personality LLM before TTS, preserving every idea but delivering it in the character's voice.
 
 Temperatures are tuned per mode (compose hot for variety, rewrite cold for fidelity) and the character framing enforces "speech only" output — no narration, no action tags, no meta-commentary. The same LLM doubles as the refinement model, so there's one local LLM in the app, not two.
+
+**API surface.** `POST /generate`, `POST /speak`, and the MCP `voicebox.speak` tool accept `personality: bool` to run input through the personality LLM before TTS. `POST /profiles/{id}/compose` powers the shuffle button. MCP client bindings carry a `default_personality: bool` that applies when `personality` isn't passed explicitly.
 
 ### Agents — any MCP-aware agent gets a voice
 
@@ -55,6 +47,7 @@ Voicebox ships a built-in **Model Context Protocol** server at `http://127.0.0.1
 - **Per-client voice binding.** Pin Claude Code to Morgan, Cursor to Scarlett, Cline to its own voice — the `X-Voicebox-Client-Id` header resolves to a bound voice whenever `speak` is called without an explicit `profile`. Managed in **Settings → MCP**, with an auto-stamped `last_seen_at` timestamp on each row so you can tell the install actually took. New clients register their binding row on first call.
 - **Profile resolution precedence.** Explicit `profile` arg (name or id, case-insensitive) → per-client binding → global default from `capture_settings.default_playback_voice_id` → error with a pointer to Settings.
 - **Speaking pill.** Agent-initiated speech surfaces the same on-screen pill as dictation, in a new `speaking` state with the profile name and an elapsed timer. Driven by SSE at `/events/speak`; a Tauri-side `dictate:show` handler repositions and reveals the pill over the current monitor even when the main Voicebox window is hidden. Silent background TTS is a trust hazard — the pill always shows what's coming out of your machine.
+- **Pill resilience.** The Tauri-side `/events/speak` monitor retries with escalating backoff on disconnect and times out idle connections, so a server hiccup can't leave the pill stuck in `speaking` forever. Lifespan shutdown drains in-flight MCP requests before unloading models, so a `voicebox.speak` call racing with app exit returns cleanly.
 - **`POST /speak` REST wrapper.** Same code path and voice resolution for shell scripts, ACP, A2A, GitHub Actions, or anything else that isn't MCP-native.
 
 **Claude Code one-liner:**
@@ -67,10 +60,11 @@ claude mcp add voicebox --transport http --url http://127.0.0.1:17493/mcp --head
 
 Refinement shipped earlier; 0.5.0 closes the stubborn edge cases:
 
-- **Deterministic loop-stripping before the LLM sees the transcript.** Whisper's "thanks for watching thanks for watching thanks for watching…" hallucination loops are collapsed at a six-identical-tokens threshold (case-insensitive) so a small refinement model can't echo them back. Legitimate repetition ("no, no, no, no, no") doesn't cross the threshold.
+- **Deterministic loop-stripping before the LLM sees the transcript.** Whisper's "thanks for watching thanks for watching thanks for watching…" hallucination loops are collapsed at a six-identical-tokens threshold (case-insensitive) so a small refinement model can't echo them back. Coverage spans single-word runs, multi-word phrases, CJK character runs, and Japanese emphasis patterns; legitimate repetition ("no, no, no, no, no") doesn't cross the threshold.
 - **Refinement flags snapshot per capture.** `smart_cleanup`, `self_correction`, and `preserve_technical` are stored on each capture, so refinement can be re-run later with different flags without losing the raw transcript.
 - **Ten-transcript evaluation harness** (`backend/tests/test_refinement_samples.py`) scoring prompt leaks, answer leaks, loop echoes, filler removal, length-ratio outliers, substring preservation ("npm install", "handleSubmit"), and question-mark survival against every bundled refinement model size.
 - **Refinement model picker** — Qwen3 0.6B (400 MB, very fast), 1.7B (1.1 GB, fast), 4B (2.5 GB, full quality). 0.6B is the default; 1.7B is the sweet spot for transcripts with code identifiers.
+- **MLX bundling for Apple Silicon.** The PyInstaller build now collects the full `mlx_lm` tokenizer + config tree, so the MLX-backed Qwen3 refinement / personality LLM loads inside the shipped `.app` bundle without extra setup on Apple Silicon.
 
 ### Captures tab + settings
 
@@ -81,6 +75,14 @@ Settings → Captures is now the home for the whole dictation flow:
 - **Refinement**: auto-refine toggle, model picker, smart cleanup, remove self-corrections, preserve technical terms.
 - **Playback**: default voice for the Captures tab's "Play as" action.
 - **Storage**: retention (forever / 90d / 30d / 7d), clear-all-captures.
+
+### Interface
+
+- **Theme selector.** Light / dark / system in **Settings → General**, persisted across sessions. System mode listens for OS-level appearance changes and flips live without a restart.
+- **Scrubbable waveform player on captures.** The capture detail card now embeds a WaveSurfer waveform with click-to-seek and a current / total timestamp pair, replacing the static duration label.
+- **Capture pill light mode.** The on-screen pill gets a dedicated light palette so it stays legible against bright windows, and the inline waveform progress color reads against the pill background in both themes.
+- **Stories polish.** The Stories sidebar matches the Captures sidebar (search, item layout, border treatment), the floating generate box moved into the right column with a top fade mask, and the track editor ships sticky track labels (aligned via flex rows) plus a custom horizontal scrollbar with dedicated left/right zoom handles.
+- **Readiness checklist in the Captures settings sidebar.** The same six-gate checklist the Captures empty state uses mirrors into Settings → Captures so a red gate can't hide behind a green toggle. Hidden once every gate is green. macOS-only rows (Input Monitoring, Accessibility) hide entirely on Windows and Linux.
 
 ### Windows parity
 
@@ -743,7 +745,6 @@ The first public release of Voicebox — an open-source voice synthesis studio p
 
 Tauri v2, React, TypeScript, Tailwind CSS, FastAPI, Qwen3-TTS, Whisper, SQLite
 
-[Unreleased]: https://github.com/jamiepine/voicebox/compare/v0.5.0...HEAD
 [0.5.0]: https://github.com/jamiepine/voicebox/compare/v0.4.5...v0.5.0
 [0.4.5]: https://github.com/jamiepine/voicebox/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/jamiepine/voicebox/compare/v0.4.3...v0.4.4

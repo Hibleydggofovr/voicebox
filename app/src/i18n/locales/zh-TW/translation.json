@@ -53,7 +53,11 @@
       "copy": "複製",
       "refine": "精修",
       "reRefine": "重新精修",
-      "sendTo": "傳送至",
+      "export": "匯出",
+      "exportDropdownLabel": "匯出格式",
+      "exportAudio": "音訊 (WAV)",
+      "exportTranscript": "文字稿 (TXT)",
+      "exportMarkdown": "Markdown (MD)",
       "delete": "刪除",
       "playAs": "以 {{name}} 播放",
       "playAsFallback": "以聲音播放……",
@@ -73,6 +77,11 @@
       "turnOnShortcut": "開啟全域快捷鍵以從任何地方口述——或點選上方的「口述」進行 App 內擷取。",
       "openSettings": "開啟擷取設定"
     },
+    "deleteDialog": {
+      "title": "刪除擷取",
+      "description": "這將永久刪除該擷取及其音訊與轉錄。此操作無法復原。",
+      "deleting": "刪除中…"
+    },
     "toast": {
       "deleteFailed": "刪除失敗",
       "playAsFailed": "以聲音播放失敗",
@@ -80,6 +89,9 @@
       "noVoiceDescription": "使用「以聲音播放」前請先建立聲音檔案。",
       "transcriptCopied": "已複製轉錄文字",
       "copyFailed": "複製失敗",
+      "exportSuccess": "已匯出至 {{path}}",
+      "exportFailed": "匯出失敗",
+      "exportEmpty": "沒有可匯出的內容",
       "shortcutNotArmed": "快捷鍵已開啟,但尚未就緒",
       "shortcutNotArmedDescription_one": "{{names}} 仍需下載。請開啟「擷取」分頁開始下載。",
       "shortcutNotArmedDescription_other": "{{names}} 仍需下載。請開啟「擷取」分頁開始下載。"
@@ -628,6 +640,7 @@
     }
   },
   "history": {
+    "empty": "尚無語音生成…",
     "actions": {
       "menu": "操作",
       "play": "播放",
@@ -983,10 +996,10 @@
           "d30": "30 天",
           "d7": "7 天"
         },
-        "clearAll": {
-          "title": "清除所有擷取",
-          "description": "永久刪除每一筆擷取與其音訊。此操作無法復原。",
-          "action": "清除擷取"
+        "folder": {
+          "title": "擷取資料夾",
+          "description": "擷取的音訊與轉錄在磁碟上的儲存位置。",
+          "open": "開啟"
         }
       },
       "sidebar": {

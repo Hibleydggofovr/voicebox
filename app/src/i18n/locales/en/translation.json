@@ -53,7 +53,11 @@
       "copy": "Copy",
       "refine": "Refine",
       "reRefine": "Re-refine",
-      "sendTo": "Send to",
+      "export": "Export",
+      "exportDropdownLabel": "Export capture as",
+      "exportAudio": "Audio (WAV)",
+      "exportTranscript": "Transcript (TXT)",
+      "exportMarkdown": "Markdown (MD)",
       "delete": "Delete",
       "playAs": "Play as {{name}}",
       "playAsFallback": "Play as…",
@@ -73,6 +77,11 @@
       "turnOnShortcut": "Turn on the global shortcut to dictate from anywhere — or click Dictate above for an in-app capture.",
       "openSettings": "Open Captures settings"
     },
+    "deleteDialog": {
+      "title": "Delete capture",
+      "description": "This will permanently delete the capture, its audio, and its transcript. This cannot be undone.",
+      "deleting": "Deleting…"
+    },
     "toast": {
       "deleteFailed": "Delete failed",
       "playAsFailed": "Play-as failed",
@@ -80,6 +89,9 @@
       "noVoiceDescription": "Create a voice profile before using Play as.",
       "transcriptCopied": "Transcript copied",
       "copyFailed": "Copy failed",
+      "exportSuccess": "Exported to {{path}}",
+      "exportFailed": "Export failed",
+      "exportEmpty": "Nothing to export",
       "shortcutNotArmed": "Shortcut on, but not yet armed",
       "shortcutNotArmedDescription_one": "{{names}} still needs to download. Open the Captures tab to start.",
       "shortcutNotArmedDescription_other": "{{names}} still need to download. Open the Captures tab to start."
@@ -628,6 +640,7 @@
     }
   },
   "history": {
+    "empty": "No voice generations, yet…",
     "actions": {
       "menu": "Actions",
       "play": "Play",
@@ -983,10 +996,10 @@
           "d30": "30 days",
           "d7": "7 days"
         },
-        "clearAll": {
-          "title": "Clear all captures",
-          "description": "Permanently delete every capture and its audio. This cannot be undone.",
-          "action": "Clear captures"
+        "folder": {
+          "title": "Captures folder",
+          "description": "Where capture audio and transcripts are stored on disk.",
+          "open": "Open"
         }
       },
       "sidebar": {

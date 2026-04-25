@@ -29,6 +29,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  ListPane,
+  ListPaneActions,
+  ListPaneHeader,
+  ListPaneScroll,
+  ListPaneSearch,
+  ListPaneTitle,
+  ListPaneTitleRow,
+} from '@/components/ListPane';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -202,32 +211,25 @@ export function StoryList() {
   }
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden border-r border-border">
-      {/* Scroll Mask */}
-      <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+    <ListPane>
+      <ListPaneHeader>
+        <ListPaneTitleRow>
+          <ListPaneTitle>{t('stories.title')}</ListPaneTitle>
+          <ListPaneActions>
+            <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              {t('stories.newStory')}
+            </Button>
+          </ListPaneActions>
+        </ListPaneTitleRow>
+        <ListPaneSearch
+          value={search}
+          onChange={setSearch}
+          placeholder={t('stories.searchPlaceholder')}
+        />
+      </ListPaneHeader>
 
-      {/* Fixed Header */}
-      <div className="absolute top-0 left-0 right-0 z-20 pl-4 pr-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl px-4 font-bold">{t('stories.title')}</h2>
-          <Button onClick={() => setCreateDialogOpen(true)} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            {t('stories.newStory')}
-          </Button>
-        </div>
-        <div className="relative">
-          <Input
-            placeholder={t('stories.searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9 text-sm rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
-        </div>
-      </div>
-
-      {/* Scrollable Story List */}
-      <div
-        className="flex-1 overflow-y-auto pt-24 relative z-0"
+      <ListPaneScroll
         style={{ paddingBottom: hasTrackEditor ? `${trackEditorHeight + 140}px` : '170px' }}
       >
         {storyList.length === 0 ? (
@@ -268,8 +270,14 @@ export function StoryList() {
                       </span>
                       <div className="flex-1" />
                     </div>
-                    <div className="text-[13px] text-foreground/90 line-clamp-2 leading-snug mb-2">
-                      {story.name}
+                    <div className="text-[13px] line-clamp-2 leading-snug mb-2">
+                      <span className="text-foreground font-medium">{story.name}</span>
+                      {story.description ? (
+                        <>
+                          <span className="mx-1.5 text-muted-foreground/50">·</span>
+                          <span className="text-muted-foreground">{story.description}</span>
+                        </>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge
@@ -311,7 +319,7 @@ export function StoryList() {
             })}
           </div>
         )}
-      </div>
+      </ListPaneScroll>
 
       {/* Create Story Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -422,6 +430,6 @@ export function StoryList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </ListPane>
   );
 }

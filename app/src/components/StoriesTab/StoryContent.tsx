@@ -364,7 +364,7 @@ export function StoryContent() {
       {/* Content */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto space-y-3 pt-14 scroll-pt-14 relative z-0"
+        className="flex-1 min-h-0 overflow-y-auto space-y-3 pt-16 scroll-pt-16 relative z-0"
         style={{ paddingBottom: bottomPadding > 0 ? `${bottomPadding}px` : undefined }}
       >
         {sortedItems.length === 0 ? (

@@ -1,5 +1,5 @@
-import { Check, ChevronDown, Keyboard, Laptop, Lock, Trash2, Volume2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, ChevronDown, FolderOpen, Keyboard, Laptop, Lock, Volume2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityNotice } from '@/components/AccessibilityGate/AccessibilityGate';
 import { InputMonitoringNotice } from '@/components/InputMonitoringGate/InputMonitoringGate';
@@ -27,6 +27,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { useDictationReadiness } from '@/lib/hooks/useDictationReadiness';
 import { useCaptureSettings } from '@/lib/hooks/useSettings';
 import { useProfiles } from '@/lib/hooks/useProfiles';
+import { usePlatform } from '@/platform/PlatformContext';
+import { useServerStore } from '@/stores/serverStore';
 import { cn } from '@/lib/utils/cn';
 import { displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
 import type { Qwen3ModelSize, VoiceProfileResponse, WhisperModelSize } from '@/lib/api/types';
@@ -136,6 +138,8 @@ function HotkeyPillPreview({ enabled }: { enabled: boolean }) {
 
 export function CapturesPage() {
   const { t } = useTranslation();
+  const platform = usePlatform();
+  const serverUrl = useServerStore((state) => state.serverUrl);
   const { settings, update } = useCaptureSettings();
   const { data: profiles } = useProfiles();
   const { toast } = useToast();
@@ -159,6 +163,32 @@ export function CapturesPage() {
   const [copyToClipboard, setCopyToClipboard] = useState(true);
   const [retention, setRetention] = useState('forever');
   const [chordEditor, setChordEditor] = useState<'push' | 'toggle' | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [capturesPath, setCapturesPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${serverUrl}/health/filesystem`)
+      .then((res) => res.json())
+      .then((data) => {
+        const dir = data.directories?.find((d: { path: string }) =>
+          d.path.includes('captures'),
+        );
+        if (dir?.path) setCapturesPath(dir.path);
+      })
+      .catch(() => {});
+  }, [serverUrl]);
+
+  const openCapturesFolder = useCallback(async () => {
+    if (!capturesPath) return;
+    setOpening(true);
+    try {
+      await platform.filesystem.openPath(capturesPath);
+    } catch (e) {
+      console.error('Failed to open captures folder:', e);
+    } finally {
+      setOpening(false);
+    }
+  }, [platform, capturesPath]);
 
   const voices: VoiceProfileResponse[] = profiles ?? [];
   const defaultVoice =
@@ -561,16 +591,17 @@ export function CapturesPage() {
         />
 
         <SettingRow
-          title={t('settings.captures.storage.clearAll.title')}
-          description={t('settings.captures.storage.clearAll.description')}
+          title={t('settings.captures.storage.folder.title')}
+          description={capturesPath ?? t('settings.captures.storage.folder.description')}
           action={
             <Button
               variant="outline"
               size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+              onClick={openCapturesFolder}
+              disabled={opening || !capturesPath}
             >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              {t('settings.captures.storage.clearAll.action')}
+              <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
+              {t('settings.captures.storage.folder.open')}
             </Button>
           }
         />

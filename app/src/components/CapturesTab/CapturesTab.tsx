@@ -1,16 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import {
   Captions,
   Check,
   ChevronDown,
   CircleDot,
   Copy,
+  Download,
   FileAudio,
+  FileText,
   Loader2,
   Mic,
-  Send,
   Settings2,
   Sparkles,
   Square,
@@ -23,6 +26,16 @@ import { useTranslation } from 'react-i18next';
 import { CapturePill } from '@/components/CapturePill/CapturePill';
 import { CaptureInlinePlayer } from '@/components/CapturesTab/CaptureInlinePlayer';
 import { DictationReadinessChecklist } from '@/components/CapturesTab/DictationReadinessChecklist';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,8 +46,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  ListPane,
+  ListPaneHeader,
+  ListPaneScroll,
+  ListPaneSearch,
+  ListPaneTitle,
+  ListPaneTitleRow,
+} from '@/components/ListPane';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
 import type {
@@ -126,6 +146,7 @@ export function CapturesTab() {
   const [showRefined, setShowRefined] = useState(true);
   const [playAsVoiceId, setPlayAsVoiceId] = useState<string | null>(null);
   const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const setAudioWithAutoPlay = usePlayerStore((s) => s.setAudioWithAutoPlay);
   const audioUrl = usePlayerStore((s) => s.audioUrl);
@@ -222,6 +243,7 @@ export function CapturesTab() {
   const deleteMutation = useMutation({
     mutationFn: async (captureId: string) => apiClient.deleteCapture(captureId),
     onSuccess: () => {
+      setDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['captures'] });
     },
     onError: (err: Error) => {
@@ -293,6 +315,96 @@ export function CapturesTab() {
     }
   };
 
+  const exportToastSuccess = (path: string) => {
+    const name = path.split(/[\\/]/).pop() ?? path;
+    toast({ title: t('captures.toast.exportSuccess', { path: name }) });
+  };
+
+  const exportToastError = (err: unknown) => {
+    toast({
+      title: t('captures.toast.exportFailed'),
+      description: err instanceof Error ? err.message : String(err),
+      variant: 'destructive',
+    });
+  };
+
+  const handleExportAudio = async () => {
+    if (!selected) return;
+    try {
+      const dest = await save({
+        defaultPath: `capture_${selected.id.slice(0, 8)}.wav`,
+        filters: [{ name: 'Audio', extensions: ['wav'] }],
+      });
+      if (!dest) return;
+      const res = await fetch(apiClient.getCaptureAudioUrl(selected.id));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = new Uint8Array(await res.arrayBuffer());
+      await writeFile(dest, buf);
+      exportToastSuccess(dest);
+    } catch (err) {
+      exportToastError(err);
+    }
+  };
+
+  const handleExportTranscript = async () => {
+    if (!selected) return;
+    const text = (selected.transcript_refined || selected.transcript_raw || '').trim();
+    if (!text) {
+      toast({ title: t('captures.toast.exportEmpty'), variant: 'destructive' });
+      return;
+    }
+    try {
+      const dest = await save({
+        defaultPath: `capture_${selected.id.slice(0, 8)}.txt`,
+        filters: [{ name: 'Text', extensions: ['txt'] }],
+      });
+      if (!dest) return;
+      await writeTextFile(dest, text);
+      exportToastSuccess(dest);
+    } catch (err) {
+      exportToastError(err);
+    }
+  };
+
+  const buildCaptureMarkdown = (capture: CaptureResponse): string => {
+    const lines: string[] = [];
+    lines.push(`# Capture ${capture.id}`, '');
+    lines.push(`- **Source:** ${capture.source}`);
+    lines.push(`- **Created:** ${capture.created_at}`);
+    if (capture.duration_ms != null) lines.push(`- **Duration:** ${formatDuration(capture.duration_ms)}`);
+    if (capture.language) lines.push(`- **Language:** ${capture.language}`);
+    if (capture.stt_model) lines.push(`- **STT model:** ${capture.stt_model}`);
+    if (capture.llm_model) lines.push(`- **LLM model:** ${capture.llm_model}`);
+    lines.push('');
+    if (capture.transcript_refined?.trim()) {
+      lines.push('## Refined transcript', '', capture.transcript_refined.trim(), '');
+    }
+    if (capture.transcript_raw?.trim()) {
+      lines.push('## Raw transcript', '', capture.transcript_raw.trim(), '');
+    }
+    return lines.join('\n');
+  };
+
+  const handleExportMarkdown = async () => {
+    if (!selected) return;
+    const hasContent = (selected.transcript_refined || selected.transcript_raw || '').trim();
+    if (!hasContent) {
+      toast({ title: t('captures.toast.exportEmpty'), variant: 'destructive' });
+      return;
+    }
+    try {
+      const dest = await save({
+        defaultPath: `capture_${selected.id.slice(0, 8)}.md`,
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
+      if (!dest) return;
+      await writeTextFile(dest, buildCaptureMarkdown(selected));
+      exportToastSuccess(dest);
+    } catch (err) {
+      exportToastError(err);
+    }
+  };
+
   const handlePlayAs = (voice?: VoiceProfileResponse) => {
     if (!selected) return;
     const target = voice ?? playAsVoice;
@@ -327,50 +439,41 @@ export function CapturesTab() {
       />
 
       {/* Left: capture list */}
-      <div className="w-[340px] shrink-0 flex flex-col relative overflow-hidden border-r border-border">
-        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
-
-        <div className="absolute top-0 left-0 right-0 z-20 pl-4 pr-4">
-          <div className="flex items-center mb-3">
-            <h1 className="text-2xl px-4 font-bold">{t('captures.title')}</h1>
-            <Badge
-              variant="secondary"
-              className="h-5 px-1.5 -ml-2 text-[10px] font-medium text-accent bg-accent/10 border border-accent/20"
-            >
-              {t('captures.beta')}
-            </Badge>
-          </div>
-          <div className="relative">
-            <Input
-              placeholder={t('captures.searchPlaceholder')}
+      <div className="w-[340px] shrink-0">
+        <ListPane>
+          <ListPaneHeader>
+            <ListPaneTitleRow>
+              <ListPaneTitle>{t('captures.title')}</ListPaneTitle>
+              <Badge
+                variant="secondary"
+                className="h-5 px-1.5 -ml-2 text-[10px] font-medium text-accent bg-accent/10 border border-accent/20"
+              >
+                {t('captures.beta')}
+              </Badge>
+            </ListPaneTitleRow>
+            <ListPaneSearch
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 text-sm rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+              onChange={setSearch}
+              placeholder={t('captures.searchPlaceholder')}
             />
-          </div>
-        </div>
+          </ListPaneHeader>
 
-        <div
-          className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden pt-24',
-            isPlayerVisible && BOTTOM_SAFE_AREA_PADDING,
-          )}
-        >
-          <div className="px-4 pb-6 space-y-1">
-            {capturesLoading ? (
-              <div className="px-4 py-12 flex items-center justify-center text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-                {search ? (
-                  <p>{t('captures.empty.noMatches', { query: search })}</p>
-                ) : (
-                  <p>{t('captures.empty.none')}</p>
-                )}
-              </div>
-            ) : (
-              filtered.map((capture) => {
+          <ListPaneScroll className={cn(isPlayerVisible && BOTTOM_SAFE_AREA_PADDING)}>
+            <div className="px-4 pb-6 space-y-1">
+              {capturesLoading ? (
+                <div className="px-4 py-12 flex items-center justify-center text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  {search ? (
+                    <p>{t('captures.empty.noMatches', { query: search })}</p>
+                  ) : (
+                    <p>{t('captures.empty.none')}</p>
+                  )}
+                </div>
+              ) : (
+                filtered.map((capture) => {
                 const isActive = selectedId === capture.id;
                 const refined = !!capture.transcript_refined;
                 return (
@@ -413,8 +516,9 @@ export function CapturesTab() {
                 );
               })
             )}
-          </div>
-        </div>
+            </div>
+          </ListPaneScroll>
+        </ListPane>
       </div>
 
       {/* Right: capture detail */}
@@ -670,17 +774,40 @@ export function CapturesTab() {
                   ? t('captures.actions.reRefine')
                   : t('captures.actions.refine')}
               </Button>
-              <Button variant="outline" size="sm" disabled>
-                <Send className="h-3.5 w-3.5 mr-1.5" />
-                {t('captures.actions.sendTo')}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    {t('captures.actions.export')}
+                    <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                    {t('captures.actions.exportDropdownLabel')}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExportAudio}>
+                    <FileAudio className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                    {t('captures.actions.exportAudio')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportTranscript}>
+                    <Captions className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                    {t('captures.actions.exportTranscript')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportMarkdown}>
+                    <FileText className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                    {t('captures.actions.exportMarkdown')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="flex-1" />
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => deleteMutation.mutate(selected.id)}
+                onClick={() => setDeleteDialogOpen(true)}
                 disabled={deleteMutation.isPending}
-                className="text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground "
               >
                 {deleteMutation.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -744,6 +871,27 @@ export function CapturesTab() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('captures.deleteDialog.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('captures.deleteDialog.description')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                onClick={() => selected && deleteMutation.mutate(selected.id)}
+                disabled={deleteMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMutation.isPending ? t('captures.deleteDialog.deleting') : t('common.delete')}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -2,6 +2,13 @@ import { Check, Copy, Plug, Trash2, Waypoints } from 'lucide-react';
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useMCPBindings } from '@/lib/hooks/useMCPBindings';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useCaptureSettings } from '@/lib/hooks/useSettings';
@@ -101,22 +108,28 @@ export function MCPPage() {
             title={t('settings.mcp.defaultVoice.label')}
             description={t('settings.mcp.defaultVoice.labelHint')}
             action={
-              <select
-                value={defaultProfileId}
-                onChange={(e) =>
+              <Select
+                value={defaultProfileId || '__default__'}
+                onValueChange={(v) =>
                   updateCapture({
-                    default_playback_voice_id: e.target.value || null,
+                    default_playback_voice_id: v === '__default__' ? null : v,
                   })
                 }
-                className="h-8 px-2 rounded-md border bg-background text-sm min-w-[180px]"
               >
-                <option value="">{t('settings.mcp.defaultVoice.none')}</option>
-                {(profiles ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">
+                    {t('settings.mcp.defaultVoice.none')}
+                  </SelectItem>
+                  {(profiles ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             }
           />
         </SettingSection>
@@ -153,24 +166,30 @@ export function MCPPage() {
                       )}
                     </div>
                   </div>
-                  <select
-                    value={b.profile_id ?? ''}
-                    onChange={(e) =>
+                  <Select
+                    value={b.profile_id ?? '__default__'}
+                    onValueChange={(v) =>
                       upsertAsync({
                         client_id: b.client_id,
                         label: b.label,
-                        profile_id: e.target.value || null,
+                        profile_id: v === '__default__' ? null : v,
                       })
                     }
-                    className="h-8 px-2 rounded-md border bg-background text-sm min-w-[160px]"
                   >
-                    <option value="">{t('settings.mcp.bindings.defaultOption')}</option>
-                    {(profiles ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">
+                        {t('settings.mcp.bindings.defaultOption')}
+                      </SelectItem>
+                      {(profiles ?? []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -201,18 +220,24 @@ export function MCPPage() {
                 onChange={(e) => setNewLabel(e.target.value)}
                 className="h-9 px-3 rounded-md border bg-background text-sm"
               />
-              <select
-                value={newProfileId}
-                onChange={(e) => setNewProfileId(e.target.value)}
-                className="h-9 px-2 rounded-md border bg-background text-sm min-w-[140px]"
+              <Select
+                value={newProfileId || '__default__'}
+                onValueChange={(v) => setNewProfileId(v === '__default__' ? '' : v)}
               >
-                <option value="">{t('settings.mcp.bindings.defaultOption')}</option>
-                {(profiles ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9 min-w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">
+                    {t('settings.mcp.bindings.defaultOption')}
+                  </SelectItem>
+                  {(profiles ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button
               size="sm"
