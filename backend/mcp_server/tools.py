@@ -75,22 +75,28 @@ def register_tools(mcp: FastMCP) -> None:
                     "Voicebox → Settings → MCP."
                 )
 
-            resolved_personality = personality
-            if resolved_personality is None and client_id:
+            binding = None
+            if client_id:
                 binding = (
                     db.query(MCPClientBinding)
                     .filter(MCPClientBinding.client_id == client_id)
                     .first()
                 )
-                if binding is not None:
-                    resolved_personality = bool(binding.default_personality)
+
+            resolved_personality = personality
+            if resolved_personality is None and binding is not None:
+                resolved_personality = bool(binding.default_personality)
+
+            resolved_engine = engine
+            if resolved_engine is None and binding is not None:
+                resolved_engine = binding.default_engine
 
             use_persona = bool(resolved_personality) and bool(vp.personality)
             return await _speak(
                 profile_id=vp.id,
                 profile_name=vp.name,
                 text=text,
-                engine=engine,
+                engine=resolved_engine,
                 language=language,
                 personality=use_persona,
                 db=db,
@@ -232,7 +238,7 @@ async def _speak(
         profile_id=profile_id,
         text=text,
         language=language or "en",
-        engine=engine or "qwen",
+        engine=engine,
         personality=personality,
     )
     generation = await generate_speech(req, db)

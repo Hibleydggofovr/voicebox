@@ -52,16 +52,22 @@ async def speak(
             ),
         )
 
-    # Resolve per-client personality default when the caller didn't pin it.
-    personality_flag = data.personality
-    if personality_flag is None and client_id:
+    binding = None
+    if client_id:
         binding = (
             db.query(MCPClientBinding)
             .filter(MCPClientBinding.client_id == client_id)
             .first()
         )
-        if binding is not None:
-            personality_flag = bool(binding.default_personality)
+
+    # Resolve per-client personality default when the caller didn't pin it.
+    personality_flag = data.personality
+    if personality_flag is None and binding is not None:
+        personality_flag = bool(binding.default_personality)
+
+    engine = data.engine
+    if engine is None and binding is not None:
+        engine = binding.default_engine
 
     from .generations import generate_speech
 
@@ -70,7 +76,7 @@ async def speak(
             profile_id=profile.id,
             text=data.text,
             language=data.language or "en",
-            engine=data.engine or "qwen",
+            engine=engine,
             personality=bool(personality_flag),
         ),
         db,
