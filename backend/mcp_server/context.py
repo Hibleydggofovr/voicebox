@@ -7,6 +7,7 @@ ContextVar so tool implementations can read it without plumbing the request
 object through every service call.
 """
 
+import ipaddress
 import logging
 from contextvars import ContextVar
 from datetime import datetime
@@ -25,6 +26,28 @@ CLIENT_ID_HEADER = "X-Voicebox-Client-Id"
 current_client_id: ContextVar[str | None] = ContextVar(
     "current_client_id", default=None
 )
+
+# Remote address of the in-flight request. Used by tools that gate
+# host-filesystem access to loopback callers (see voicebox.transcribe).
+current_remote_addr: ContextVar[str | None] = ContextVar(
+    "current_remote_addr", default=None
+)
+
+
+def request_is_loopback() -> bool:
+    """True when the in-flight request originated on the loopback interface.
+
+    Returns False if no request is in flight or the remote address can't be
+    parsed — callers gating filesystem reads on this should treat that as
+    "deny".
+    """
+    addr = current_remote_addr.get()
+    if not addr:
+        return False
+    try:
+        return ipaddress.ip_address(addr).is_loopback
+    except ValueError:
+        return False
 
 # Endpoints that consume X-Voicebox-Client-Id for its MCP-semantic
 # meaning (per-client profile resolution + per-client default_personality).
@@ -53,11 +76,14 @@ class ClientIdMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         client_id = request.headers.get(CLIENT_ID_HEADER)
-        token = current_client_id.set(client_id)
+        remote_addr = request.client.host if request.client else None
+        client_token = current_client_id.set(client_id)
+        addr_token = current_remote_addr.set(remote_addr)
         try:
             response = await call_next(request)
         finally:
-            current_client_id.reset(token)
+            current_client_id.reset(client_token)
+            current_remote_addr.reset(addr_token)
 
         if client_id and _is_stamped_path(request.url.path):
             _stamp_last_seen(client_id)

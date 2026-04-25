@@ -21,7 +21,7 @@ from ..database import get_db
 from ..services import captures as captures_service
 from ..services import profiles as profiles_service
 from . import events as mcp_events
-from .context import current_client_id
+from .context import current_client_id, request_is_loopback
 from .resolve import resolve_profile
 
 
@@ -103,7 +103,7 @@ def register_tools(mcp: FastMCP) -> None:
         description=(
             "Transcribe an audio clip to text using Voicebox's local Whisper. "
             "Pass exactly one of `audio_base64` (bytes as base64) or "
-            "`audio_path` (absolute local file path)."
+            "`audio_path` (absolute local file path — loopback callers only)."
         ),
     )
     async def voicebox_transcribe(
@@ -117,8 +117,15 @@ def register_tools(mcp: FastMCP) -> None:
                 "Pass exactly one of `audio_base64` or `audio_path`."
             )
 
-        # Absolute-path mode: validate and transcribe in place.
+        # Absolute-path mode: validate and transcribe in place. Restricted
+        # to loopback callers so a Voicebox bound on 0.0.0.0 doesn't double
+        # as an unauthenticated arbitrary-local-file read primitive.
         if audio_path is not None:
+            if not request_is_loopback():
+                raise ValueError(
+                    "`audio_path` is only available to loopback callers — "
+                    "remote callers must use `audio_base64`."
+                )
             path = Path(audio_path)
             if not path.is_absolute():
                 raise ValueError("`audio_path` must be absolute.")
