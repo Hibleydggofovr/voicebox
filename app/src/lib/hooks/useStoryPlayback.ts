@@ -5,6 +5,7 @@ import { useStoryStore } from '@/stores/storyStore';
 
 interface ActiveSource {
   source: AudioBufferSourceNode;
+  clipGain: GainNode;
   itemId: string;
   generationId: string;
   startTimeMs: number;
@@ -61,10 +62,28 @@ export function useStoryPlayback(items: StoryItemDetail[] | undefined) {
   const stopSource = useCallback((itemId: string) => {
     const activeSource = activeSourcesRef.current.get(itemId);
     if (activeSource) {
+      // Detach onended first so the natural-end handler doesn't race with
+      // the explicit teardown below and re-delete a fresh entry that has
+      // already been re-scheduled at this id.
+      activeSource.source.onended = null;
       try {
         activeSource.source.stop();
       } catch {
         // Source may have already stopped
+      }
+      // Hard-cut the audio graph regardless of whether stop() actually
+      // halted the buffer. Long imports were leaking audio when stop()
+      // was called on a source that was scheduled with a multi-minute
+      // duration; disconnecting from the destination guarantees silence.
+      try {
+        activeSource.source.disconnect();
+      } catch {
+        // already disconnected
+      }
+      try {
+        activeSource.clipGain.disconnect();
+      } catch {
+        // already disconnected
       }
       activeSourcesRef.current.delete(itemId);
     }
@@ -274,6 +293,7 @@ export function useStoryPlayback(items: StoryItemDetail[] | undefined) {
 
           const activeSource: ActiveSource = {
             source,
+            clipGain,
             itemId: item.id,
             generationId: item.generation_id,
             startTimeMs: item.start_time_ms,
