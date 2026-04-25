@@ -51,7 +51,7 @@ export default function SponsorsPage() {
             className="fade-in mb-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent"
             style={{ animationDelay: '50ms' }}
           >
-            Corporate sponsorship
+            VIP Sponsor
           </div>
 
           <h1
@@ -156,7 +156,7 @@ export default function SponsorsPage() {
             </h3>
             <p className="text-sm md:text-base text-muted-foreground leading-relaxed max-w-2xl mb-8">
               Your logo lives in the prime slot on the homepage — the first thing every visitor
-              sees after the hero. Same row as every other corporate sponsor, linked to your URL
+              sees after the hero. Same row as every other VIP Sponsor, linked to your URL
               of choice. This is the placement that actually moves the needle.
             </p>
 

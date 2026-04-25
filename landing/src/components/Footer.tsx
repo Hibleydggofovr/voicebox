@@ -118,7 +118,7 @@ export function Footer() {
               </li>
               <li>
                 <a href="/sponsors" className="hover:text-foreground transition-colors">
-                  Corporate Sponsorship
+                  VIP Sponsor
                 </a>
               </li>
             </ul>
