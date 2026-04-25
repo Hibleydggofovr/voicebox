@@ -828,8 +828,10 @@ export function ProfileForm() {
                       name: '',
                       description: '',
                       language: 'en',
+                      personality: '',
                       sampleFile: undefined,
                       referenceText: '',
+                      avatarFile: undefined,
                     });
                     setSampleMode('record');
                   }}

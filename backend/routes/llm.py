@@ -1,6 +1,7 @@
 """LLM inference endpoints."""
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 
 from .. import models
 from ..backends import get_llm_model_configs
@@ -39,9 +40,9 @@ async def llm_generate(request: models.LLMGenerateRequest):
         task_manager.start_download(progress_model_name)
         create_background_task(download_llm_background())
 
-        raise HTTPException(
+        return JSONResponse(
             status_code=202,
-            detail={
+            content={
                 "message": f"Qwen3 {model_size} is being downloaded. Please wait and try again.",
                 "model_name": progress_model_name,
                 "downloading": True,

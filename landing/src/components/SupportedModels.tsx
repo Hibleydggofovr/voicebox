@@ -138,9 +138,9 @@ const MODEL_GROUPS: ModelGroup[] = [
     subtitle: 'Transcript refinement, persona replies, and on-device reasoning.',
     models: [
       {
-        name: 'Qwen 3.5',
+        name: 'Qwen3',
         author: 'Alibaba',
-        sizes: ['4B', '2B', '0.8B'],
+        sizes: ['4B', '1.7B', '0.6B'],
         description:
           'Powers transcript cleanup, persona voice replies, and the voice I/O loop. Shares its runtime with the TTS/STT stack — one model cache, one GPU story.',
         tags: [
