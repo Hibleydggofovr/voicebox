@@ -236,6 +236,10 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
   const updateVolume = useUpdateStoryItemVolume();
   const { toast } = useToast();
   const addPendingGeneration = useGenerationStore((s) => s.addPendingGeneration);
+  // User-added empty tracks. Live in component state because a track only
+  // earns its keep once a clip lands on it — no need to persist an unused
+  // row across reloads.
+  const [extraTracks, setExtraTracks] = useState<number[]>([]);
 
   // Selection state
   const selectedClipId = useStoryStore((state) => state.selectedClipId);
@@ -344,10 +348,32 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
     stop();
   };
 
-  // Calculate unique tracks from items, always showing at least 3 default tracks
+  // Calculate unique tracks from items, always showing at least 3 default
+  // tracks. ``extraTracks`` lets the user open a fresh row without first
+  // having to drag a clip there.
   const tracks = useMemo(() => {
-    const trackSet = new Set([...DEFAULT_TRACKS, ...items.map((item) => item.track)]);
+    const trackSet = new Set([
+      ...DEFAULT_TRACKS,
+      ...items.map((item) => item.track),
+      ...extraTracks,
+    ]);
     return Array.from(trackSet).sort((a, b) => b - a); // Higher tracks on top
+  }, [items, extraTracks]);
+
+  const handleAddTrackAbove = useCallback(() => {
+    setExtraTracks((prev) => {
+      const all = new Set([...DEFAULT_TRACKS, ...items.map((i) => i.track), ...prev]);
+      const next = (all.size > 0 ? Math.max(...all) : 0) + 1;
+      return [...prev, next];
+    });
+  }, [items]);
+
+  const handleAddTrackBelow = useCallback(() => {
+    setExtraTracks((prev) => {
+      const all = new Set([...DEFAULT_TRACKS, ...items.map((i) => i.track), ...prev]);
+      const next = (all.size > 0 ? Math.min(...all) : 0) - 1;
+      return [...prev, next];
+    });
   }, [items]);
 
   // Track container width for full-width minimum
@@ -1286,29 +1312,55 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
             }}
           >
             {/* Per-track rows: label and background as flex siblings guarantee alignment */}
-            {tracks.map((trackNumber, index) => (
-              <div
-                key={trackNumber}
-                className="absolute left-0 right-0 flex"
-                style={{
-                  top: `${index * TRACK_HEIGHT}px`,
-                  height: `${TRACK_HEIGHT}px`,
-                }}
-              >
-                <div className="w-16 shrink-0 border-b border-r flex items-center justify-center sticky left-0 z-20 h-full bg-background">
-                  <div className="absolute inset-0 bg-muted/20 pointer-events-none" />
-                  <span className="relative text-[10px] text-muted-foreground select-none">
-                    {trackNumber}
-                  </span>
-                </div>
+            {tracks.map((trackNumber, index) => {
+              const isFirst = index === 0;
+              const isLast = index === tracks.length - 1;
+              return (
                 <div
-                  className={cn(
-                    'border-b flex-1 pointer-events-none',
-                    index % 2 === 0 ? 'bg-background' : 'bg-muted/10',
-                  )}
-                />
-              </div>
-            ))}
+                  key={trackNumber}
+                  className="absolute left-0 right-0 flex"
+                  style={{
+                    top: `${index * TRACK_HEIGHT}px`,
+                    height: `${TRACK_HEIGHT}px`,
+                  }}
+                >
+                  <div className="w-16 shrink-0 border-b border-r flex items-center justify-center sticky left-0 z-20 h-full bg-background">
+                    <div className="absolute inset-0 bg-muted/20 pointer-events-none" />
+                    <span className="relative text-[10px] text-muted-foreground select-none">
+                      {trackNumber}
+                    </span>
+                    {isFirst && (
+                      <button
+                        type="button"
+                        onClick={handleAddTrackAbove}
+                        title="Add track above"
+                        aria-label="Add track above"
+                        className="absolute top-0 right-0 left-0 h-3 flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors"
+                      >
+                        <Plus className="h-2.5 w-2.5" />
+                      </button>
+                    )}
+                    {isLast && (
+                      <button
+                        type="button"
+                        onClick={handleAddTrackBelow}
+                        title="Add track below"
+                        aria-label="Add track below"
+                        className="absolute bottom-0 right-0 left-0 h-3 flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors"
+                      >
+                        <Plus className="h-2.5 w-2.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      'border-b flex-1 pointer-events-none',
+                      index % 2 === 0 ? 'bg-background' : 'bg-muted/10',
+                    )}
+                  />
+                </div>
+              );
+            })}
 
             {/* Clip/playhead/seek layer offset past the label column */}
             <div
