@@ -24,10 +24,10 @@ pub const DICTATE_WINDOW_LABEL: &str = "dictate";
 const DICTATE_WINDOW_WIDTH: f64 = 420.0;
 const DICTATE_WINDOW_HEIGHT: f64 = 64.0;
 
-/// Create the floating dictate webview up front, hidden. The HotkeyMonitor
-/// shows it on chord-start; the frontend hides it when the capture pipeline
-/// finishes. Starting it at setup avoids a race where the first chord fires
-/// before the webview has had a chance to subscribe to the `dictate:*` events.
+/// Create the floating dictate webview hidden. The HotkeyMonitor shows it on
+/// chord-start; the frontend hides it when the capture pipeline finishes.
+/// Building it at setup avoids a race where the first chord or agent-speech
+/// event fires before the webview subscribes to the `dictate:*` events.
 #[cfg(desktop)]
 fn build_dictate_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     let window = WebviewWindowBuilder::new(
@@ -1257,10 +1257,9 @@ pub fn run() {
                 keyboard_layout::init();
 
                 // HotkeyMonitor is spawned lazily via the `enable_hotkey`
-                // command — see HotkeyState. The dictate pill webview is
-                // built in the same lazy path so we don't pay setup cost
-                // (and don't trigger the macOS Input Monitoring TCC prompt)
-                // for users who never enable the global hotkey.
+                // command — see HotkeyState. The hidden dictate webview is
+                // safe to build up front because it does not create the global
+                // keyboard tap or trigger the macOS Input Monitoring prompt.
                 app.manage(HotkeyState::default());
 
                 // The frontend emits `dictate:hide` whenever the pill cycle
@@ -1292,6 +1291,7 @@ pub fn run() {
                     show_dictate_window(&handle_for_show);
                 });
 
+                ensure_dictate_window(app.handle());
                 speak_monitor::spawn_speak_monitor(app.handle().clone());
             }
 

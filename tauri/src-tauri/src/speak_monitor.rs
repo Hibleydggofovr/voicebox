@@ -164,8 +164,8 @@ fn parse_frame(frame: &str) -> Option<(String, String)> {
 fn dispatch(app: &AppHandle, event: &str, data: &str) {
     match event {
         "speak-start" => {
-            // Build the pill webview hidden if it doesn't exist yet so its
-            // listeners can register — but don't *show* it here. The pill
+            // Defensive for dev/restart paths where the setup-created pill
+            // is not present — but don't *show* it here. The pill
             // surfaces itself from `audio.onplaying` via `dictate:show`, so
             // users never see the empty-silent generation window.
             ensure_dictate_window(app);
