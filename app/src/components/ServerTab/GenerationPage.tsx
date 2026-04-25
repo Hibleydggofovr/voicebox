@@ -14,10 +14,17 @@ export function GenerationPage() {
   const platform = usePlatform();
   const serverUrl = useServerStore((state) => state.serverUrl);
   const { settings, update } = useGenerationSettings();
-  const maxChunkChars = settings?.max_chunk_chars ?? 800;
-  const crossfadeMs = settings?.crossfade_ms ?? 50;
+  const persistedMaxChunkChars = settings?.max_chunk_chars ?? 800;
+  const persistedCrossfadeMs = settings?.crossfade_ms ?? 50;
   const normalizeAudio = settings?.normalize_audio ?? true;
   const autoplayOnGenerate = settings?.autoplay_on_generate ?? true;
+  // Slider mirrors persist on commit (pointer-up / keyboard-release) only —
+  // onValueChange would fire a PATCH for every pointer-move pixel and round-
+  // trip mid-drag failures could leave persisted state out of sync with UI.
+  const [maxChunkChars, setMaxChunkChars] = useState(persistedMaxChunkChars);
+  const [crossfadeMs, setCrossfadeMs] = useState(persistedCrossfadeMs);
+  useEffect(() => setMaxChunkChars(persistedMaxChunkChars), [persistedMaxChunkChars]);
+  useEffect(() => setCrossfadeMs(persistedCrossfadeMs), [persistedCrossfadeMs]);
   const [opening, setOpening] = useState(false);
   const [generationsPath, setGenerationsPath] = useState<string | null>(null);
 
@@ -64,7 +71,8 @@ export function GenerationPage() {
           <Slider
             id="maxChunkChars"
             value={[maxChunkChars]}
-            onValueChange={([value]) => update({ max_chunk_chars: value })}
+            onValueChange={([value]) => setMaxChunkChars(value)}
+            onValueCommit={([value]) => update({ max_chunk_chars: value })}
             min={100}
             max={5000}
             step={50}
@@ -86,7 +94,8 @@ export function GenerationPage() {
           <Slider
             id="crossfadeMs"
             value={[crossfadeMs]}
-            onValueChange={([value]) => update({ crossfade_ms: value })}
+            onValueChange={([value]) => setCrossfadeMs(value)}
+            onValueCommit={([value]) => update({ crossfade_ms: value })}
             min={0}
             max={200}
             step={10}
