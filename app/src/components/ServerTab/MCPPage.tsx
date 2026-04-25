@@ -16,6 +16,21 @@ import { useServerStore } from '@/stores/serverStore';
 import { formatDate } from '@/lib/utils/format';
 import { SettingRow, SettingSection } from './SettingRow';
 
+function getStdioShimCommand(): string {
+  if (typeof navigator === 'undefined') {
+    return '/Applications/Voicebox.app/Contents/MacOS/voicebox-mcp';
+  }
+
+  const platform = `${navigator.platform} ${navigator.userAgent}`.toLowerCase();
+  if (platform.includes('win')) {
+    return 'C:\\Program Files\\Voicebox\\voicebox-mcp.exe';
+  }
+  if (platform.includes('linux')) {
+    return '/opt/voicebox/voicebox-mcp';
+  }
+  return '/Applications/Voicebox.app/Contents/MacOS/voicebox-mcp';
+}
+
 /**
  * Settings → MCP — configure per-agent voice binding and show copy-paste
  * install snippets for major MCP clients. Backend runs at /mcp on the
@@ -30,6 +45,7 @@ export function MCPPage() {
 
   const defaultProfileId = captureSettings?.default_playback_voice_id ?? '';
   const mcpUrl = `${serverUrl}/mcp`;
+  const stdioShimCommand = getStdioShimCommand();
 
   const [newClientId, setNewClientId] = useState('');
   const [newLabel, setNewLabel] = useState('');
@@ -88,8 +104,7 @@ export function MCPPage() {
               {
                 mcpServers: {
                   voicebox: {
-                    command:
-                      '/Applications/Voicebox.app/Contents/MacOS/voicebox-mcp',
+                    command: stdioShimCommand,
                     env: { VOICEBOX_CLIENT_ID: 'claude-code' },
                   },
                 },
