@@ -105,7 +105,15 @@ export function DictateWindow() {
   const speakingRef = useRef<typeof speaking>(null);
   speakingRef.current = speaking;
   const statusSourceRef = useRef<EventSource | null>(null);
+  const statusTimeoutRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const clearStatusTimeout = () => {
+    if (statusTimeoutRef.current !== null) {
+      window.clearTimeout(statusTimeoutRef.current);
+      statusTimeoutRef.current = null;
+    }
+  };
 
   const dismissSpeak = (id?: string) => {
     // Guard against a late dismiss targeting a stale cycle (a new speak
@@ -113,6 +121,7 @@ export function DictateWindow() {
     if (id && speakingRef.current && speakingRef.current.generationId !== id) return;
     statusSourceRef.current?.close();
     statusSourceRef.current = null;
+    clearStatusTimeout();
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
@@ -172,14 +181,28 @@ export function DictateWindow() {
         // `/audio/{id}` endpoint will serve the WAV we need to play.
         const source = new EventSource(apiClient.getGenerationStatusUrl(id));
         statusSourceRef.current = source;
+        // Hard cap on how long the pill can sit in the 'speaking' state
+        // without ever hearing back from the backend. Covers the case where
+        // the gen row is deleted mid-flight (SSE 404s and EventSource silently
+        // retries) or the backend goes away while a request is in flight.
+        // Clears as soon as a real status event lands.
+        clearStatusTimeout();
+        statusTimeoutRef.current = window.setTimeout(() => {
+          statusTimeoutRef.current = null;
+          if (speakingRef.current?.generationId === id && !audioRef.current) {
+            dismissSpeak(id);
+          }
+        }, 60_000);
         source.onmessage = (msg) => {
           try {
             const data = JSON.parse(msg.data) as { status?: string };
             if (data.status === 'completed') {
+              clearStatusTimeout();
               source.close();
               if (statusSourceRef.current === source) statusSourceRef.current = null;
               startSpeakPlayback(id);
             } else if (data.status === 'failed' || data.status === 'not_found') {
+              clearStatusTimeout();
               source.close();
               dismissSpeak(id);
             }
@@ -188,9 +211,8 @@ export function DictateWindow() {
           }
         };
         source.onerror = () => {
-          // Let browser retry a few times; if it gives up, force-dismiss.
-          // We don't close here because EventSource auto-reconnects on
-          // transient drops and we'd like to keep trying.
+          // EventSource auto-reconnects on transient drops; the timeout above
+          // is the backstop for the case where it never recovers.
         };
       }),
     );
