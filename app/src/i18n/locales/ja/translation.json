@@ -29,7 +29,6 @@
     "snippetEmpty": "(文字起こしなし)",
     "noTranscriptError": "このキャプチャにはまだ文字起こしがありません",
     "captureCardLabel": "キャプチャ · {{when}}",
-    "playerVoiceLabel": "{{voice}} · {{captureId}}",
     "header": {
       "modelSummary": "Whisper {{stt}} · Qwen3 · {{llm}}"
     },

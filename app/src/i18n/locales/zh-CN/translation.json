@@ -29,7 +29,6 @@
     "snippetEmpty": "(暂无转录)",
     "noTranscriptError": "此次捕获尚无转录文本",
     "captureCardLabel": "捕获 · {{when}}",
-    "playerVoiceLabel": "{{voice}} · {{captureId}}",
     "header": {
       "modelSummary": "Whisper {{stt}} · Qwen3 · {{llm}}"
     },

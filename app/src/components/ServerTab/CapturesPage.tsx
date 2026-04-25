@@ -34,25 +34,6 @@ import { displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
 import type { Qwen3ModelSize, VoiceProfileResponse, WhisperModelSize } from '@/lib/api/types';
 import { SettingRow, SettingSection } from './SettingRow';
 
-const VOICE_GRADIENTS = [
-  'from-blue-400 to-indigo-500',
-  'from-emerald-400 to-teal-500',
-  'from-purple-500 to-fuchsia-500',
-  'from-amber-400 to-rose-500',
-  'from-rose-400 to-pink-500',
-  'from-cyan-400 to-sky-500',
-];
-
-function voiceGradient(voiceId: string): string {
-  // Stable hash so the same voice always renders with the same gradient —
-  // avoids the avatar flicker that would happen if we picked by index.
-  let hash = 0;
-  for (let i = 0; i < voiceId.length; i += 1) {
-    hash = (hash * 31 + voiceId.charCodeAt(i)) | 0;
-  }
-  return VOICE_GRADIENTS[Math.abs(hash) % VOICE_GRADIENTS.length];
-}
-
 function ChordPreview({ keys }: { keys: string[] }) {
   const { t } = useTranslation();
   if (keys.length === 0) {
@@ -514,15 +495,7 @@ export function CapturesPage() {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {defaultVoice ? (
-                      <>
-                        <div
-                          className={cn(
-                            'h-5 w-5 rounded-full bg-gradient-to-br shrink-0 ring-1 ring-white/10',
-                            voiceGradient(defaultVoice.id),
-                          )}
-                        />
-                        <span className="truncate">{defaultVoice.name}</span>
-                      </>
+                      <span className="truncate">{defaultVoice.name}</span>
                     ) : (
                       <span className="truncate text-muted-foreground">
                         {voices.length === 0
@@ -545,12 +518,6 @@ export function CapturesPage() {
                     onClick={() => update({ default_playback_voice_id: v.id })}
                     className="gap-2.5 py-2"
                   >
-                    <div
-                      className={cn(
-                        'h-7 w-7 rounded-full bg-gradient-to-br shrink-0 ring-1 ring-white/10',
-                        voiceGradient(v.id),
-                      )}
-                    />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{v.name}</div>
                       {v.description ? (

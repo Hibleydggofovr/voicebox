@@ -29,7 +29,6 @@
     "snippetEmpty": "(no transcript)",
     "noTranscriptError": "Capture has no transcript yet",
     "captureCardLabel": "Capture · {{when}}",
-    "playerVoiceLabel": "{{voice}} · {{captureId}}",
     "header": {
       "modelSummary": "Whisper {{stt}} · Qwen3 · {{llm}}"
     },

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AudioBars } from '@/components/AudioBars';
 import { CapturePill } from '@/components/CapturePill/CapturePill';
 import { CaptureInlinePlayer } from '@/components/CapturesTab/CaptureInlinePlayer';
 import { DictationReadinessChecklist } from '@/components/CapturesTab/DictationReadinessChecklist';
@@ -71,6 +72,7 @@ import { useCaptureSettings } from '@/lib/hooks/useSettings';
 import { cn } from '@/lib/utils/cn';
 import { formatAbsoluteDate, formatDate } from '@/lib/utils/format';
 import { displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
+import { useGenerationStore } from '@/stores/generationStore';
 import { usePlayerStore } from '@/stores/playerStore';
 
 const CAPTURE_AUDIO_MIME = 'audio/*,.wav,.mp3,.m4a,.flac,.ogg,.webm';
@@ -144,15 +146,18 @@ export function CapturesTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showRefined, setShowRefined] = useState(true);
-  const [playAsVoiceId, setPlayAsVoiceId] = useState<string | null>(null);
-  const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
+  const [launchedPlayAsId, setLaunchedPlayAsId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const setAudioWithAutoPlay = usePlayerStore((s) => s.setAudioWithAutoPlay);
   const audioUrl = usePlayerStore((s) => s.audioUrl);
+  const playerAudioId = usePlayerStore((s) => s.audioId);
+  const playerIsPlaying = usePlayerStore((s) => s.isPlaying);
   const isPlayerVisible = !!audioUrl;
 
-  const { settings: captureSettings } = useCaptureSettings();
+  const addPendingGeneration = useGenerationStore((s) => s.addPendingGeneration);
+  const pendingGenerationIds = useGenerationStore((s) => s.pendingGenerationIds);
+
+  const { settings: captureSettings, update: updateCaptureSettings } = useCaptureSettings();
   const sttModel = captureSettings?.stt_model ?? 'turbo';
   const llmModel = captureSettings?.llm_model ?? '0.6B';
   const hotkeyEnabled = captureSettings?.hotkey_enabled ?? false;
@@ -187,13 +192,6 @@ export function CapturesTab() {
       setSelectedId(captures[0].id);
     }
   }, [captures, selectedId]);
-
-  // Default the Play-as voice to the first profile we see.
-  useEffect(() => {
-    if (!playAsVoiceId && profiles && profiles.length) {
-      setPlayAsVoiceId(profiles[0].id);
-    }
-  }, [profiles, playAsVoiceId]);
 
   // Live sync from sibling Tauri webviews (the floating dictate window).
   // ``capture:created`` carries the full row so we can seed the cache before
@@ -238,7 +236,15 @@ export function CapturesTab() {
   }, [search, captures]);
 
   const selected = captures.find((c) => c.id === selectedId) ?? null;
-  const playAsVoice = profiles?.find((p) => p.id === playAsVoiceId) ?? null;
+  // Source of truth is capture_settings.default_playback_voice_id, shared
+  // with Settings → Captures and the MCP global default. Stale ids (e.g.
+  // referenced profile was deleted) fall through to the first profile.
+  const storedVoiceId = captureSettings?.default_playback_voice_id ?? null;
+  const playAsVoice =
+    (storedVoiceId && profiles?.find((p) => p.id === storedVoiceId)) ||
+    profiles?.[0] ||
+    null;
+  const playAsVoiceId = playAsVoice?.id ?? null;
 
   const deleteMutation = useMutation({
     mutationFn: async (captureId: string) => apiClient.deleteCapture(captureId),
@@ -263,35 +269,32 @@ export function CapturesTab() {
         | 'qwen' | 'qwen_custom_voice' | 'luxtts' | 'chatterbox'
         | 'chatterbox_turbo' | 'tada' | 'kokoro'
         | undefined;
-      const result = await apiClient.generateSpeech({
+      return apiClient.generateSpeech({
         profile_id: voice.id,
         text,
         language,
         engine,
       });
-      return { capture, voice, result };
     },
-    onSuccess: ({ capture, voice, result }) => {
-      if (result.audio_path && result.id) {
-        setAudioWithAutoPlay(
-          apiClient.getAudioUrl(result.id),
-          result.id,
-          voice.id,
-          t('captures.playerVoiceLabel', { voice: voice.name, captureId: capture.id.slice(0, 8) }),
-        );
-        setPlaybackState('playing');
-      }
+    onSuccess: (result) => {
+      // /generate is queue-based — it returns a generating row with an empty
+      // audio_path. Hand the id to the global SSE handler which polls
+      // /generation/{id}/status and triggers autoplay on completion.
+      setLaunchedPlayAsId(result.id);
+      addPendingGeneration(result.id);
     },
     onError: (err: Error) => {
-      setPlaybackState('idle');
       toast({ title: t('captures.toast.playAsFailed'), description: err.message, variant: 'destructive' });
     },
   });
 
-  // Pull playback state back to idle when the player closes out.
-  useEffect(() => {
-    if (!audioUrl) setPlaybackState('idle');
-  }, [audioUrl]);
+  const playbackState: PlaybackState = playAsMutation.isPending
+    ? 'generating'
+    : launchedPlayAsId && pendingGenerationIds.has(launchedPlayAsId)
+      ? 'generating'
+      : launchedPlayAsId && playerAudioId === launchedPlayAsId && playerIsPlaying
+        ? 'playing'
+        : 'idle';
 
   const handleUploadClick = () => uploadInputRef.current?.click();
 
@@ -416,8 +419,9 @@ export function CapturesTab() {
       });
       return;
     }
-    if (voice && voice.id !== playAsVoiceId) setPlayAsVoiceId(voice.id);
-    setPlaybackState('generating');
+    if (voice && voice.id !== playAsVoiceId) {
+      updateCaptureSettings({ default_playback_voice_id: voice.id });
+    }
     playAsMutation.mutate({ capture: selected, voice: target });
   };
 
@@ -691,12 +695,12 @@ export function CapturesTab() {
                   className={cn(
                     'gap-2 rounded-r-none border-r-0 pr-3 pl-2 transition-colors',
                     playbackState !== 'idle' &&
-                      'border-accent/50 text-foreground bg-accent/10 hover:bg-accent/15',
+                      'border-accent/50 text-foreground bg-accent/10 hover:bg-accent/15 hover:text-foreground hover:border-accent/50',
                   )}
                 >
                   {playbackState === 'generating' ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <AudioBars mode="generating" className="h-3.5" />
                       {t('captures.actions.playAsGenerating')}
                     </>
                   ) : playbackState === 'playing' ? (
@@ -723,7 +727,7 @@ export function CapturesTab() {
                       className={cn(
                         'rounded-l-none px-2 transition-colors',
                         playbackState !== 'idle' &&
-                          'border-accent/50 bg-accent/10 hover:bg-accent/15',
+                          'border-accent/50 bg-accent/10 hover:bg-accent/15 hover:text-foreground hover:border-accent/50',
                       )}
                       disabled={!profiles || !profiles.length}
                     >

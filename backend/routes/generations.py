@@ -215,7 +215,19 @@ async def cancel_generation(generation_id: str, db: Session = Depends(get_db)):
 
     cancellation_state = cancel_generation_job(generation_id)
     if cancellation_state is None:
-        raise HTTPException(status_code=409, detail="Generation is no longer cancellable")
+        # Row says active but the worker is no longer tracking it — the gen
+        # coroutine exited without writing a terminal status (most often a
+        # SQLite lock racing with the failed-status write inside the worker's
+        # exception handler). Fail the row here so the user can move on.
+        task_manager = get_task_manager()
+        task_manager.complete_generation(generation_id)
+        await history.update_generation_status(
+            generation_id=generation_id,
+            status="failed",
+            db=db,
+            error="Generation orphaned by worker",
+        )
+        return {"message": "Orphaned generation cleared"}
 
     if cancellation_state == "queued":
         task_manager = get_task_manager()

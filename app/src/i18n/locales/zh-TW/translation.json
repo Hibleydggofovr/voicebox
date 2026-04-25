@@ -29,7 +29,6 @@
     "snippetEmpty": "(無轉錄文字)",
     "noTranscriptError": "此擷取尚無轉錄文字",
     "captureCardLabel": "擷取 · {{when}}",
-    "playerVoiceLabel": "{{voice}} · {{captureId}}",
     "header": {
       "modelSummary": "Whisper {{stt}} · Qwen3 · {{llm}}"
     },
