@@ -129,15 +129,19 @@ const TRACK_HEIGHT = 48;
 const TIME_RULER_HEIGHT = 24; // h-6 = 1.5rem = 24px
 const SCRUB_BAR_HEIGHT = 16;
 const LABEL_COL_WIDTH = 64; // w-16 = 4rem = 64px
-const MIN_PIXELS_PER_SECOND = 10;
-const MAX_PIXELS_PER_SECOND = 200;
-const DEFAULT_PIXELS_PER_SECOND = 50;
+// Zoom is expressed to the user as how many seconds of timeline are visible
+// at once. Min scope = the most you can zoom IN; max scope = the entire
+// project. Default scope is what we land on when the editor first measures.
+const MIN_VISIBLE_SECONDS = 10;
+const DEFAULT_VISIBLE_SECONDS = 60;
+const FALLBACK_PIXELS_PER_SECOND = 50; // used until containerWidth is measured
 const DEFAULT_TRACKS = [1, 0, -1]; // Default 3 tracks
 const MIN_EDITOR_HEIGHT = 120;
 const MAX_EDITOR_HEIGHT = 500;
 
 export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
-  const [pixelsPerSecond, setPixelsPerSecond] = useState(DEFAULT_PIXELS_PER_SECOND);
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(FALLBACK_PIXELS_PER_SECOND);
+  const hasAppliedDefaultZoomRef = useRef(false);
   const [draggingItem, setDraggingItem] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
@@ -336,6 +340,41 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
     return Math.max(...items.map((item) => item.start_time_ms + getEffectiveDuration(item)), 10000);
   }, [items, getEffectiveDuration]);
 
+  // Zoom bounds are framed in seconds-of-timeline-visible-at-once (the
+  // "scope") rather than abstract pixels-per-second so the bar reflects
+  // something meaningful: fully zoomed out shows the entire project, fully
+  // zoomed in shows MIN_VISIBLE_SECONDS. Convert to pixels using the visible
+  // track area (container minus the sticky label column).
+  const visibleTrackWidth = Math.max(0, containerWidth - LABEL_COL_WIDTH);
+  const projectSeconds = totalDurationMs / 1000;
+  const { minPps, maxPps } = useMemo(() => {
+    if (visibleTrackWidth <= 0 || projectSeconds <= 0) {
+      return { minPps: 10, maxPps: 200 };
+    }
+    const min = visibleTrackWidth / projectSeconds;
+    const max = visibleTrackWidth / MIN_VISIBLE_SECONDS;
+    // For projects shorter than MIN_VISIBLE_SECONDS the entire bar collapses
+    // to one point; clamp so the range stays non-inverted.
+    return { minPps: min, maxPps: Math.max(max, min) };
+  }, [visibleTrackWidth, projectSeconds]);
+
+  // Apply the default scope (60 s, or the whole project if shorter) once we
+  // have a real measurement to convert it into pixels-per-second.
+  useEffect(() => {
+    if (hasAppliedDefaultZoomRef.current) return;
+    if (visibleTrackWidth <= 0) return;
+    const defaultScope = Math.min(DEFAULT_VISIBLE_SECONDS, Math.max(projectSeconds, MIN_VISIBLE_SECONDS));
+    setPixelsPerSecond(visibleTrackWidth / defaultScope);
+    hasAppliedDefaultZoomRef.current = true;
+  }, [visibleTrackWidth, projectSeconds]);
+
+  // Re-clamp the current zoom whenever the bounds shift (project length
+  // changed, window resized) so the user can't end up parked outside the
+  // valid range from a previous session.
+  useEffect(() => {
+    setPixelsPerSecond((prev) => Math.max(minPps, Math.min(maxPps, prev)));
+  }, [minPps, maxPps]);
+
   // Calculate timeline width - at least full container width
   const contentWidth = (totalDurationMs / 1000) * pixelsPerSecond + 200; // Content width with padding
   const timelineWidth = Math.max(contentWidth, containerWidth);
@@ -367,11 +406,11 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
   const pixelsToMs = useCallback((px: number) => (px / pixelsPerSecond) * 1000, [pixelsPerSecond]);
 
   const handleZoomIn = () => {
-    setPixelsPerSecond((prev) => Math.min(prev * 1.5, MAX_PIXELS_PER_SECOND));
+    setPixelsPerSecond((prev) => Math.min(prev * 1.5, maxPps));
   };
 
   const handleZoomOut = () => {
-    setPixelsPerSecond((prev) => Math.max(prev / 1.5, MIN_PIXELS_PER_SECOND));
+    setPixelsPerSecond((prev) => Math.max(prev / 1.5, minPps));
   };
 
   // Resize handlers
@@ -903,10 +942,7 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
 
       const newTimelinePx = (containerWidth / newThumbWidth) * scrollbarTrackWidth;
       const rawPps = (newTimelinePx - 200) / (totalDurationMs / 1000);
-      const newPps = Math.max(
-        MIN_PIXELS_PER_SECOND,
-        Math.min(MAX_PIXELS_PER_SECOND, rawPps),
-      );
+      const newPps = Math.max(minPps, Math.min(maxPps, rawPps));
 
       zoomAnchorRef.current =
         drag.mode === 'right'
@@ -932,7 +968,7 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [maxTimelineScroll, thumbRange, scrollbarTrackWidth, containerWidth, totalDurationMs]);
+  }, [maxTimelineScroll, thumbRange, scrollbarTrackWidth, containerWidth, totalDurationMs, minPps, maxPps]);
 
   if (items.length === 0) {
     return null;
@@ -1304,8 +1340,8 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
                 role="slider"
                 aria-label="Zoom from left edge"
                 aria-valuenow={Math.round(pixelsPerSecond)}
-                aria-valuemin={MIN_PIXELS_PER_SECOND}
-                aria-valuemax={MAX_PIXELS_PER_SECOND}
+                aria-valuemin={Math.round(minPps)}
+                aria-valuemax={Math.round(maxPps)}
                 className="absolute top-0 bottom-0 left-0 w-1.5 cursor-ew-resize bg-foreground/25 hover:bg-foreground/40 transition-colors rounded-l-full"
                 onMouseDown={handleScrollbarMouseDown('left')}
               />
@@ -1324,8 +1360,8 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
                 role="slider"
                 aria-label="Zoom from right edge"
                 aria-valuenow={Math.round(pixelsPerSecond)}
-                aria-valuemin={MIN_PIXELS_PER_SECOND}
-                aria-valuemax={MAX_PIXELS_PER_SECOND}
+                aria-valuemin={Math.round(minPps)}
+                aria-valuemax={Math.round(maxPps)}
                 className="absolute top-0 bottom-0 right-0 w-1.5 cursor-ew-resize bg-foreground/25 hover:bg-foreground/40 transition-colors rounded-r-full"
                 onMouseDown={handleScrollbarMouseDown('right')}
               />
