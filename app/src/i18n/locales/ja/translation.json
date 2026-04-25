@@ -1022,6 +1022,10 @@
         "crossPlatform": {
           "title": "クロスプラットフォーム。",
           "body": "macOS、Windows、Linux で同じショートカットと同じフローを利用できます。"
+        },
+        "windowsCaveat": {
+          "title": "Windows での注意点",
+          "body": "Voicebox 自体や管理者として実行中のアプリにフォーカスがあるあいだは、ショートカットが反応しません。現在対応中です。"
         }
       }
     },

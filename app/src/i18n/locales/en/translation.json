@@ -1022,6 +1022,10 @@
         "crossPlatform": {
           "title": "Cross-platform.",
           "body": "Same shortcut, same flow on macOS, Windows, and Linux."
+        },
+        "windowsCaveat": {
+          "title": "Heads-up on Windows",
+          "body": "The shortcut won't fire while Voicebox itself or any app running as administrator is focused. Working on it."
         }
       }
     },

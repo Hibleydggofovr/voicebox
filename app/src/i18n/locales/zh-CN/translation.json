@@ -1022,6 +1022,10 @@
         "crossPlatform": {
           "title": "跨平台。",
           "body": "在 macOS、Windows 和 Linux 上使用相同的快捷键和流程。"
+        },
+        "windowsCaveat": {
+          "title": "Windows 上的提示",
+          "body": "当 Voicebox 自身或任何以管理员身份运行的应用处于焦点时,快捷键不会触发。我们正在解决这个问题。"
         }
       }
     },

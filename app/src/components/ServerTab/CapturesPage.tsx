@@ -1,4 +1,4 @@
-import { Check, ChevronDown, FolderOpen, Keyboard, Laptop, Lock, Volume2 } from 'lucide-react';
+import { Check, ChevronDown, FolderOpen, Info, Keyboard, Laptop, Lock, Volume2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityNotice } from '@/components/AccessibilityGate/AccessibilityGate';
@@ -60,6 +60,9 @@ function ChordPreview({ keys }: { keys: string[] }) {
     </div>
   );
 }
+
+const isWindows =
+  typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
 
 const PILL_SEQUENCE: PillState[] = ['recording', 'transcribing', 'refining', 'rest'];
 const PILL_DURATIONS: Partial<Record<PillState, number>> = {
@@ -569,6 +572,21 @@ export function CapturesPage() {
               </span>
             </li>
           </ul>
+          {isWindows && (
+            <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5">
+              <div className="flex items-start gap-2.5">
+                <Info className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">
+                    {t('settings.captures.sidebar.windowsCaveat.title')}
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {t('settings.captures.sidebar.windowsCaveat.body')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Same six-gate checklist the CapturesTab empty state uses.
