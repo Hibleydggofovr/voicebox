@@ -106,18 +106,24 @@ export function StoryChatItem({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">
-          <span className="font-medium text-sm">{item.profile_name}</span>
-          <span className="text-xs text-muted-foreground">{item.language}</span>
+          <span className="font-medium text-sm truncate">
+            {item.engine === 'import' ? item.text : item.profile_name}
+          </span>
+          {item.engine !== 'import' && (
+            <span className="text-xs text-muted-foreground">{item.language}</span>
+          )}
           <span className="text-xs text-muted-foreground tabular-nums ml-auto">
             {formatTime(itemStartMs)}
           </span>
         </div>
-        <Textarea
-          value={item.text}
-          className="flex-1 resize-none text-sm text-muted-foreground select-text bg-card cursor-text"
-          readOnly
-          onDoubleClick={handlePlay}
-        />
+        {item.engine === 'import' ? null : (
+          <Textarea
+            value={item.text}
+            className="flex-1 resize-none text-sm text-muted-foreground select-text bg-card cursor-text"
+            readOnly
+            onDoubleClick={handlePlay}
+          />
+        )}
       </div>
 
       {/* Actions */}

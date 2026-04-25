@@ -1270,7 +1270,7 @@ export function StoryTrackEditor({ storyId, items }: StoryTrackEditorProps) {
                       {/* Clip label */}
                       <div className="absolute top-0 left-1 right-1 z-10">
                         <p className="text-[9px] font-medium text-accent-foreground truncate">
-                          {item.profile_name}
+                          {item.engine === 'import' ? item.text : item.profile_name}
                         </p>
                       </div>
                       {/* Waveform */}
