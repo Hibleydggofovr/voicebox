@@ -7,6 +7,7 @@ ContextVar so tool implementations can read it without plumbing the request
 object through every service call.
 """
 
+import asyncio
 import ipaddress
 import logging
 from contextvars import ContextVar
@@ -19,6 +20,10 @@ from starlette.types import ASGIApp
 
 
 logger = logging.getLogger(__name__)
+
+# Strong refs to in-flight stamp tasks so asyncio.create_task results
+# don't get garbage-collected mid-flight (cf. asyncio.create_task docs).
+_pending_stamps: set[asyncio.Task] = set()
 
 CLIENT_ID_HEADER = "X-Voicebox-Client-Id"
 
@@ -86,8 +91,28 @@ class ClientIdMiddleware(BaseHTTPMiddleware):
             current_remote_addr.reset(addr_token)
 
         if client_id and _is_stamped_path(request.url.path):
-            _stamp_last_seen(client_id)
+            _enqueue_stamp(client_id)
         return response
+
+
+def _enqueue_stamp(client_id: str) -> None:
+    """Fire-and-forget the SQLite write so it doesn't block the response.
+
+    The stamp does sync SQLAlchemy I/O; running it inline on the event loop
+    serialises every MCP request behind the SQLite write and starves SSE
+    streams. ``asyncio.to_thread`` parks it on the default executor while
+    the response goes back to the caller.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # Middleware shouldn't run outside a loop, but if it ever does
+        # (tests, weird wsgi shim), do the write inline rather than drop it.
+        _stamp_last_seen(client_id)
+        return
+    task = loop.create_task(asyncio.to_thread(_stamp_last_seen, client_id))
+    _pending_stamps.add(task)
+    task.add_done_callback(_pending_stamps.discard)
 
 
 def _is_stamped_path(path: str) -> bool:
