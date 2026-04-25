@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 
 from ..database import CaptureSettings as DBCaptureSettings
 from ..database import GenerationSettings as DBGenerationSettings
+from ..utils.capture_chords import (
+    default_push_to_talk_chord,
+    default_toggle_to_talk_chord,
+)
 
 
 SINGLETON_ID = 1
@@ -21,7 +25,11 @@ SINGLETON_ID = 1
 def _get_or_create_capture_row(db: Session) -> DBCaptureSettings:
     row = db.query(DBCaptureSettings).filter(DBCaptureSettings.id == SINGLETON_ID).first()
     if row is None:
-        row = DBCaptureSettings(id=SINGLETON_ID)
+        row = DBCaptureSettings(
+            id=SINGLETON_ID,
+            chord_push_to_talk_keys=default_push_to_talk_chord(),
+            chord_toggle_to_talk_keys=default_toggle_to_talk_chord(),
+        )
         db.add(row)
         db.commit()
         db.refresh(row)

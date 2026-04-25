@@ -6,6 +6,11 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
+from .utils.capture_chords import (
+    default_push_to_talk_chord,
+    default_toggle_to_talk_chord,
+)
+
 
 class VoiceProfileCreate(BaseModel):
     """Request model for creating a voice profile."""
@@ -253,9 +258,11 @@ class CaptureSettingsResponse(BaseModel):
     allow_auto_paste: bool = True
     default_playback_voice_id: Optional[str] = None
     hotkey_enabled: bool = False
-    chord_push_to_talk_keys: List[str] = Field(default_factory=lambda: ["MetaRight", "AltGr"])
+    chord_push_to_talk_keys: List[str] = Field(
+        default_factory=default_push_to_talk_chord
+    )
     chord_toggle_to_talk_keys: List[str] = Field(
-        default_factory=lambda: ["MetaRight", "AltGr", "Space"]
+        default_factory=default_toggle_to_talk_chord
     )
 
     class Config:

@@ -6,6 +6,11 @@ import uuid
 from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 
+from ..utils.capture_chords import (
+    default_push_to_talk_chord,
+    default_toggle_to_talk_chord,
+)
+
 Base = declarative_base()
 
 
@@ -205,14 +210,13 @@ class CaptureSettings(Base):
     # "Voicebox would like to receive keystrokes from any application" dialog
     # before they've even opened the Captures tab.
     hotkey_enabled = Column(Boolean, nullable=False, default=False)
-    # Lists of rdev::Key variant names (e.g. "MetaRight", "AltGr"). Right-hand
-    # modifiers by default so they don't collide with left-hand system
-    # shortcuts (Cmd+Opt+I devtools, Cmd+Opt+Esc force-quit).
+    # Lists of keytap key names (e.g. "MetaRight", "ControlRight"). Right-hand
+    # modifiers by default so they don't collide with left-hand shortcuts.
     chord_push_to_talk_keys = Column(
-        JSON, nullable=False, default=lambda: ["MetaRight", "AltGr"]
+        JSON, nullable=False, default=default_push_to_talk_chord
     )
     chord_toggle_to_talk_keys = Column(
-        JSON, nullable=False, default=lambda: ["MetaRight", "AltGr", "Space"]
+        JSON, nullable=False, default=default_toggle_to_talk_chord
     )
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

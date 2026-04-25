@@ -30,7 +30,7 @@ import { useProfiles } from '@/lib/hooks/useProfiles';
 import { usePlatform } from '@/platform/PlatformContext';
 import { useServerStore } from '@/stores/serverStore';
 import { cn } from '@/lib/utils/cn';
-import { displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
+import { defaultChordKeys, displayLabelForKey, modifierSideHint } from '@/lib/utils/keyCodes';
 import type { Qwen3ModelSize, VoiceProfileResponse, WhisperModelSize } from '@/lib/api/types';
 import { SettingRow, SettingSection } from './SettingRow';
 
@@ -135,8 +135,8 @@ export function CapturesPage() {
   const allowAutoPaste = settings?.allow_auto_paste ?? true;
   const defaultVoiceId = settings?.default_playback_voice_id ?? null;
   const hotkeyEnabled = settings?.hotkey_enabled ?? false;
-  const pushToTalkKeys = settings?.chord_push_to_talk_keys ?? ['MetaRight', 'AltGr'];
-  const toggleToTalkKeys = settings?.chord_toggle_to_talk_keys ?? ['MetaRight', 'AltGr', 'Space'];
+  const pushToTalkKeys = settings?.chord_push_to_talk_keys ?? defaultChordKeys('push');
+  const toggleToTalkKeys = settings?.chord_toggle_to_talk_keys ?? defaultChordKeys('toggle');
 
   // Mock-only settings — not yet wired to a backend. Keep local so the UI
   // still responds while Phase 7 (hotkey / clipboard / paste) catches up.

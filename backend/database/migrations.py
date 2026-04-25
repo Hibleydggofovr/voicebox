@@ -17,10 +17,16 @@ Adding a new migration:
        (idempotent) and print a short message when it does real work.
 """
 
+import json
 import logging
 import sqlite3
 
 from sqlalchemy import inspect, text
+
+from ..utils.capture_chords import (
+    default_push_to_talk_chord,
+    default_toggle_to_talk_chord,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +206,8 @@ def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
     if "capture_settings" not in tables:
         return
     columns = _get_columns(inspector, "capture_settings")
+    push_default = json.dumps(default_push_to_talk_chord())
+    toggle_default = json.dumps(default_toggle_to_talk_chord())
     if "allow_auto_paste" not in columns:
         _add_column(
             engine,
@@ -218,14 +226,14 @@ def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
         _add_column(
             engine,
             "capture_settings",
-            "chord_push_to_talk_keys TEXT NOT NULL DEFAULT '[\"MetaRight\",\"AltGr\"]'",
+            f"chord_push_to_talk_keys TEXT NOT NULL DEFAULT '{push_default}'",
             "chord_push_to_talk_keys",
         )
     if "chord_toggle_to_talk_keys" not in columns:
         _add_column(
             engine,
             "capture_settings",
-            "chord_toggle_to_talk_keys TEXT NOT NULL DEFAULT '[\"MetaRight\",\"AltGr\",\"Space\"]'",
+            f"chord_toggle_to_talk_keys TEXT NOT NULL DEFAULT '{toggle_default}'",
             "chord_toggle_to_talk_keys",
         )
     if "hotkey_enabled" not in columns:

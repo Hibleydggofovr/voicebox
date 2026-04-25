@@ -1,13 +1,13 @@
 /**
  * Stable key-name vocabulary shared with the Rust `key_codes` module.
  *
- * The chord persistence layer stores rdev `Key` variant names ("MetaRight",
+ * The chord persistence layer stores keytap `Key` variant names ("MetaRight",
  * "AltGr", "KeyA", …) so the same array round-trips losslessly between
  * the picker UI, the SQLite settings row, and the global hotkey listener.
  *
  * This module owns the conversions between three vocabularies:
  *   - browser `KeyboardEvent` (`event.code` like "MetaRight" / "AltRight")
- *   - canonical chord key names (matches rdev variants)
+ *   - canonical chord key names (matches keytap variants)
  *   - human display labels ("⌘", "⌥", "A", …)
  */
 
@@ -16,8 +16,8 @@
  * `null` for keys we don't support in chords (dead keys, IME composition,
  * etc.).
  *
- * Browser quirk: right-Option on macOS is reported as `"AltRight"`; rdev
- * calls it `"AltGr"`. Normalize to rdev's name so the Rust side recognizes
+ * Browser quirk: right-Option on macOS is reported as `"AltRight"`; keytap
+ * calls it `"AltGr"`. Normalize to keytap's name so the Rust side recognizes
  * it without an aliasing layer.
  */
 export function canonicalKeyFromEvent(event: KeyboardEvent): string | null {
@@ -53,7 +53,7 @@ export function canonicalKeyFromEvent(event: KeyboardEvent): string | null {
     default:
       // Browser names like "MetaRight", "MetaLeft", "ControlLeft",
       // "ShiftRight", "Space", "KeyA", "Digit1", "F5" all match the
-      // rdev variant names directly.
+      // keytap variant names directly.
       if (
         /^(Meta|Control|Shift)(Left|Right)$/.test(code) ||
         /^Key[A-Z]$/.test(code) ||
@@ -71,6 +71,13 @@ export function canonicalKeyFromEvent(event: KeyboardEvent): string | null {
 
 const PLATFORM_IS_MAC =
   typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+
+export function defaultChordKeys(mode: 'push' | 'toggle'): string[] {
+  const base = PLATFORM_IS_MAC
+    ? ['MetaRight', 'AltGr']
+    : ['ControlRight', 'ShiftRight'];
+  return mode === 'toggle' ? [...base, 'Space'] : base;
+}
 
 /**
  * Pretty label for a canonical key name. Picks platform-appropriate

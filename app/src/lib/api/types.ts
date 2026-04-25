@@ -213,9 +213,9 @@ export interface CaptureSettings {
   /** Whether the global keyboard hotkey is armed. Off by default — turning
    *  this on triggers the macOS Input Monitoring TCC prompt. */
   hotkey_enabled: boolean;
-  /** rdev::Key variant names. Defaults: ["MetaRight","AltGr"]. */
+  /** keytap key names. Defaults are platform-specific right-hand modifiers. */
   chord_push_to_talk_keys: string[];
-  /** rdev::Key variant names. Defaults: ["MetaRight","AltGr","Space"]. */
+  /** keytap key names. Toggle adds Space to the platform-specific PTT chord. */
   chord_toggle_to_talk_keys: string[];
 }
 
