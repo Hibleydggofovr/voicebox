@@ -138,11 +138,6 @@ export function CapturesPage() {
   const pushToTalkKeys = settings?.chord_push_to_talk_keys ?? defaultChordKeys('push');
   const toggleToTalkKeys = settings?.chord_toggle_to_talk_keys ?? defaultChordKeys('toggle');
 
-  // Mock-only settings — not yet wired to a backend. Keep local so the UI
-  // still responds while Phase 7 (hotkey / clipboard / paste) catches up.
-  const [archiveAudio, setArchiveAudio] = useState(true);
-  const [copyToClipboard, setCopyToClipboard] = useState(true);
-  const [retention, setRetention] = useState('forever');
   const [chordEditor, setChordEditor] = useState<'push' | 'toggle' | null>(null);
   const [opening, setOpening] = useState(false);
   const [capturesPath, setCapturesPath] = useState<string | null>(null);
@@ -292,20 +287,6 @@ export function CapturesPage() {
           <HotkeyPillPreview enabled={hotkeyEnabled} />
         </SettingRow>
 
-        <SettingRow
-          title={t('settings.captures.dictation.copyToClipboard.title')}
-          description={t('settings.captures.dictation.copyToClipboard.description')}
-          htmlFor="copyToClipboard"
-          action={
-            <Toggle
-              id="copyToClipboard"
-              checked={copyToClipboard}
-              onCheckedChange={setCopyToClipboard}
-              disabled={!hotkeyEnabled}
-            />
-          }
-        />
-
         <div>
           <SettingRow
             title={t('settings.captures.dictation.autoPaste.title')}
@@ -382,12 +363,6 @@ export function CapturesPage() {
           }
         />
 
-        <SettingRow
-          title={t('settings.captures.transcription.archive.title')}
-          description={t('settings.captures.transcription.archive.description')}
-          htmlFor="archiveAudio"
-          action={<Toggle id="archiveAudio" checked={archiveAudio} onCheckedChange={setArchiveAudio} />}
-        />
       </SettingSection>
 
       <SettingSection
@@ -539,24 +514,6 @@ export function CapturesPage() {
         title={t('settings.captures.storage.title')}
         description={t('settings.captures.storage.description')}
       >
-        <SettingRow
-          title={t('settings.captures.storage.retention.title')}
-          description={t('settings.captures.storage.retention.description')}
-          action={
-            <Select value={retention} onValueChange={setRetention}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="forever">{t('settings.captures.storage.retention.forever')}</SelectItem>
-                <SelectItem value="90d">{t('settings.captures.storage.retention.d90')}</SelectItem>
-                <SelectItem value="30d">{t('settings.captures.storage.retention.d30')}</SelectItem>
-                <SelectItem value="7d">{t('settings.captures.storage.retention.d7')}</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-        />
-
         <SettingRow
           title={t('settings.captures.storage.folder.title')}
           description={capturesPath ?? t('settings.captures.storage.folder.description')}

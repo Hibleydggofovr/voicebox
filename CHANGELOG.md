@@ -70,11 +70,11 @@ Refinement shipped earlier; 0.5.0 closes the stubborn edge cases:
 
 Settings → Captures is now the home for the whole dictation flow:
 
-- **Dictation**: global shortcut toggle, push-to-talk chord picker, toggle chord picker, live pill preview, copy-transcript-to-clipboard, auto-paste into focused field (with inline accessibility prompt).
-- **Transcription**: model picker (Whisper Base / Small / Medium / Large / Turbo), language lock, archive-audio toggle.
+- **Dictation**: global shortcut toggle, push-to-talk chord picker, toggle chord picker, live pill preview, auto-paste into focused field (with inline accessibility prompt).
+- **Transcription**: model picker (Whisper Base / Small / Medium / Large / Turbo), language lock.
 - **Refinement**: auto-refine toggle, model picker, smart cleanup, remove self-corrections, preserve technical terms.
 - **Playback**: default voice for the Captures tab's "Play as" action.
-- **Storage**: retention (forever / 90d / 30d / 7d), clear-all-captures.
+- **Storage**: captures folder quick-open.
 
 ### Interface
 

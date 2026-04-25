@@ -82,8 +82,7 @@ export default function CapturePage() {
               </h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Every dictation keeps both the audio and the transcript. Search, re-run, or turn
-                any capture into a voice sample for cloning. Configurable retention — auto-expire
-                or keep forever.
+                any capture into a voice sample for cloning from the Captures tab.
               </p>
             </div>
           </div>

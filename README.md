@@ -220,7 +220,7 @@ Every dictation, in-app recording, and uploaded audio file lands in the Captures
 - **Edit inline** — tweak the transcript and save on blur
 - **Play as voice profile** — turn any capture into speech with a cloned voice, one click
 - **Promote to voice sample** — use a capture's audio + transcript as a reference sample on any voice profile
-- **Configurable retention** — keep captures forever, or auto-expire after 7 / 30 / 90 days
+- **Local capture storage** — original audio and transcript stay in your Voicebox data directory, with a folder shortcut in Settings
 
 ### Agent Voice Output
 
