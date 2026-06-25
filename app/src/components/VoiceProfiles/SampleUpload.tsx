@@ -71,12 +71,23 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
   });
 
   const selectedFile = form.watch('file');
+  const isAudioTooLong = audioDuration !== null && audioDuration > MAX_AUDIO_DURATION_SECONDS;
 
   useEffect(() => {
+    let isCurrentValidation = true;
+
     if (selectedFile && selectedFile instanceof File) {
+      const fileToValidate = selectedFile as File & { recordedDuration?: number };
       setIsValidatingAudio(true);
-      getAudioDuration(selectedFile as File & { recordedDuration?: number })
+      setAudioDuration(null);
+      form.clearErrors('file');
+
+      getAudioDuration(fileToValidate)
         .then((duration) => {
+          if (!isCurrentValidation) {
+            return;
+          }
+
           setAudioDuration(duration);
           if (duration > MAX_AUDIO_DURATION_SECONDS) {
             form.setError('file', {
@@ -88,11 +99,15 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
           }
         })
         .catch((error) => {
+          if (!isCurrentValidation) {
+            return;
+          }
+
           console.error('Failed to get audio duration:', error);
           setAudioDuration(null);
           const isRecordedFile =
-            selectedFile.name.startsWith('recording-') ||
-            selectedFile.name.startsWith('system-audio-');
+            fileToValidate.name.startsWith('recording-') ||
+            fileToValidate.name.startsWith('system-audio-');
           if (!isRecordedFile) {
             form.setError('file', {
               type: 'manual',
@@ -103,12 +118,19 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
           }
         })
         .finally(() => {
-          setIsValidatingAudio(false);
+          if (isCurrentValidation) {
+            setIsValidatingAudio(false);
+          }
         });
     } else {
       setAudioDuration(null);
       form.clearErrors('file');
+      setIsValidatingAudio(false);
     }
+
+    return () => {
+      isCurrentValidation = false;
+    };
   }, [selectedFile, form]);
 
   const {
@@ -360,9 +382,7 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
                       isPlaying={isPlaying}
                       isValidating={isValidatingAudio}
                       isTranscribing={transcribe.isPending}
-                      isDisabled={
-                        audioDuration !== null && audioDuration > MAX_AUDIO_DURATION_SECONDS
-                      }
+                      isDisabled={isAudioTooLong}
                       fieldName={name}
                     />
                   )}
@@ -436,7 +456,10 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addSample.isPending || isValidatingAudio}>
+              <Button
+                type="submit"
+                disabled={addSample.isPending || isValidatingAudio || isAudioTooLong}
+              >
                 {addSample.isPending ? 'Uploading...' : 'Add Sample'}
               </Button>
             </div>
