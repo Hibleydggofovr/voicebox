@@ -27,10 +27,13 @@ import { useAudioRecording } from '@/lib/hooks/useAudioRecording';
 import { useAddSample, useProfile } from '@/lib/hooks/useProfiles';
 import { useSystemAudioCapture } from '@/lib/hooks/useSystemAudioCapture';
 import { useTranscription } from '@/lib/hooks/useTranscription';
+import { convertToWav, formatAudioDuration, getAudioDuration } from '@/lib/utils/audio';
 import { usePlatform } from '@/platform/PlatformContext';
 import { AudioSampleRecording } from './AudioSampleRecording';
 import { AudioSampleSystem } from './AudioSampleSystem';
 import { AudioSampleUpload } from './AudioSampleUpload';
+
+const MAX_AUDIO_DURATION_SECONDS = 30;
 
 const sampleSchema = z.object({
   file: z.instanceof(File, { message: 'Please select an audio file' }),
@@ -55,16 +58,58 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
   const { data: profile } = useProfile(profileId);
   const { toast } = useToast();
   const [mode, setMode] = useState<'upload' | 'record' | 'system'>('upload');
+  const [audioDuration, setAudioDuration] = useState<number | null>(null);
+  const [isValidatingAudio, setIsValidatingAudio] = useState(false);
   const { isPlaying, playPause, cleanup: cleanupAudio } = useAudioPlayer();
 
   const form = useForm<SampleFormValues>({
     resolver: zodResolver(sampleSchema),
     defaultValues: {
+      file: undefined,
       referenceText: '',
     },
   });
 
   const selectedFile = form.watch('file');
+
+  useEffect(() => {
+    if (selectedFile && selectedFile instanceof File) {
+      setIsValidatingAudio(true);
+      getAudioDuration(selectedFile as File & { recordedDuration?: number })
+        .then((duration) => {
+          setAudioDuration(duration);
+          if (duration > MAX_AUDIO_DURATION_SECONDS) {
+            form.setError('file', {
+              type: 'manual',
+              message: `Audio too long (${formatAudioDuration(duration)}). Maximum is ${formatAudioDuration(MAX_AUDIO_DURATION_SECONDS)}.`,
+            });
+          } else {
+            form.clearErrors('file');
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to get audio duration:', error);
+          setAudioDuration(null);
+          const isRecordedFile =
+            selectedFile.name.startsWith('recording-') ||
+            selectedFile.name.startsWith('system-audio-');
+          if (!isRecordedFile) {
+            form.setError('file', {
+              type: 'manual',
+              message: 'Failed to read audio duration. Try a WAV, MP3, M4A, or FLAC file.',
+            });
+          } else {
+            form.clearErrors('file');
+          }
+        })
+        .finally(() => {
+          setIsValidatingAudio(false);
+        });
+    } else {
+      setAudioDuration(null);
+      form.clearErrors('file');
+    }
+  }, [selectedFile, form]);
 
   const {
     isRecording,
@@ -168,9 +213,37 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
 
   async function onSubmit(data: SampleFormValues) {
     try {
+      const duration = await getAudioDuration(data.file as File & { recordedDuration?: number });
+      if (duration > MAX_AUDIO_DURATION_SECONDS) {
+        form.setError('file', {
+          type: 'manual',
+          message: `Audio too long (${formatAudioDuration(duration)}). Maximum is ${formatAudioDuration(MAX_AUDIO_DURATION_SECONDS)}.`,
+        });
+        toast({
+          title: 'Invalid audio',
+          description: `Sample must be ${formatAudioDuration(MAX_AUDIO_DURATION_SECONDS)} or shorter.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Match create-profile behavior: normalize browser-supported uploads to WAV
+      // before handing them to the backend. This avoids backend decoder failures
+      // for formats like WebM/M4A while adding additional samples.
+      let fileToUpload: File = data.file;
+      if (!data.file.type.includes('wav') && !data.file.name.toLowerCase().endsWith('.wav')) {
+        try {
+          const wavBlob = await convertToWav(data.file);
+          const wavName = data.file.name.replace(/\.[^.]+$/, '.wav');
+          fileToUpload = new File([wavBlob], wavName, { type: 'audio/wav' });
+        } catch {
+          // If the browser can't decode the format, send the original and let the backend try.
+        }
+      }
+
       await addSample.mutateAsync({
         profileId,
-        file: data.file,
+        file: fileToUpload,
         referenceText: data.referenceText,
       });
 
@@ -189,9 +262,23 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
     }
   }
 
+  function resetSampleForm() {
+    form.reset({
+      file: undefined,
+      referenceText: '',
+    });
+    setAudioDuration(null);
+    setIsValidatingAudio(false);
+  }
+
   function handleOpenChange(newOpen: boolean) {
-    if (!newOpen) {
-      form.reset();
+    if (newOpen) {
+      // Each add-sample session should start empty. Without an explicit reset,
+      // React Hook Form can keep the previous File object around after the
+      // nested dialog closes, making the next upload look stuck on that sample.
+      resetSampleForm();
+    } else {
+      resetSampleForm();
       setMode('upload');
       if (isRecording) {
         cancelRecording();
@@ -230,7 +317,16 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={(event) => {
+              // This dialog is rendered from inside the edit-profile form. React
+              // portal submit events still bubble through the React tree, so stop
+              // propagation or the parent profile form also submits and closes.
+              event.stopPropagation();
+              void form.handleSubmit(onSubmit)(event);
+            }}
+            className="space-y-4"
+          >
             <Tabs value={mode} onValueChange={(v) => setMode(v as 'upload' | 'record' | 'system')}>
               <TabsList
                 className={`grid w-full ${platform.metadata.isTauri && isSystemAudioSupported ? 'grid-cols-3' : 'grid-cols-2'}`}
@@ -262,7 +358,11 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
                       onTranscribe={handleTranscribe}
                       onPlayPause={handlePlayPause}
                       isPlaying={isPlaying}
+                      isValidating={isValidatingAudio}
                       isTranscribing={transcribe.isPending}
+                      isDisabled={
+                        audioDuration !== null && audioDuration > MAX_AUDIO_DURATION_SECONDS
+                      }
                       fieldName={name}
                     />
                   )}
@@ -336,7 +436,7 @@ export function SampleUpload({ profileId, open, onOpenChange }: SampleUploadProp
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addSample.isPending}>
+              <Button type="submit" disabled={addSample.isPending || isValidatingAudio}>
                 {addSample.isPending ? 'Uploading...' : 'Add Sample'}
               </Button>
             </div>
